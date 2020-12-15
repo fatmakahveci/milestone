@@ -35,14 +35,14 @@ def check_file_exists(file_name):
 
 # if bam file is not indexed, it creates an index file
 def generate_index_if_needed(bam_file_name):
-	
+
 	bam_index_file = os.path.abspath(bam_file_name) + '.bai'
-	
+
 	if not os.path.isfile(bam_index_file) and not os.path.isfile(os.path.abspath(bam_file_name)[:-4] + '.bai'):
 		print("{} file is not indexed.".format(bam_file_name))
 		pysam.index(bam_file_name, bam_index_file)
 		print("{} file is created.".format(bam_file_name+".bai"))
-		
+
 	return True
 
 
@@ -55,7 +55,7 @@ def bam_file_preprocess():
 
 # taken from: https://www.samformat.info/sam-format-flag
 def get_flag_stats(flag_info, flag_id):
-	
+
 	if flag_id in [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137]:
 		flag_info[1] += 1
 	elif flag_id in [77, 141]:
@@ -89,7 +89,7 @@ def get_flag_info(flag_stats_id):
 def read_sam_file():
 
 	sam_file = pysam.AlignmentFile(bam_file_name, "rb")
-	
+
 	flag_info = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 }
 
 	flag_info_detailed_dict = {}
@@ -118,9 +118,9 @@ def read_sam_file():
 if __name__ == "__main__":
 
 	args = docopt(__doc__)
-	
+
 	bam_file_name = args["--bam"]
 
 	bam_file_preprocess()
-	
+
 	read_sam_file()
