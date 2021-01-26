@@ -1,6 +1,6 @@
 # Milestone Workflow
 
-<div align="center"><img src="./images/milestone.png"></div>
+<div align="center"><img src="./milestone.png"></div>
 
 #### Python Library Installation
 
