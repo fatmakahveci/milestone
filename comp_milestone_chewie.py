@@ -991,9 +991,7 @@ def parse_arguments():
 
     parser.add_argument('--sam', required=False, action='store_true',
                         dest='sam_output',
-                        help='Create SAM file with mapping results. '
-                             'SAM file will be sorted and indexed to '
-                             'be ready to import to IGV.')
+                        help='Create SAM file with mapping results.')
 
     args = parser.parse_args()
 
