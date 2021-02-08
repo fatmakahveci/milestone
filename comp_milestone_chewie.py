@@ -855,19 +855,6 @@ def get_alleles_seqs(loci_alleles, schema_path):
     return loci_seqs
 
 
-#chewie_matrix = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/similar_strains/allelecall_results/results_20201105T233159/masked_masked_results_alleles.tsv'
-#chewie_schema = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/similar_strains/similar_schema'
-#milestone_results = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/ERR3464558.vg.fasta'
-#strain_id = 'ERR3464558'
-#output_dir = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/comp_results'
-#fastq1 = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/ERR3464558_1.fastq'
-#fastq2 = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/ERR3464558_2.fastq'
-#identity = 0.95
-#minimum_frequency = 0.10
-#low_coverage = 10
-#variant_frequency = 0.30
-#sam_output = True
-
 def main(chewie_matrix, chewie_schema, milestone_results, strain_id,
          output_dir, fastq1, fastq2, identity, minimum_frequency,
          low_coverage, variant_frequency, sam_output):
