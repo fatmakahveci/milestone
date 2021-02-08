@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 
-@author: rfm
 """
 
 
@@ -12,8 +11,8 @@ import csv
 import argparse
 import subprocess
 from copy import deepcopy
-from itertools import groupby
 from collections import Counter
+from itertools import groupby, chain
 
 from Bio import SeqIO
 
@@ -105,7 +104,7 @@ def write_lines(lines, output_file):
     write_to_file(joined_lines, output_file, 'a', '\n')
 
 
-def run_minimap2(reference, fastq1, fastq2, output_file):
+def run_minimap2(reference, fastq1, fastq2, output_file, output_type):
     """ Executes minimap2 to map short sequences
         to a reference genome.
 
@@ -129,8 +128,12 @@ def run_minimap2(reference, fastq1, fastq2, output_file):
     """
 
     # -I parameter to control number of target bases loaded into memory
-    minimap_args = ['minimap2 -I 100M --cs -cx sr {0} {1} {2} > '
-                    '{3}'.format(reference, fastq1, fastq2, output_file)]
+    if output_type == 'paf':
+        minimap_args = ['minimap2 -I 100M --cs -cx sr {0} {1} {2} > '
+                        '{3}'.format(reference, fastq1, fastq2, output_file)]
+    elif output_type == 'sam':
+        minimap_args = ['minimap2 -I 100M --cs -ax sr {0} {1} {2} > '
+                        '{3}'.format(reference, fastq1, fastq2, output_file)]
 
     minimap_proc = subprocess.Popen(minimap_args,
                                     shell=True,
@@ -316,7 +319,7 @@ def determine_depth_coverage(intervals, total_len):
         -------
         List with following elements:
             positions_depth : dict
-                Dictonary with sequence positions and keys
+                Dictonary with sequence positions as keys
                 and coverage for each position as values.
             counts : dict
                 Dictionary with coverage values as keys and
@@ -335,13 +338,14 @@ def determine_depth_coverage(intervals, total_len):
     # determine coverage distribution
     counts = sorted(Counter(positions_depth.values()).most_common(),
                     key=lambda x: x[0])
+    counts = {c[0]: c[1] for c in counts}
 
     return [positions_depth, counts]
 
 
 def determine_missing_intervals(intervals, identifier, total_len):
     """ Determines sequence intervals that are not covered by any
-        probes.
+        reads.
 
         Parameters
         ----------
@@ -363,9 +367,9 @@ def determine_missing_intervals(intervals, identifier, total_len):
                 Dictionary with sequence identifiers as keys
                 a list of lists as values. Each sublist has
                 the start and stop positions for a sequence
-                interval that is not covered by probes.
+                interval that is not covered by reads.
             not_covered : int
-                Total number of bases not covered by probes.
+                Total number of bases not covered by reads.
     """
 
     start = 0
@@ -396,53 +400,156 @@ def determine_missing_intervals(intervals, identifier, total_len):
     return [missing_regions, not_covered]
 
 
-def diffs_info(paf_lines, seqs, identity, miss_perc):
-    """
+def select_variants(variants, intervals, minimum_frequency, variant_frequency):
+    """ Identifies variants with high frequency.
+
+        Parameters
+        ----------
+        variants : dict
+            A dictionary with loci identifiers as keys and a list
+            as value with identified variants and the frequency for
+            each variant.
+        intervals : dict
+            A dictionary with loci identifiers as keys and a
+            list as value. Each list has a set of intervals with
+            start positions, stop position and a dictionary with
+            the depth of coverage per position.
+        minimum_frequency : float
+            Minimum coverage/frequency of a SNP or indel to be
+            selected.
+        variant_frequency :
+            Variants with frequency equal or greater than this value
+            are selected as probable variants.
+
+        Returns
+        -------
+        selected_variants: dict
+            A dictionary with loci identifiers as keys and a
+            dictionary with position:variant tuples as keys and
+            with a position_coverage:variant_coverage tuple as
+            value. Stores variants with frequency equal or
+            greater than value passed to minimum_frequency.
+        high_frequency : dict
+            Same structure as previous returned variable but
+            only stores variants with frequency value equal
+            or greater than value passed to variant_frequency.
     """
 
-    # filter out based on percentage of read that has aligned
-    # keep reads that align well at allele extremities?
-    # only keep the best alignment for each read?
+    # select indels or SNPs based on frequency
+    high_frequency = {}
+    selected_variants = {}
+    # for each locus and detected indels/SNPs
+    for k, v in variants.items():
+        counts = v[1]
+        selected = {}
+        probable = {}
+        # for each detected indel/SNP
+        for p, c in counts.items():
+            # get coverage values for locus positions
+            coverage_values = intervals[k]
+            # determine which region the indel/SNP is in
+            for region in coverage_values:
+                if p[0] >= region[0] and p[0] <= region[1]:
+                    pos_cov = region[2][p[0]]
+                    # store indel/SNP info if coverage value for the position
+                    # is 0 or the indel/SNP has high frequency
+                    frequency = (c/(c+pos_cov))
+                    if pos_cov == 0 or frequency >= minimum_frequency:
+                        # key has position and variant (ref to reads)
+                        # value has position coverage and indel/SNP frequency
+                        selected[p] = (pos_cov, c)
+                    if pos_cov == 0 or frequency >= variant_frequency:
+                        probable[p] = (pos_cov, c)
+        selected_variants[k] = selected
+        high_frequency[k] = probable
 
-    valid = deepcopy(paf_lines)
+    return [selected_variants, high_frequency]
+
+
+def process_paf(paf_lines, seqs, identity, minimum_frequency, low_coverage,
+                variant_frequency):
+    """ Processes results in a PAF file in order to determine
+        coverage statistics and identify variants.
+
+        Parameters
+        ----------
+        paf_lines : list
+            A list with all lines in the PAF file generated
+            by minimap2.
+        seqs : dict
+            Dictionary with loci identifiers as keys and DNA
+            sequences of the alleles predicted by Chewie or
+            Milestone as values.
+        identity : float
+            Minimum sequence identity between reference sequences
+            and mapped reads. Mappings below this value are excluded.
+        minimum_frequency : float
+            Minimum coverage/frequency of a SNP or indel to be
+            selected.
+        low_coverage : int
+            Positions with coverage value below this value are
+            identified as low coverage regions.
+        variant_frequency : float
+            Variants with frequency equal or greater than this value
+            are sleected as probable variants.
+
+        Returns
+        -------
+        A list with the following elements:
+            - A dictionary with loci identifiers as keys and a
+            list as value. Each list has a set of intervals with
+            start positions, stop position and a dictionary with
+            the depth of coverage per position.
+            - A list with the mappings that were below the identity
+            threshold.
+            - A dictionary with loci identifiers as keys and a
+            dictionary with position:variant tuples as keys and
+            with a position_coverage:variant_coverage tuple as
+            value.
+            - A dictionary with loci identifiers as keys and a list
+            as value. Each list has the following elements: a list
+            with the breadth of coverage value and the number of
+            covered bases. A list with a dictionary with the locus
+            identifier as key and a list with missing positions as
+            value and the number of missing positions. Mean depth
+            of coverage. Number of positions with 0 coverage.
+            Number of positions below minimum coverage threshold.
+    """
+
+    mapped_reads = deepcopy(paf_lines)
 
     # compute alignment identity
-    for i in range(len(valid)):
-        valid[i].append(int(valid[i][9]) / int(valid[i][10]))
+    for i in range(len(mapped_reads)):
+        mapped_reads[i].append(int(mapped_reads[i][9]) / int(mapped_reads[i][10]))
 
     # filter out alignments below defined identity
-    invalid = [line for line in valid if line[-1] < identity]
-    valid = [line for line in valid if line[-1] >= identity]
+    # this kepps reads that aligned well at sequence extremities
+    invalid_mappings = [line for line in mapped_reads if line[-1] < identity]
+    mapped_reads = [line for line in mapped_reads if line[-1] >= identity]
 
     # match alignment string with regex
     pattern = r':[0-9]+|\*[a-z][a-z]|\+[a-z]+|-[a-z]+'
-    for i in range(len(valid)):
-        current = valid[i][-2]
-        valid[i].append(regex_matcher(current, pattern))
+    for i in range(len(mapped_reads)):
+        current = mapped_reads[i][-2]
+        mapped_reads[i].append(regex_matcher(current, pattern))
 
-    # split results per locus
-    loci_results = {}
-    for l in valid:
-        loci_results.setdefault(l[5], []).append(l)
-
-    # for the results of each locus
     # get information about positions that match to determine coverage
-    for i in range(len(valid)):
-        current = valid[i][-1]
-        start = int(valid[i][7])
-        valid[i].append(single_position_coverage(current, start))
+    for i in range(len(mapped_reads)):
+        current = mapped_reads[i][-1]
+        start = int(mapped_reads[i][7])
+        mapped_reads[i].append(single_position_coverage(current, start))
 
     # get indels and SNPs for each locus
     loci_miss = {}
-    for l in valid:
+    for l in mapped_reads:
         loci_miss.setdefault(l[5], []).extend(l[-1][1])
 
     # indels and SNPs counts
     loci_miss = {k: [v, Counter(v)] for k, v in loci_miss.items()}
 
-    # identify subsequences that are well covered by baits
+    # identify subsequences that are well covered by reads
     covered_intervals = {}
-    for l in valid:
+    for l in mapped_reads:
         covered_intervals.setdefault(l[5], []).append([int(l[7]), int(l[8]), l[-1][0]])
 
     # sort covered intervals
@@ -454,164 +561,383 @@ def diffs_info(paf_lines, seqs, identity, miss_perc):
     merged_intervals = {k: merge_intervals(v)
                         for k, v in covered_intervals_sorted.items()}
 
-    # select indels or SNPs based on frequency
-    selected_miss = {}
-    for k, v in loci_miss.items():
-        counts = v[1]
-        selected_counts = {}
-        for p, c in counts.items():
-            coverage_values = merged_intervals[k]
-            for region in coverage_values:
-                if p[0] >= region[0] and p[0] <= region[1]:
-                    pos_cov = region[2][p[0]]
-                    if pos_cov == 0 or c / pos_cov >= miss_perc:
-                        selected_counts[p] = (c, pos_cov)
-        selected_miss[k] = selected_counts
+    # identify variants and highly probable variants
+    selected_miss, probable_variants = select_variants(loci_miss,
+                                                       merged_intervals,
+                                                       minimum_frequency,
+                                                       variant_frequency)
 
+    coverage_stats = {k: [] for k in merged_intervals}
     for k, v in merged_intervals.items():
+        # breadth of coverage and number of covered bases
         coverage = determine_breadth_coverage({k: v}, len(seqs[k]))
         # determine subsequences that are not covered
         missing = determine_missing_intervals(v, k, len(seqs[k]))
         depth_info = determine_depth_coverage(v, len(seqs[k]))
         # determine mean depth of coverage
         depth_counts = depth_info[1]
-        depth_sum = sum([c[0]*c[1] for c in depth_counts])
+        # get number of positions with 0 coverage
+        zero_coverage = depth_counts.get(0, 0)
+        # get number of positions below low coverage threshold
+        below_coverage = sum([v for k, v in depth_counts.items() if k < low_coverage])
+        # get mean depth of coverage
+        depth_sum = sum([k*v for k, v in depth_counts.items()])
         mean_depth = round(depth_sum/len(seqs[k]), 4)
 
-        merged_intervals[k].append([coverage, missing, mean_depth])
+        coverage_stats[k].extend([coverage, missing, mean_depth,
+                                  zero_coverage, below_coverage])
 
-    return [merged_intervals, invalid, selected_miss]
+    return [merged_intervals, invalid_mappings, selected_miss,
+            coverage_stats, probable_variants]
 
 
-# final table should have breatdh of coverage per allele, mean depth of coverage,
-# number of positions with coverage below certain value, number of positions with
-# 0 coverage, different variants supported by reads.
-# change minimizer size used in minimap2
-def diffs_coverage(diffs, chewie_schema, milestone_seqs, strain_id, output_dir,
-                   fastq1, fastq2, identity, miss_perc):
+def map_reads(reference_fasta, fastq1, fastq2, output_dir, sam_output,
+              output_prefix):
+    """ Executes minimap2 to map reads against sequences in a
+        Fasta file.
+
+        Parameters
+        ----------
+        reference_fasta : str
+            Reference Fasta file the reads will be mapped
+            against.
+        fastq1 : str
+            Path to the R1 FASTQ file.
+        fastq2 : str
+            Path to the R2 FASTQ file.
+        output_dir : str
+            Path to the output directory where files are
+            created.
+        sam_output : bool
+            True if mapping results should also be generated
+            in SAM format.
+        output_prefix : str
+            Prefix to include in the name of output files.
+
+        Returns
+        -------
+        paf_lines : list
+            A list with all lines in the PAF file generated
+            by minimap2.
     """
+
+    # map reads and create output in PAF format
+    paf_outfile = os.path.join(output_dir, output_prefix+'.paf')
+    paf_std = run_minimap2(reference_fasta, fastq1, fastq2, paf_outfile, 'paf')
+
+    # read data from mapped reads
+    paf_lines = read_tabular(paf_outfile)
+
+    if sam_output is True:
+        # create SAM file to view in IGV
+        sam_outfile = os.path.join(output_dir, output_prefix+'.sam')
+        sam_std = run_minimap2(reference_fasta, fastq1, fastq2,
+                               sam_outfile, 'sam')
+
+    return paf_lines
+
+
+def differences_coverage(differences, chewie_schema, milestone_seqs,
+                         chewie_seqs, strain_id, output_dir, fastq1,
+                         fastq2, identity, minimum_frequency, low_coverage,
+                         variant_frequency, sam_output):
+    """ Determines coverage statistics and detected variants for
+        loci with predictions that differ between Chewie and Milestone
+        results.
+
+        Parameters
+        ----------
+        differences : dict
+            Dictionary with loci identifiers as keys and a list
+            as value. The list has the allele identifier attributed
+            by Chewie (0 if missing data) and the allele identifier
+            of the allele predicted by Milestone (? if allele is
+            not in Chewie's schema).
+        chewie_schema : str
+            Path to the schema's directory.
+        milestone_seqs : dict
+            Dictionary with loci identifiers as keys and DNA
+            sequences of the alleles predicted by Milestone.
+        strain_id : str
+            Strain identifier.
+        output_dir : str
+            Path to the output directory where files will
+            be created.
+        fastq1 : str
+            Path to the R1 FASTQ file.
+        fastq2 : str
+            Path to the R2 FASTQ file.
+        identity : float
+            Minimum sequence identity between reference sequences
+            and mapped reads. Mappings below this value are excluded.
+        minimum_frequency : float
+            Minimum coverage/frequency of a SNP or indel to be
+            selected.
+        low_coverage : int
+            Positions with coverage value below this value are
+            identified as low coverage regions.
+        variant_frequency : float
+            Variants with frequency equal or greater than this value
+            are sleected as probable variants.
+
+        Returns
+        -------
+        A list with the variables returned by the `process_paf`
+        function for Chewie's results and Milestone's results.
     """
 
     # get alleles predicted by milestone
-    milestone_diffs = {k: milestone_seqs[k] for k, v in diffs.items() if v[1] != '0'}
-    # write milstone alleles to file
+    milestone_diffs = {k: milestone_seqs[k] for k, v in differences.items() if v[1] != '0'}
+    # write milestone alleles to file
     milestone_recs = ['>{0}\n{1}'.format(k, v) for k, v in milestone_diffs.items()]
     milestone_file = os.path.join(output_dir, 'milestone_diffs.fasta')
     write_lines(milestone_recs, milestone_file)
 
     # map reads against milestone alleles
-    milestone_paf = os.path.join(output_dir, 'milestone.paf')
-    run_minimap2(milestone_file, fastq1, fastq2, milestone_paf)
-
-    # read
-    milestone_paf_lines = read_tabular(milestone_paf)
+    milestone_lines = map_reads(milestone_file, fastq1, fastq2,
+                                output_dir, sam_output, 'milestone')
 
     # get coverage info
-    milestone_covinfo = diffs_info(milestone_paf_lines, milestone_seqs, identity, miss_perc)
+    milestone_covinfo = process_paf(milestone_lines, milestone_seqs,
+                                    identity, minimum_frequency,
+                                    low_coverage, variant_frequency)
 
-    # get chewie alleles
-    chewie_seqs = {}
-    for k, v in diffs.items():
-        allele_id = v[0]
-        if allele_id != '0':
-            locus_file = os.path.join(chewie_schema, k+'.fasta')
-            # get allele sequence
-            allele_seq = [str(rec.seq)
-                          for rec in SeqIO.parse(locus_file, 'fasta')
-                          if (rec.id).split('_')[-1] == allele_id]
-            chewie_seqs[k] = allele_seq[0]
-
-    chewie_recs = ['>{0}\n{1}'.format(k, v) for k, v in chewie_seqs.items()]
+    chewie_diffs = {k: chewie_seqs[k] for k, v in differences.items() if v[0] != '0'}
+    # write chewie alleles to file
+    chewie_recs = ['>{0}\n{1}'.format(k, v) for k, v in chewie_diffs.items()]
     chewie_file = os.path.join(output_dir, 'chewie_diffs.fasta')
     write_lines(chewie_recs, chewie_file)
 
     # map reads against chewie alleles
-    chewie_paf = os.path.join(output_dir, 'chewie.paf')
-    run_minimap2(chewie_file, fastq1, fastq2, chewie_paf)
-
-    # read
-    chewie_paf_lines = read_tabular(chewie_paf)
+    chewie_lines = map_reads(chewie_file, fastq1, fastq2,
+                             output_dir, sam_output, 'chewie')
 
     # get coverage info
-    chewie_covinfo = diffs_info(chewie_paf_lines, chewie_seqs, identity, miss_perc)
+    chewie_covinfo = process_paf(chewie_lines, chewie_seqs,
+                                 identity, minimum_frequency,
+                                 low_coverage, variant_frequency)
+
+    # each element in list has coverage info for one tool
+    # coverage per position
+    # invalid mappings based on identity threshold
+    # detected variants that have frequency above minimum_frequency
+    # breadth of coverage, covered bases, regions not covered, depth
+    # of coverage
+    # positions with 0 coverage and positions with coverage below low_coverage
+    # variants with frequency above variant_frequency
 
     return [chewie_covinfo, milestone_covinfo]
 
 
-def main(chewie_matrix, chewie_schema, milestone_results, strain_id,
-         output_dir, fastq1, fastq2, identity, missing_percentage):
+def create_diff_lines(coverage_info, differences):
+    """ Creates lines for the output TSV file with
+        the list of differences and coverage statsitics.
 
-    if os.path.isdir(output_dir) is not True:
-        os.mkdir(output_dir)
+        Parameters
+        ----------
+        coverage_info : list
+            A list with the variables returned by the
+            `differences_coverage` function.
+        differences : dict
+            Dictionary with loci identifiers as keys and a list
+            as value. The list has the allele identifier attributed
+            by Chewie (0 if missing data) and the allele identifier
+            of the allele predicted by Milestone (? if allele is
+            not in Chewie's schema).
 
-    # process chewie's results
-    chewie_lines = read_tabular(chewie_matrix)
+        Returns
+        -------
+        differences_lines : list
+            List with two elements: the string/header of
+            the TSV file and a dictionary with loci
+            identifiers as keys and strings/lines for the
+            classifications that differe between Chewie
+            and Milestone.
+    """
 
-    loci = chewie_lines[0]
-    strain_profile = [l for l in chewie_lines
-                      if l[0].split('.fasta')[0] == strain_id][0]
+    line_template = '{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}'
+    columns_titles = ['locus', 'tool', 'allele', 'length', 'breadth_cov',
+                      'depth_cov', 'zero_cov', 'below_cov',
+                      'high_variants', 'variants']
+    header = line_template.format(*columns_titles)
 
-    # create dictionary with data from chewie's results
-    chewie_allele_ids = {loci[i].split('.fasta')[0]: strain_profile[i].replace('INF-', '')
-                         for i in range(1, len(loci))}
+    differences_lines = [header, {}]
+    tools = ['chewie', 'milestone']
+    for i, t in enumerate(coverage_info):
+        tool = tools[i]
+        for k, v in t[3].items():
+            allele_length = v[0][1] + v[1][-1]
+            breadth_of_coverage = v[0][0]
+            depth_of_coverage = v[2]
+            zero_cov = v[3]
+            below_cov = v[4]
+            high_cov_variants = t[4][k]
+            high_cov_variants_line = ':'.join(['({0},{1})({2},{3})'.format(*p, *c)
+                                              for p, c in high_cov_variants.items()])
+            variants = t[2][k]
+            variants_line = ':'.join(['({0},{1})({2},{3})'.format(*p, *c)
+                                      for p, c in variants.items()])
 
-    # process milestone's results
-    milestone_seqs = {(rec.id).split('_')[0]: str(rec.seq)
-                      for rec in SeqIO.parse(milestone_results, 'fasta')}
+            line = line_template.format(k, tool, differences[k][i],
+                                        allele_length, breadth_of_coverage,
+                                        depth_of_coverage, zero_cov, below_cov,
+                                        high_cov_variants_line, variants_line)
+            differences_lines[1].setdefault(k, []).append(line)
 
-    # get alleles in schema and compare with milestone's alleles
+    return differences_lines
+
+
+def assign_alleleid(milestone_seqs, chewie_schema):
+    """ Determines if the allele predicted by Milestone
+        is in the schema and attributes an allele
+        identifier.
+
+        Parameters
+        ----------
+        milestone_seqs : dict
+            Dictionary with loci identifiers as keys and
+            DNA sequences predicted by Milestone as values.
+        chewie_schema : str
+            Path to the schema's directory.
+
+        Returns
+        -------
+        milestone_allele_ids : dict
+            Dictionary with loci identifiers as keys and
+            allele identifiers as values. If an allele
+            predicted by Milestone is not in the schema,
+            the value will be '?'.
+    """
+
     milestone_allele_ids = {}
     for locid, seq in milestone_seqs.items():
         locus_file = os.path.join(chewie_schema, '{0}.fasta'.format(locid))
         locus_alleles = {str(rec.seq): (rec.id).split('_')[-1]
                          for rec in SeqIO.parse(locus_file, 'fasta')}
 
+        # get allele ID for allele predicted by Milestone
+        # assign '?' if allele is not in Chewie's schema
         milestone_id = locus_alleles.get(seq, '?')
         milestone_allele_ids[locid] = milestone_id
 
-    # merge results
-    merged_results = {k: [v, milestone_allele_ids.get(k, '-')]
-                      for k, v in chewie_allele_ids.items()}
+    return milestone_allele_ids
+
+
+def get_alleles_seqs(loci_alleles, schema_path):
+    """ Gets the DNA sequence of one allele for each
+        locus identifier that is a key in the input
+        dictionary.
+
+        Parameters
+        ---------
+        loci_alleles : dict
+            Dictionary with loci ids as keys and alleles
+            identifiers as values.
+        schema_path : str
+            Path to the schema's directory.
+
+        Returns
+        -------
+        loci_seqs : dict
+            Dictionary with loci identifiers as keys and
+            DNA sequences as values.
+    """
+
+    loci_seqs = {}
+    for locus, alleleid in loci_alleles.items():
+        locus_file = os.path.join(schema_path, locus+'.fasta')
+        allele_seq = [str(rec.seq)
+                      for rec in SeqIO.parse(locus_file, 'fasta')
+                      if (rec.id).split('_')[-1] == alleleid]
+        if len(allele_seq) > 0:
+            loci_seqs[locus] = allele_seq[0]
+
+    return loci_seqs
+
+
+#chewie_matrix = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/similar_strains/allelecall_results/results_20201105T233159/masked_masked_results_alleles.tsv'
+#chewie_schema = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/similar_strains/similar_schema'
+#milestone_results = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/ERR3464558.vg.fasta'
+#strain_id = 'ERR3464558'
+#output_dir = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/comp_results'
+#fastq1 = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/ERR3464558_1.fastq'
+#fastq2 = '/home/rfm/Desktop/rfm/Lab_Analyses/GBS_2sets/chewie_milestone_comparison/similar_strains/ERR3464558/ERR3464558_2.fastq'
+#identity = 0.95
+#minimum_frequency = 0.10
+#low_coverage = 10
+#variant_frequency = 0.30
+#sam_output = True
+
+def main(chewie_matrix, chewie_schema, milestone_results, strain_id,
+         output_dir, fastq1, fastq2, identity, minimum_frequency,
+         low_coverage, variant_frequency, sam_output):
+
+    if os.path.isdir(output_dir) is not True:
+        os.mkdir(output_dir)
+
+    # process chewie's results
+    # read AlleleCall matrix
+    chewie_lines = read_tabular(chewie_matrix)
+
+    # get line with loci IDs
+    loci = chewie_lines[0]
+    # extract line for strain_id
+    strain_profile = [l for l in chewie_lines
+                      if l[0].split('.fasta')[0] == strain_id][0]
+
+    # create dictionary with chewie classification per locus
+    chewie_allele_ids = {loci[i].split('.fasta')[0]: strain_profile[i].replace('INF-', '')
+                         for i in range(1, len(loci))}
+
+    # get chewie alleles
+    chewie_seqs = get_alleles_seqs(chewie_allele_ids, chewie_schema)
+
+    # read allele sequences predicted by Milestone
+    milestone_seqs = {(rec.id).split('_')[0]: str(rec.seq)
+                      for rec in SeqIO.parse(milestone_results, 'fasta')}
+
+    # determine allele IDs for alleles predicted by Milestone
+    milestone_allele_ids = assign_alleleid(milestone_seqs, chewie_schema)
+
+    # create dictionary with loci IDs as keys and chewie and
+    # milestone classifications as values
+    merged_classifications = {k: [v, milestone_allele_ids.get(k, '-')]
+                              for k, v in chewie_allele_ids.items()}
 
     # write results to output file
-    output_file = os.path.join(output_dir, strain_id+'.tsv')
-    table_header = 'locus\tchewie\tmilestone'
-    table_lines = ['{0}\t{1}\t{2}'.format(k, v[0], v[1])
-                   for k, v in merged_results.items()]
-    table_lines = [table_header] + table_lines
-    write_lines(table_lines, output_file)
+    classifications_file = os.path.join(output_dir, strain_id+'.tsv')
+    classifications_header = 'locus\tchewie\tmilestone'
+    classifications_lines = ['{0}\t{1}\t{2}'.format(k, v[0], v[1])
+                             for k, v in merged_classifications.items()]
+    classifications_lines = [classifications_header] + classifications_lines
+    write_lines(classifications_lines, classifications_file)
 
-    # get results that differ
-    diffs = {k: v for k, v in merged_results.items() if v[0] != v[1]}
+    # identify loci for which Chewie and Milestone
+    # attributed different classifications
+    differences = {k: v
+                   for k, v in merged_classifications.items()
+                   if v[0] != v[1]}
 
-    # determine coverage for differences
-    final_info = diffs_coverage(diffs, chewie_schema, milestone_seqs, strain_id,
-                                output_dir, fastq1, fastq2, identity, missing_percentage)
+    # get more information about loci predictions that chewie
+    # and milestone do not agree on
+    # determine coverage for each allele and SNPs or indels that
+    # have a frequency higher than defined threshold
+    coverage_info = differences_coverage(differences, chewie_schema,
+                                         milestone_seqs, chewie_seqs,
+                                         strain_id, output_dir, fastq1,
+                                         fastq2, identity, minimum_frequency,
+                                         low_coverage, variant_frequency,
+                                         sam_output)
 
-    # print diffs before completing process
-    line_template = '{:<25}\t{:^6}\t{:^6}\t{:^6}\t{:^6}\t{:^6}\t{:<}'
-    diffs_header = line_template.format('locus', 'tool', 'allele', 'length',
-                                        'breadth_cov', 'depth_cov', 'miss')
-    diffs_lines = {}
-    tools = ['chewie', 'milestone']
-    for i, t in enumerate(final_info):
-        for k, v in t[0].items():
-            allele_length = v[-1][0][1]
-            if len(v[-1][1]) > 0:
-                allele_length += v[-1][1][-1]
-            breadth_of_coverage = v[-1][0][0]
-            depth_of_coverage = v[-1][-1]
-            miss_cases = t[2][k]
-            miss_line = ':'.join(['({0},{1})-({2}, {3})'.format(p[0], p[1], c[0], c[1]) for p, c in miss_cases.items()])
+    # save info about differences
+    differences_lines = create_diff_lines(coverage_info, differences)
 
-            diffs_lines.setdefault(k, []).append(line_template.format(k, tools[i], diffs[k][i], allele_length, breadth_of_coverage, depth_of_coverage, miss_line))
+    # group
+    ordered_lines = list(chain(*[v for k, v in differences_lines[1].items()]))
+    ordered_lines = [differences_lines[0]] + ordered_lines
 
-    diffs_lines_ordered = []
-    for k, v in diffs_lines.items():
-        diffs_lines_ordered += v
-
-    diffs_file = output_file.replace('.tsv', '_diffs.tsv')
-    write_lines([diffs_header]+diffs_lines_ordered, diffs_file)
+    differences_file = classifications_file.replace('.tsv', '_diffs.tsv')
+    write_lines(ordered_lines, differences_file)
 
 
 def parse_arguments():
@@ -656,11 +982,31 @@ def parse_arguments():
                         help='Minimum identity percentage for mapped '
                              'reads.')
 
-    parser.add_argument('--mp', type=float, required=False,
+    parser.add_argument('--mf', type=float, required=False,
                         default=0.10,
-                        dest='missing_percentage',
-                        help='Minimum frequency of indels or SNPs to be '
-                             'reported.')
+                        dest='minimum_frequency',
+                        help='Minimum relative frequency of indels or '
+                             'SNPs that are reported.')
+
+    parser.add_argument('--lc', type=int, required=False,
+                        default=10,
+                        dest='low_coverage',
+                        help='Minimum coverage value. Positions with '
+                             'smaller values are reported as low coverage '
+                             'positions.')
+
+    parser.add_argument('--vf', type=float, required=False,
+                        default=0.30,
+                        dest='variant_frequency',
+                        help='Indels or SNPs with a relative frequency '
+                             'that is equal or greater that this value are '
+                             'reported as highly probable.')
+
+    parser.add_argument('--sam', required=False, action='store_true',
+                        dest='sam_output',
+                        help='Create SAM file with mapping results. '
+                             'SAM file will be sorted and indexed to '
+                             'be ready to import to IGV.')
 
     args = parser.parse_args()
 
