@@ -1,12 +1,14 @@
-ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema
+ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema > split_alleles #> pairwise_alignment
 
 configfile: "config.yaml"
 
-import glob, os
+import glob, os, sys
+from scripts import create_reference
 
 rule all:
 	input:
 		config["cgmlst_dir"]
+
 
 rule create_wgmlst_schema:
 	input:
@@ -47,3 +49,82 @@ rule create_cgmlst_schema:
 		repeated_loci = (glob.glob(f"{input.allele_call_dir}/result*/RepeatedLoci.txt"))[0]
 		results_alleles_tsv = (glob.glob(f"{input.allele_call_dir}/result*/results_alleles.tsv"))[0]
 		os.system(f"chewBBACA.py ExtractCgMLST -i {results_alleles_tsv} -r {repeated_loci} -p 0.95 -o {output}")
+
+rule split_alleles:
+	input:
+		cmd = 'create_reference_files.py',
+		schema_seed_dir = config["schema_seed_dir"],
+		cgmlst_dir = config["cgmlst_dir"]
+	message: "Reference is being prepared..."
+	log: "logs/reference.log"
+	threads: config["parameters"]["threads"]
+	run:
+		try:
+			Path(f"{input.schema_seed_dir}/references").mkdir(exist_ok=True)  # create reference FASTA directory for each core gene
+			Path(f"{input.schema_seed_dir}/alleles").mkdir(exist_ok=True)  # create FASTA directory for each core gene's alleles
+		except OSError:
+			print(f"Creation of the directories {cg_ref_fasta_dir} and {cg_allele_fasta_dir} are failed.")
+		
+		with open(f"{input.cgmlst_dir}/cgMLSTschema.txt", 'r') as file:
+			for line in file.readlines():
+				cds = line.strip()
+				create_reference.split_cg_sequences(f"{input.schema_seed_dir}", f"{cds}")
+			file.close()
+
+# rule pairwise_alignment:
+# 	input:
+# 	output:
+# 	message:
+# 	log:
+# 	threads:
+# 	run:
+
+
+# rule sam_to_bam:
+# 	input:
+# 		"sample.sam"
+# 	output:
+# 		"sample.bam"
+# 	conda:
+# 		"../envs/samtools.yaml"
+# 	shell:
+# 		"samtools view -F 0x04 -f 0x2 -q 20 -b {input} -o {output}"
+
+# rule bam_sort:
+# 	input:
+# 		"sample.bam"
+# 	output:
+# 		"sample.sorted.bam"
+# 	conda:
+# 		"../envs/samtools.yaml"
+# 	shell:
+# 		"samtools sort {input} -o {output}"
+
+# rule mark_duplicates:
+# 	input:
+# 		"sample.sorted.bam"
+# 	output:
+# 		"sample.sorted.rmdup.bam"
+# 	conda:
+# 		"../envs/samtools.yaml"
+# 	shell:
+# 		"samtools collate -o - {input} | samtools fixmate -m - - "
+# 		" | samtools sort -o - - | samtools markdup -r - {output}"
+
+# rule sbg-aligner:
+# 	input:
+# 		r1 = "sample_R2.fastq"
+#		 r2 = "sample_R2.fastq"
+#		 vcf = "species.vcf"
+#		 fasta = "species.fasta"
+# 	output:
+# 		bam = "sample.bam"
+# 	message: "Running SBG-aligner on {input.r1} and {input.r2}"
+# 	conda:
+# 		"../envs/assembly.yaml"
+# 	log:
+# 		"../logs/assembly.log"
+# 	threads:
+# 		config["parameters"]["threads"]
+# 	shell:
+# 		"sbg-aligner -v {input.vcf} --threads {threads} -o {output.bam} --reference {input.fasta} -q {input.r1} -Q {input.r2} --read_group_library 'lib'"

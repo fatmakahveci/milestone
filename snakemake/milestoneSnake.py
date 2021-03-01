@@ -38,13 +38,25 @@ def run_snakemake(configfile, args, snakefile):
 
 	dryrun = ""
 	if args.dryrun:
-		dryrun = "-n"
+		dryrun = "--dryrun"
 
 	forceall = ""
 	if args.forceall:
-		forceall = "--forceall"        
+		forceall = "--forceall"
 
-	cmd = (f'snakemake -p --conda-prefix {args.condaprefix} --use-conda --configfile "{configfile}" --cores {args.threads} --snakefile {args.snakefile} {forceall} {dryrun}')
+	printshellcmds = ""
+	if args.printshellcmds:
+		printshellcmds = "--printshellcmds"
+
+	ri = ""
+	if args.ri:
+		ri = "--rerun-incomplete"
+
+	unlock = ""
+	if args.unlock:
+		unlock="--unlock"
+
+	cmd = (f'snakemake -p --conda-prefix {args.condaprefix} --use-conda --configfile "{configfile}" --cores {args.threads} --snakefile {args.snakefile} {forceall} {dryrun} {printshellcmds} {ri} {unlock}')
 	os.system(cmd)
 
 def main():
@@ -54,14 +66,17 @@ def main():
 	# SNAKEMAKE
 	parser.add_argument('-d', '--working_directory', help='Working directory to keep results.', required=True, type=os.path.abspath)
 	parser.add_argument('-n', '--dryrun', help='Do not execute anything, and display what would be done.', default=False, action='store_true', required=False)
+	parser.add_argument('-p', '--printshellcmds', help='Print out the shell commands that will be executed.', default=False, action='store_true', required=False)
 	parser.add_argument('-s', '--snakefile', help='Snake file name', default='Snakefile', required=False)
 	parser.add_argument('-t', '--threads', help='Number of threads to use', required=False, type=int)
 	parser.add_argument('-r', '--report', help='Create html report', default=False, action='store_true', required=False)
 	parser.add_argument('-c', '--condaprefix', help='Path of default conda environment, enables recycling built environments, default is in folder conda_env in repository directory.', default=os.path.join(os.path.dirname(os.path.realpath(__file__)), "conda_env"), required=False)
 	parser.add_argument('-f', '--forceall', help='Snakemake force recalculation of all steps', default=False, action='store_true', required=False)
+	parser.add_argument('--ri', '--rerun-incomplete', help='Snakemake rerun-incomplete', default=False, action='store_true', required=False)
+	parser.add_argument('--unlock', help='Snakemake unlock', default=False, action='store_true', required=False)
 
 	# CHEWIE
-	parser.add_argument('-p', '--training_file', help='Prodigal training file name', required=True)
+	parser.add_argument('-a', '--training_file', help='Prodigal training file name', required=True)
 	parser.add_argument('-g', '--genome_dir', help='Assembled genome directory name to create species MLST schema', required=True)
 	
 	# REFERENCE GENOME CREATION
@@ -73,7 +88,7 @@ def main():
 	# CREATION OF MLST SCHEMA OF SAMPLE
 
 	args = parser.parse_args()
-	
+
 	if not os.path.exists(args.working_directory):
 		os.makedirs(args.working_directory)
 
