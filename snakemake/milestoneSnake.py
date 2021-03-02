@@ -14,7 +14,7 @@ def create_config(configfile, args):
 	output_file.write(f"# milestoneSnake.py created {configfile}.\n\n")
 	
 	# config files	
-	output_file.write(f'workdir:  "{args.working_directory}"\n')
+	output_file.write(f'workdir:  "{args.directory}"\n')
 	
 	## create wgMLST
 	output_file.write(f'training_file: "data/{args.training_file}"\n')
@@ -64,35 +64,35 @@ def main():
 	parser = argparse.ArgumentParser()
 	
 	# SNAKEMAKE
-	parser.add_argument('-d', '--working_directory', help='Working directory to keep results.', required=True, type=os.path.abspath)
-	parser.add_argument('-n', '--dryrun', help='Do not execute anything, and display what would be done.', default=False, action='store_true', required=False)
-	parser.add_argument('-p', '--printshellcmds', help='Print out the shell commands that will be executed.', default=False, action='store_true', required=False)
-	parser.add_argument('-s', '--snakefile', help='Snake file name', default='Snakefile', required=False)
-	parser.add_argument('-t', '--threads', help='Number of threads to use', required=False, type=int)
-	parser.add_argument('-r', '--report', help='Create html report', default=False, action='store_true', required=False)
+	parser.add_argument('-d', '--directory', help='Snakemake - Specify working directory (relative paths in the snakefile will use this as their origin).', default="", required=True, type=os.path.abspath)
+	parser.add_argument('-n', '--dryrun', '--dry-run', help="Snakemake - Do not execute anything, and display what would be done. If you have a very large workflow, use --dry-run --quiet to just print a summary of the DAG of jobs.", default=False, action='store_true', required=False)
+	parser.add_argument('-p', '--printshellcmds', help='Snakemake - Print out the shell commands that will be executed.', default=False, action='store_true', required=False)
+	parser.add_argument('-s', '--snakefile', help="Snakemake - The workflow definition in form of a snakefile.Usually, you should not need to specify this. By default, Snakemake will search for 'Snakefile','snakefile', 'workflow/Snakefile', 'workflow/snakefile' beneath the current working directory, in this order. Only if you definitely want a different layout, you need to use this parameter.", default='Snakefile', required=False)
+	parser.add_argument('-t', '--threads', '--set-threads', help='Snakemake - Overwrite thread usage of rules. This allows to fine-tune workflow parallelization. In particular, this is helpful to target certain cluster nodes by e.g. shifting a rule to use more, or less threads than defined in the workflow. Thereby, THREADS has to be a positive integer, and RULE has to be the name of the rule.', required=False, type=int)
+	parser.add_argument('--report', help='Snakemake - Create an HTML report with results and statistics. This can be either a .html file or a .zip file. In the former case, all results are embedded into the .html (this only works for small data). In the latter case, results are stored along with a file report.html in the zip archive. If no filename is given, an embedded report.html is the default.', action='store_true', required=False)
 	parser.add_argument('-c', '--condaprefix', help='Path of default conda environment, enables recycling built environments, default is in folder conda_env in repository directory.', default=os.path.join(os.path.dirname(os.path.realpath(__file__)), "conda_env"), required=False)
-	parser.add_argument('-f', '--forceall', help='Snakemake force recalculation of all steps', default=False, action='store_true', required=False)
-	parser.add_argument('--ri', '--rerun-incomplete', help='Snakemake rerun-incomplete', default=False, action='store_true', required=False)
-	parser.add_argument('--unlock', help='Snakemake unlock', default=False, action='store_true', required=False)
-
+	parser.add_argument('-F', '--forceall', help='Snakemake - Force the execution of the selected (or the first) rule and all rules it is dependent on regardless of already created output.', default=False, action='store_true', required=False)
+	parser.add_argument('--ri', '--rerun-incomplete', help='Snakemake - Re-run all jobs the output of which is recognized as incomplete. ', default=False, action='store_true', required=False)
+	parser.add_argument('--unlock', help='Snakemake - Remove a lock on the working directory.', default=False, action='store_true', required=False)
+	parser.add_argument('-q', '--quiet', help='Snakemake - Do not output any progress or rule information.', default=False, action='store_true', required=False)
+	
 	# CHEWIE
 	parser.add_argument('-a', '--training_file', help='Prodigal training file name', required=True)
 	parser.add_argument('-g', '--genome_dir', help='Assembled genome directory name to create species MLST schema', required=True)
 	
 	# REFERENCE GENOME CREATION
 	
-
 	# GRAPH ALIGNMENT
-	# parser.add_argument('--aligner', help='Aligner option, sbg or vg (default: sbg)', default='sbg', required=False)
+	# parser.add_argument('--aligner', help='Aligner option, sbg or vg', default='sbg', required=False)
 	
 	# CREATION OF MLST SCHEMA OF SAMPLE
 
 	args = parser.parse_args()
 
-	if not os.path.exists(args.working_directory):
-		os.makedirs(args.working_directory)
+	if not os.path.exists(args.directory):
+		os.makedirs(args.directory)
 
-	configfile = os.path.join(args.working_directory, "config.yaml")
+	configfile = os.path.join(args.directory, "config.yaml")
 
 	create_config(configfile, args)
 

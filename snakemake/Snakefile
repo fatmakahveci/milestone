@@ -1,4 +1,4 @@
-ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema > split_alleles #> pairwise_alignment
+ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema > pairwise_alignment
 
 configfile: "config.yaml"
 
@@ -8,7 +8,6 @@ from scripts import create_reference
 rule all:
 	input:
 		config["cgmlst_dir"]
-
 
 rule create_wgmlst_schema:
 	input:
@@ -50,11 +49,20 @@ rule create_cgmlst_schema:
 		results_alleles_tsv = (glob.glob(f"{input.allele_call_dir}/result*/results_alleles.tsv"))[0]
 		os.system(f"chewBBACA.py ExtractCgMLST -i {results_alleles_tsv} -r {repeated_loci} -p 0.95 -o {output}")
 
-rule split_alleles:
+def get_cg_list(cg_schema_file):
+	cg_list = []
+	with open(cg_schema_file, 'r') as file:
+		for line in file.readlines():
+			cds = line.strip()
+			cg_list.append(f"{cds}")
+		file.close()
+	return cg_list
+
+cg_list = get_cg_list(f'{config["cgmlst_dir"]}/cgMLSTschema.txt')
+
+rule pairwise_alignment:
 	input:
-		cmd = 'create_reference_files.py',
-		schema_seed_dir = config["schema_seed_dir"],
-		cgmlst_dir = config["cgmlst_dir"]
+		schema_seed_dir = config["schema_seed_dir"]
 	message: "Reference is being prepared..."
 	log: "logs/reference.log"
 	threads: config["parameters"]["threads"]
@@ -63,22 +71,9 @@ rule split_alleles:
 			Path(f"{input.schema_seed_dir}/references").mkdir(exist_ok=True)  # create reference FASTA directory for each core gene
 			Path(f"{input.schema_seed_dir}/alleles").mkdir(exist_ok=True)  # create FASTA directory for each core gene's alleles
 		except OSError:
-			print(f"Creation of the directories {cg_ref_fasta_dir} and {cg_allele_fasta_dir} are failed.")
-		
-		with open(f"{input.cgmlst_dir}/cgMLSTschema.txt", 'r') as file:
-			for line in file.readlines():
-				cds = line.strip()
-				create_reference.split_cg_sequences(f"{input.schema_seed_dir}", f"{cds}")
-			file.close()
-
-# rule pairwise_alignment:
-# 	input:
-# 	output:
-# 	message:
-# 	log:
-# 	threads:
-# 	run:
-
+			print(f"Creation of the directories {input.schema_seed_dir}/references and {input.schema_seed_dir}/alleles are failed.")
+		for cds in cg_list:
+			create_reference.create_vcf(f"{input.schema_seed_dir}", cds)
 
 # rule sam_to_bam:
 # 	input:
