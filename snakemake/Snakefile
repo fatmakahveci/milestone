@@ -67,59 +67,16 @@ rule pairwise_alignment:
 	log: "logs/reference.log"
 	threads: config["parameters"]["threads"]
 	run:
+
 		try:
 			Path(f"{input.schema_seed_dir}/references").mkdir(exist_ok=True)  # create reference FASTA directory for each core gene
 			Path(f"{input.schema_seed_dir}/alleles").mkdir(exist_ok=True)  # create FASTA directory for each core gene's alleles
+
 		except OSError:
 			print(f"Creation of the directories {input.schema_seed_dir}/references and {input.schema_seed_dir}/alleles are failed.")
+		
+		cds_to_merge_list = [] # to merge all CDSs for reference vcf
+
+		# create reference vcf
 		for cds in cg_list:
-			create_reference.create_vcf(f"{input.schema_seed_dir}", cds)
-
-# rule sam_to_bam:
-# 	input:
-# 		"sample.sam"
-# 	output:
-# 		"sample.bam"
-# 	conda:
-# 		"../envs/samtools.yaml"
-# 	shell:
-# 		"samtools view -F 0x04 -f 0x2 -q 20 -b {input} -o {output}"
-
-# rule bam_sort:
-# 	input:
-# 		"sample.bam"
-# 	output:
-# 		"sample.sorted.bam"
-# 	conda:
-# 		"../envs/samtools.yaml"
-# 	shell:
-# 		"samtools sort {input} -o {output}"
-
-# rule mark_duplicates:
-# 	input:
-# 		"sample.sorted.bam"
-# 	output:
-# 		"sample.sorted.rmdup.bam"
-# 	conda:
-# 		"../envs/samtools.yaml"
-# 	shell:
-# 		"samtools collate -o - {input} | samtools fixmate -m - - "
-# 		" | samtools sort -o - - | samtools markdup -r - {output}"
-
-# rule sbg-aligner:
-# 	input:
-# 		r1 = "sample_R2.fastq"
-#		 r2 = "sample_R2.fastq"
-#		 vcf = "species.vcf"
-#		 fasta = "species.fasta"
-# 	output:
-# 		bam = "sample.bam"
-# 	message: "Running SBG-aligner on {input.r1} and {input.r2}"
-# 	conda:
-# 		"../envs/assembly.yaml"
-# 	log:
-# 		"../logs/assembly.log"
-# 	threads:
-# 		config["parameters"]["threads"]
-# 	shell:
-# 		"sbg-aligner -v {input.vcf} --threads {threads} -o {output.bam} --reference {input.fasta} -q {input.r1} -Q {input.r2} --read_group_library 'lib'"
+			create_reference.create_vcf(f"{input.schema_seed_dir}", cds, cds_to_merge_list)
