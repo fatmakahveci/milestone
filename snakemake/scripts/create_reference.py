@@ -10,7 +10,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 
 	try:
 		for sequence in list(SeqIO.parse(StringIO(open(f"{os.getcwd()}/{cg_dir}/{cds_fasta}", 'r').read()), 'fasta')):
-			
+
 			allele_name = str(sequence.id).strip("\n").split("_")
 			cds_name, allele_id = str(allele_name[0]), str(allele_name[-1])
 			allele_name = f"{cds_name}_{allele_id}"
@@ -18,7 +18,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 			if allele_id == '1':
 				write_dir = f"{cg_dir}/references"
 				Path(f"{cg_dir}/alleles/{cds_name}").mkdir(exist_ok=True)
-			
+
 			else:
 				write_dir = f"{cg_dir}/alleles/{cds_name}"
 
@@ -51,7 +51,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 
 		command_list = []
 
-		no_alleles_of_cds = len(glob.glob(f'{wd}/*_*.vcf.gz'))
+		no_alleles_of_cds = len(glob.glob(f'{wd}/*_*.vcf.gz')) + len(glob.glob(f'{wd}/*.vcf')) # the second is temporary.
 
 		if no_alleles_of_cds == 0: # skip CDS with one alleles to avoid redundance
 			pass
@@ -66,41 +66,43 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 			command_list.append(f"bcftools merge {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O v -o {wd}/{cds_name}.vcf")
 		for command in command_list:
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
-			
+
 	except FileNotFoundError:
 		pass
 
 	return cds_to_merge_list
 
-def create_reference_vcf_fasta(wd, cds_to_merge_list):
+def create_reference_vcf_fasta(wd, cds_to_merge_list, reference_vcf, reference_fasta):
 
-	reference_file = open(f"{os.getcwd()}/{wd}/reference.vcf.temp", 'w')
-		
+	reference_file = open(f"{reference_vcf}.temp", 'w')
+
 	contig_info_set = set()
 
 	for cds in cds_to_merge_list:
-			
-		cds_vcf_file_name = f"{os.getcwd()}/{wd}/alleles/{cds}/{cds}.vcf"
+
+		cds_vcf_file_name = f"{wd}/alleles/{cds}/{cds}.vcf"
 
 		with open(cds_vcf_file_name, 'r') as cds_file:
-			
+
 			for line in cds_file.readlines():
 				line = line.strip('\n')
 
 				if line.startswith("##contig"):
+					contig_info_set.add(line)
+				elif line.startswith("##INFO"):
 					contig_info_set.add(line)
 				elif not line.startswith("#"):
 					fields = (line.split('\t'))[:9]
 					fields.append("1:60,0")
 					line = '\t'.join(fields)
 					reference_file.write(f"{line}\n")
-			
+
 			cds_file.close()
 
 	reference_file.close()
 
-	header_file = open(f"{os.getcwd()}/{wd}/alleles/header.txt", 'w')
-	
+	header_file = open(f"{reference_vcf}header.txt", 'w')
+
 	header = ['##fileformat=VCFv4.2',
     	     '##FILTER=<ID=PASS,Description="All filters passed">")',
     	     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
@@ -108,21 +110,22 @@ def create_reference_vcf_fasta(wd, cds_to_merge_list):
     	     '##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">']
 	header.extend(list(contig_info_set))
 	header.append("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tREFERENCE\n")
-	
+
 	header_file.write("\n".join(header))
 
-	os.system(f"cat {wd}/alleles/header.txt {wd}/reference.vcf.temp > {wd}/reference.vcf")
-	os.system(f"rm {wd}/reference.vcf.temp; rm {wd}/alleles/header.txt;")
+	os.system(f"cat {reference_vcf}header.txt {reference_vcf}.temp > {reference_vcf}")
+	os.system(f"rm {reference_vcf}.temp; rm {reference_vcf}header.txt;")
+	
 
 	# merge all CDS fasta files to create reference FASTA
-	os.system(f"cat {wd}/references/*.fasta > {wd}/reference.fasta")
+	os.system(f"cat {wd}/references/*.fasta > {reference_fasta}")
 
 
-def clean_directory(wd):
+def clean_directory(wd, reference_vcf, reference_fasta):
 
 	for root, dirs, files in os.walk(wd):
 		for file in files:
-			if not(file == "reference.fasta" or file == "reference.vcf"):
+			if not(file == {reference_vcf} or file == {reference_fasta}):
 				os.unlink(os.path.join(root, file))
 		for dir in dirs:
 			shutil.rmtree(os.path.join(root, dir))

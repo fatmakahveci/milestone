@@ -6,6 +6,10 @@ genome_dir: "data/schema_ref_fasta"
 schema_seed_dir: "data/schema_seed"
 allele_call_dir: "data/allele_call"
 cgmlst_dir: "data/create_cgMLST"
-
+samples:
+ sample1: "ERR3464558_1.fastq"
+ sample2: "ERR3464558_2.fastq"
 parameters: 
-  threads: 2
+ threads: 4
+reference_vcf: "reference.vcf"
+reference_fasta: "reference.fasta"

@@ -12,10 +12,10 @@ def create_config(configfile, args):
 	output_file = open(configfile, "w")
 
 	output_file.write(f"# milestoneSnake.py created {configfile}.\n\n")
-	
-	# config files	
+
+	# config files
 	output_file.write(f'workdir:  "{args.directory}"\n')
-	
+
 	## create wgMLST
 	output_file.write(f'training_file: "data/{args.training_file}"\n')
 	output_file.write(f'genome_dir: "data/{args.genome_dir}"\n')
@@ -26,11 +26,17 @@ def create_config(configfile, args):
 
 	## create cgMLST
 	output_file.write(f'cgmlst_dir: "data/create_cgMLST"\n')
-	
+
+	## SBG-GRAF
+	output_file.write(f'samples:\n sample1: "{args.read1}"\n sample2: "{args.read2}"')
+
 	# config parameters
 	output_file.write('\n')
 	output_file.write(f'parameters: \n')
-	output_file.write(f'  threads: {args.threads}\n')
+	output_file.write(f' threads: {args.threads}\n')
+
+	output_file.write(f'reference_vcf: "reference.vcf"\n')
+	output_file.write(f'reference_fasta: "reference.fasta"\n')
 
 	output_file.close()
 
@@ -62,7 +68,7 @@ def run_snakemake(configfile, args, snakefile):
 def main():
 
 	parser = argparse.ArgumentParser()
-	
+
 	# SNAKEMAKE
 	parser.add_argument('-d', '--directory', help='Snakemake - Specify working directory (relative paths in the snakefile will use this as their origin).', default="", required=True, type=os.path.abspath)
 	parser.add_argument('-n', '--dryrun', '--dry-run', help="Snakemake - Do not execute anything, and display what would be done. If you have a very large workflow, use --dry-run --quiet to just print a summary of the DAG of jobs.", default=False, action='store_true', required=False)
@@ -75,16 +81,16 @@ def main():
 	parser.add_argument('--ri', '--rerun-incomplete', help='Snakemake - Re-run all jobs the output of which is recognized as incomplete. ', default=False, action='store_true', required=False)
 	parser.add_argument('--unlock', help='Snakemake - Remove a lock on the working directory.', default=False, action='store_true', required=False)
 	parser.add_argument('-q', '--quiet', help='Snakemake - Do not output any progress or rule information.', default=False, action='store_true', required=False)
-	
+
 	# CHEWIE
 	parser.add_argument('-a', '--training_file', help='Prodigal training file name', required=True)
 	parser.add_argument('-g', '--genome_dir', help='Assembled genome directory name to create species MLST schema', required=True)
-	
-	# REFERENCE GENOME CREATION
-	
+
 	# GRAPH ALIGNMENT
-	# parser.add_argument('--aligner', help='Aligner option, sbg or vg', default='sbg', required=False)
-	
+	parser.add_argument('--aligner', help='Aligner option, sbg or vg', default='sbg', required=False)
+	parser.add_argument('-e', '--read1', help='Sample first read', required=True)
+	parser.add_argument('-E', '--read2', help='Sample second read', required=True)
+
 	# CREATION OF MLST SCHEMA OF SAMPLE
 
 	args = parser.parse_args()
