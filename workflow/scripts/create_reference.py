@@ -8,7 +8,10 @@ from pathlib import Path
 
 def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 
+	write_dir = f"{cg_dir}/references"
+	
 	try:
+
 		for sequence in list(SeqIO.parse(StringIO(open(f"{os.getcwd()}/{cg_dir}/{cds_fasta}", 'r').read()), 'fasta')):
 
 			allele_name = str(sequence.id).strip("\n").split("_")
@@ -16,7 +19,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 			allele_name = f"{cds_name}_{allele_id}"
 
 			if allele_id == '1':
-				write_dir = f"{cg_dir}/references"
+			
 				Path(f"{cg_dir}/alleles/{cds_name}").mkdir(exist_ok=True)
 
 			else:
@@ -27,6 +30,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 				out_file.close()
 
 			if allele_id != '1':
+			
 				command_list = []  # Command List
 				sample = f"{write_dir}/{allele_name}"
 				reference = f"{cg_dir}/references/{cds_name}_1"
@@ -39,31 +43,37 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 				command_list.append(f"bgzip -c {sample}.vcf > {sample}.vcf.gz")
 				command_list.append(f"tabix -p vcf {sample}.vcf.gz")
 				command_list.append(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam; rm {sample}.sorted.bam; rm {sample}.bam.bai; rm {sample}.sorted.bam.bai; rm {sample}.vcf;")
+			
 				for command in command_list:
 					subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
 
 	except FileNotFoundError:
-		print(f'{write_dir}/{allele_name}.fasta file cannot be found')
+		print(f'Allele fasta file cannot be found')
 
 	try:
+		
 		cds_name = str(cds_fasta.strip('.fasta')) # remove fasta extension
+		
 		wd = f"{os.getcwd()}/{cg_dir}/alleles/{cds_name}" # directory of allele's vcf files
 
 		command_list = []
 
-		no_alleles_of_cds = len(glob.glob(f'{wd}/*_*.vcf.gz')) + len(glob.glob(f'{wd}/*.vcf')) # the second is temporary.
+		no_alleles_of_cds = len(glob.glob(f'{wd}/*_*.vcf.gz'))
 
 		if no_alleles_of_cds == 0: # skip CDS with one alleles to avoid redundance
 			pass
 
 		elif no_alleles_of_cds == 1:
+
 			cds_to_merge_list.append(cds_name)
 			command_list.append(f"gunzip {wd}/{cds_name}_2.vcf.gz")
 			command_list.append(f"mv {wd}/{cds_name}_2.vcf {wd}/{cds_name}.vcf")
 
 		else:
+
 			cds_to_merge_list.append(cds_name)
 			command_list.append(f"bcftools merge {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O v -o {wd}/{cds_name}.vcf")
+		
 		for command in command_list:
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
 
@@ -72,15 +82,15 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 
 	return cds_to_merge_list
 
-def create_reference_vcf_fasta(wd, cds_to_merge_list, reference_vcf, reference_fasta):
+def create_reference_vcf_fasta(wd, cds_to_merge_list):
 
-	reference_file = open(f"{reference_vcf}.temp", 'w')
+	reference_file = open(f"{os.getcwd()}/{args.reference_vcf}.temp", 'w')
 
 	contig_info_set = set()
 
 	for cds in cds_to_merge_list:
 
-		cds_vcf_file_name = f"{wd}/alleles/{cds}/{cds}.vcf"
+		cds_vcf_file_name = f"{os.getcwd()}/{wd}/alleles/{cds}/{cds}.vcf"
 
 		with open(cds_vcf_file_name, 'r') as cds_file:
 
@@ -101,7 +111,7 @@ def create_reference_vcf_fasta(wd, cds_to_merge_list, reference_vcf, reference_f
 
 	reference_file.close()
 
-	header_file = open(f"{reference_vcf}header.txt", 'w')
+	header_file = open(f"{os.getcwd()}/{wd}/alleles/header.txt", 'w')
 
 	header = ['##fileformat=VCFv4.2',
     	     '##FILTER=<ID=PASS,Description="All filters passed">")',
@@ -113,20 +123,54 @@ def create_reference_vcf_fasta(wd, cds_to_merge_list, reference_vcf, reference_f
 
 	header_file.write("\n".join(header))
 
-	os.system(f"cat {reference_vcf}header.txt {reference_vcf}.temp > {reference_vcf}")
-	os.system(f"rm {reference_vcf}.temp; rm {reference_vcf}header.txt;")
-	
+	os.system(f"cat {wd}/alleles/header.txt {args.reference_vcf}.temp > {args.reference_vcf}")
+	os.system(f"rm {args.reference_vcf}.temp; rm {wd}/alleles/header.txt;")
 
 	# merge all CDS fasta files to create reference FASTA
-	os.system(f"cat {wd}/references/*.fasta > {reference_fasta}")
+	os.system(f"cat {wd}/references/*.fasta > {args.reference_fasta}")
+
+def get_cg_list(cg_schema_file):
+
+	cg_list = []
+
+	with open(cg_schema_file, 'r') as file:
+	
+		for line in file.readlines():
+	
+			cds = line.strip()
+			cg_list.append(f"{cds}")
+	
+		file.close()
+	
+	return cg_list
 
 
-def clean_directory(wd, reference_vcf, reference_fasta):
+if __name__ == "__main__":
 
-	for root, dirs, files in os.walk(wd):
-		for file in files:
-			if not(file == {reference_vcf} or file == {reference_fasta}):
-				os.unlink(os.path.join(root, file))
-		for dir in dirs:
-			shutil.rmtree(os.path.join(root, dir))
-	os.system(f"rmdir {wd}/alleles 2&>1")
+	parser = argparse.ArgumentParser()
+
+	parser.add_argument('--cgmlst_dir')
+	parser.add_argument('--schema_seed_dir')
+	parser.add_argument('--reference_vcf')
+	parser.add_argument('--reference_fasta')
+
+	args = parser.parse_args()
+
+	cg_list = get_cg_list(f'{args.cgmlst_dir}/cgMLSTschema.txt')
+
+	try:
+		Path(f"{args.schema_seed_dir}/references").mkdir(exist_ok=True)  # create reference FASTA directory for each core gene
+		Path(f"{args.schema_seed_dir}/alleles").mkdir(exist_ok=True)  # create FASTA directory for each core gene's alleles
+
+	except OSError:
+		print(f"Creation of the directories {args.schema_seed_dir}/references and {args.schema_seed_dir}/alleles are failed.")
+
+	cds_to_merge_list = [] # to merge all CDSs for reference vcf
+
+	# create reference vcf
+	for cds in cg_list:
+		create_cds_vcf(f"{args.schema_seed_dir}", cds, cds_to_merge_list)
+
+	create_reference_vcf_fasta(f"{args.schema_seed_dir}", cds_to_merge_list)
+
+	os.system(f"rm -rf {args.schema_seed_dir}")
