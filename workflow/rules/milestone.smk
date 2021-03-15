@@ -1,4 +1,5 @@
 ## VG ##
+
 rule index_fasta:
 	input:
 		reference_fasta = "data/"+config["reference"]+".fasta"
@@ -57,6 +58,7 @@ rule vg_map:
 	shell: "vg map -x {input.reference_xg} -g {input.reference_gcsa} -f {input.read1} -f {input.read2} --threads {threads} --surject-to bam > {output.sample_bam} 2> {log}"
 
 ## SBG ##
+
 rule sbg_graf:
 	input:
 		reference_fasta = "data/"+config["reference"]+".fasta",
@@ -72,7 +74,7 @@ rule sbg_graf:
 	conda: config["envs"]+"sbg-graf.yaml"
 	shell: "sbg-aligner -v {input.reference_vcf} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam}"
 
-## SAMPLE.FASTA FOR  BOTH SBG AND VG ##
+## SAMPLE.FASTA FOR BOTH SBG AND VG ##
 rule alignment_quality_check:
 	input:
 		sample_bam = "data/"+config["aligner"]+"/"+"".join(config["samples"]["sample1"].split('_1')[0])+".bam"
