@@ -4,7 +4,7 @@
 
 <!-- MarkdownTOC -->
 
-__Table of Contents__
+- __Table of Contents__
 	- Preprocess
 		- Downloading NCBI data to create the reference genome for given species
 		- Prodigal training file
