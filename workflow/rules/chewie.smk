@@ -25,8 +25,6 @@ rule call_allele:
 	threads: config["parameters"]["threads"]
 	shell: "chewBBACA.py AlleleCall -i {input.genome_dir} -g {input.schema_seed_dir} -o {output.allele_call_dir} --cpu {threads} --ptf {input.trn_file} 2> {log}"
 
-# test call quality?
-
 rule create_cgmlst_schema:
 	input:
 		allele_call_dir = config["allele_call_dir"]

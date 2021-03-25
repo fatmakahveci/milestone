@@ -678,7 +678,7 @@ def differences_coverage(differences, chewie_schema, milestone_seqs,
             identified as low coverage regions.
         variant_frequency : float
             Variants with frequency equal or greater than this value
-            are sleected as probable variants.
+            are selected as probable variants.
 
         Returns
         -------
@@ -687,7 +687,16 @@ def differences_coverage(differences, chewie_schema, milestone_seqs,
     """
 
     # get alleles predicted by milestone
-    milestone_diffs = {k: milestone_seqs[k] for k, v in differences.items() if v[1] != '0'}
+    # @fatma changed this line due to KeyError: 'ERR3464558-protein680'
+    # milestone_diffs = {k: milestone_seqs[k] for k, v in differences.items() if v[1] != '0'}
+    milestone_diffs = {}
+    for k,v in differences.items():
+        if k in milestone_seqs.keys():
+            if v[1] != '0':
+                milestone_diffs[k] = milestone_seqs[k]
+        else:
+            print(f"{k} is not found among milestone sequences")
+
     # write milestone alleles to file
     milestone_recs = ['>{0}\n{1}'.format(k, v) for k, v in milestone_diffs.items()]
     milestone_file = os.path.join(output_dir, 'milestone_diffs.fasta')
@@ -702,7 +711,16 @@ def differences_coverage(differences, chewie_schema, milestone_seqs,
                                     identity, minimum_frequency,
                                     low_coverage, variant_frequency)
 
-    chewie_diffs = {k: chewie_seqs[k] for k, v in differences.items() if v[0] != '0'}
+    # @fatma changed this line as above milestone_diffs due to KeyError: 'ERR3464559-protein2595'
+    # chewie_diffs = {k: chewie_seqs[k] for k, v in differences.items() if v[0] != '0'}
+    chewie_diffs = {}
+    for k,v in differences.items():
+        if k in chewie_seqs.keys():
+            if v[1] != '0':
+                chewie_diffs[k] = chewie_seqs[k]
+        else:
+            print(f"{k} is not found among chewie sequences")
+
     # write chewie alleles to file
     chewie_recs = ['>{0}\n{1}'.format(k, v) for k, v in chewie_diffs.items()]
     chewie_file = os.path.join(output_dir, 'chewie_diffs.fasta')
