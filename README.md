@@ -3,9 +3,8 @@
 ---
 
 <!-- MarkdownTOC -->
-<<<<<<< HEAD
 
-- __Table of Contents__
+__Table of Contents__
 	- Preprocess
 		- Downloading NCBI data to create the reference genome for given species
 		- Prodigal training file
@@ -158,4 +157,3 @@ Milestone is an end-to-end cgMLST profile creation workflow for given bacterial 
 allele_name  <length> <isItmultipleof3> <start_codon?> <stop_codon>
 length of alleles must be 3n
 check the first 3 bases are start and last 3 bases are stop
->>>>>>> fc8f6d5c832163aa4f45572058bb6ce96de4dc24
