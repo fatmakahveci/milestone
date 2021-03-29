@@ -144,7 +144,7 @@ rule vcf_to_fasta:
 #	input:
 #		sample_fasta = "data/"+config["aligner"]+"/"+"".join(config["samples"]["sample1"].split('_1')[0])+".fasta",
 #		allele_call_dir = config["allele_call_dir"],
-#		schema_seed_dir = config["schema_seed_dir"],
+#		schema_seed_dir = f'{config["data_dir"]}/schema_seed',
 #		read1 = "data/"+config["samples"]["sample1"],
 #		read2 = "data/"+config["samples"]["sample2"]
 #	params:

@@ -14,10 +14,6 @@ def create_config():
 	output_file.write(f'logs: "{args.directory}/logs/"\n')
 	output_file.write(f'envs: "{args.directory}/envs/"\n')
 
-	# chewbbaca
-	output_file.write(f'schema_seed_dir: "data/schema_seed"\n')
-	output_file.write(f'allele_call_dir: "data/allele_call"\n')
-
 	# config parameters
 	output_file.write('\n')
 	output_file.write(f'parameters: \n')
@@ -26,24 +22,27 @@ def create_config():
 
 	## chewBBACA run
 	if args.command == 'chewbbaca':
-
+		
+		## schema_seed dir
+		output_file.write(f'data_dir: "data"\n')
+		
 		## create wgMLST
-		output_file.write(f'training_file: "data/{args.training_file}"\n')
 		output_file.write(f'genome_dir: "data/{args.genome_dir}"\n')
 
 		## create cgMLST
 		output_file.write(f'cgmlst_dir: "data/create_cgMLST"\n')
 
-	## alignment run
-	elif args.command == 'alignment':
+	## Run to create <sample.mlst>, <reference.updated.fasta>, and <reference.updated.vcf>
+	elif args.command == 'mlst':
 
 		## graph alignment
 		output_file.write(f'samples:\n sample1: "{args.read1}"\n sample2: "{args.read2}"\n')
 
-		# reference file name of VCF and FASTA
+		## name of aligner vg or sbg
 		output_file.write(f'aligner: "{args.aligner}"\n')
 
 	output_file.close()
+
 
 def run_snakemake():
 
@@ -70,6 +69,7 @@ def run_snakemake():
 	cmd = (f'snakemake -p --conda-prefix {args.condaprefix} --use-conda --configfile "{configfile}" --cores {args.threads} --snakefile {args.snakefile} {forceall} {dryrun} {printshellcmds} {ri} {unlock}')
 	os.system(cmd)
 
+
 def create_snakefile():
 
 	output_file = open(snakefile, 'w')
@@ -78,16 +78,20 @@ def create_snakefile():
 	output_file.write('configfile: "config.yaml"\n\n')
 
 	if args.command == 'chewbbaca':
+		
 		output_file.write('include: "rules/chewie.smk"\n\n')
 		output_file.write('rule all:\n\tinput:\n')
 		output_file.write(f'\t\treference_vcf = "data/{args.reference}.vcf",')
 
-	elif args.command == 'alignment':
+	elif args.command == 'mlst':
+		
 		output_file.write('include: "rules/milestone.smk"\n\n')
 		output_file.write('rule all:\n\tinput:\n')
 		read_name = ''.join(args.read1).split('_1')[0]
-		output_file.write(f'\t\tsample_fasta = "data/{args.aligner}/{read_name}.fasta"')
-		# output_file.write(f'\t\tsample_mlst="data/{args.aligner}/{read_name}.tsv"')
+
+		# to do remove it and comment out the tsv line
+		output_file.write(f'\t\tsample_fasta = "data/{args.aligner}/{read_name}.fasta"') #..
+		# output_file.write(f'\t\tsample_mlst="data/{args.aligner}/{read_name}.tsv"') #.
 
 	output_file.close()
 
@@ -109,22 +113,22 @@ if __name__ == "__main__":
 	parent_parser.add_argument('--unlock', help='Snakemake - Remove a lock on the working directory.', default=False, action='store_true', required=False)
 	parent_parser.add_argument('-q', '--quiet', help='Snakemake - Do not output any progress or rule information.', default=False, action='store_true', required=False)
 
-	# REFERENCE
+	# REFERENCE FILES
 	parent_parser.add_argument('-r', '--reference', help='Name of reference file without extension. (Both VCF and FASTA file name of the reference.)', required=True)
 
 	parser = argparse.ArgumentParser(add_help=False)
 	subparsers = parser.add_subparsers(title='commands', dest='command')
 
-	# CHEWIE
+	# CHEWIE RUN
 	chewbbaca_parser = subparsers.add_parser("chewbbaca", parents=[parent_parser], description='chewBBACA', help='ChewBBACA - Run chewBBACA workflow to create FASTA and VCF files for reference genome.')
-	chewbbaca_parser.add_argument('-a', '--training_file', help='Prodigal training file name', required=True)
 	chewbbaca_parser.add_argument('-g', '--genome_dir', help='Assembled genome directory name to create species MLST schema', required=True)
 
 	# GRAPH ALIGNMENT
-	alignment_parser = subparsers.add_parser("alignment", parents=[parent_parser], description='Graph Alignment', help='Graph aligner - Choose VG or SBG GRAF aligners to align reads onto the reference genome.')
-	alignment_parser.add_argument('--aligner', help='Aligner option, sbg or vg', default='vg', required=False)
-	alignment_parser.add_argument('-e', '--read1', help='Sample first read', required=True)
-	alignment_parser.add_argument('-E', '--read2', help='Sample second read', required=True)
+	mlst_parser = subparsers.add_parser("mlst", parents=[parent_parser], description='Graph Alignment', help='Graph aligner - Choose VG or SBG GRAF aligners to align reads onto the reference genome.')
+	mlst_parser.add_argument('--aligner', help='Aligner option, sbg or vg', default='vg', required=False)
+	mlst_parser.add_argument('-e', '--read1', help='Sample first read', required=True)
+	mlst_parser.add_argument('-E', '--read2', help='Sample second read', required=True)
+	mlst_parser.add_argument('--mlst', help='Update <reference.fasta> and <reference.vcf> after the alignment of the given sample.')
 
 	args = parser.parse_args()
 

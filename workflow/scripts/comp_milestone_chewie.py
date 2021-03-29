@@ -805,6 +805,26 @@ def create_diff_lines(coverage_info, differences):
     return differences_lines
 
 
+def compare_novel_allele(cds, milestone_seq, chewie_seq):
+
+    # {source: sequence_from_the_source}
+    seq_dict = {cds: milestone_seq, 'ref': chewie_seq}
+    
+    for source in seq_dict.keys():
+
+        file_name = f'{source}.fasta'
+        file = open(file_name, 'w')
+        file.write(f'>{source}\n{seq_dict[source]}')
+        file.close()
+        # HERE CORRECTION IS NEEDED
+    command_list = []
+    command_list.append(f"minimap2 -ax asm5 {cds}.fasta ref.fasta --cs=long -o {cds}.sam 2>&1")
+
+    for command in command_list:
+        subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
+    for source in seq_dict.keys():
+        os.remove(f'{source}.fasta')
+
 def assign_alleleid(milestone_seqs, chewie_schema):
     """ Determines if the allele predicted by Milestone
         is in the schema and attributes an allele
@@ -828,15 +848,35 @@ def assign_alleleid(milestone_seqs, chewie_schema):
     """
 
     milestone_allele_ids = {}
-    for locid, seq in milestone_seqs.items():
-        locus_file = os.path.join(chewie_schema, '{0}.fasta'.format(locid))
+    for milestone_locid, milestone_seq in milestone_seqs.items():
+
+        locus_file = os.path.join(chewie_schema, '{0}.fasta'.format(milestone_locid))
         locus_alleles = {str(rec.seq): (rec.id).split('_')[-1]
                          for rec in SeqIO.parse(locus_file, 'fasta')}
 
         # get allele ID for allele predicted by Milestone
         # assign '?' if allele is not in Chewie's schema
-        milestone_id = locus_alleles.get(seq, '?')
-        milestone_allele_ids[locid] = milestone_id
+        milestone_id = locus_alleles.get(milestone_seq, '?')
+        milestone_allele_ids[milestone_locid] = milestone_id
+
+        is_allele_in_schema = all(map(str.isdigit, milestone_id))
+
+        # a chewBBACA allele
+        # a milestone allele
+        if is_allele_in_schema:
+            milestone_allele_ids[milestone_locid] = milestone_id
+
+        # a chewBBACA allele
+        # "not" a milestone allele
+        elif milestone_id == '-':
+            milestone_allele_ids[milestone_locid] = 'LNF'
+
+        # "not" a chewBBACA allele
+        # a milestone allele
+        else:
+            # chewBBACA schema_seed, reference of given CDS := CDS_x_1
+            ref_seq = list(locus_alleles.keys())[list(locus_alleles.values()).index('1')]
+            compare_novel_allele(milestone_locid, milestone_seq, ref_seq)
 
     return milestone_allele_ids
 
