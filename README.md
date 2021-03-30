@@ -34,7 +34,7 @@ $ >> conda create -n milestone chewbbaca=2.7 freebayes=1.3.1 minimap2=2.17 snake
 
 - Activate the created environment: `$ >> source activate milestone`
 
-- Deactivate the created environment: `$ >> source deactivate milestone`
+- Deactivate the created environment: `$ >> source deactivate`
 
 - Remove the created environment: `$ >> conda env remove milestone`
 
