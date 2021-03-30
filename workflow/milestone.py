@@ -12,7 +12,6 @@ def create_config():
 	# config files
 	output_file.write(f'workdir:  "{args.directory}"\n')
 	output_file.write(f'logs: "{args.directory}/logs/"\n')
-	output_file.write(f'envs: "{args.directory}/envs/"\n')
 
 	# config parameters
 	output_file.write('\n')
@@ -22,10 +21,10 @@ def create_config():
 
 	## chewBBACA run
 	if args.command == 'chewbbaca':
-		
+
 		## schema_seed dir
 		output_file.write(f'data_dir: "data"\n')
-		
+
 		## create wgMLST
 		output_file.write(f'genome_dir: "data/{args.genome_dir}"\n')
 
@@ -66,7 +65,7 @@ def run_snakemake():
 	if args.unlock:
 		unlock="--unlock"
 
-	cmd = (f'snakemake -p --conda-prefix {args.condaprefix} --use-conda --configfile "{configfile}" --cores {args.threads} --snakefile {args.snakefile} {forceall} {dryrun} {printshellcmds} {ri} {unlock}')
+	cmd = (f'snakemake -p --conda-prefix milestone --use-conda --configfile "{configfile}" --cores {args.threads} --snakefile {args.snakefile} {forceall} {dryrun} {printshellcmds} {ri} {unlock}')
 	os.system(cmd)
 
 
@@ -78,13 +77,13 @@ def create_snakefile():
 	output_file.write('configfile: "config.yaml"\n\n')
 
 	if args.command == 'chewbbaca':
-		
+
 		output_file.write('include: "rules/chewie.smk"\n\n')
 		output_file.write('rule all:\n\tinput:\n')
 		output_file.write(f'\t\treference_vcf = "data/{args.reference}.vcf",')
 
 	elif args.command == 'mlst':
-		
+
 		output_file.write('include: "rules/milestone.smk"\n\n')
 		output_file.write('rule all:\n\tinput:\n')
 		read_name = ''.join(args.read1).split('_1')[0]
@@ -106,8 +105,6 @@ if __name__ == "__main__":
 	parent_parser.add_argument('-p', '--printshellcmds', help='Snakemake - Print out the shell commands that will be executed.', default=False, action='store_true', required=False)
 	parent_parser.add_argument('-s', '--snakefile', help="Snakemake - The workflow definition in form of a snakefile.Usually, you should not need to specify this. By default, Snakemake will search for 'Snakefile','snakefile', 'workflow/Snakefile', 'workflow/snakefile' beneath the current working directory, in this order. Only if you definitely want a different layout, you need to use this parameter.", default='Snakefile', required=False)
 	parent_parser.add_argument('-t', '--threads', '--set-threads', help='Snakemake - Overwrite thread usage of rules. This allows to fine-tune workflow parallelization. In particular, this is helpful to target certain cluster nodes by e.g. shifting a rule to use more, or less threads than defined in the workflow. Thereby, THREADS has to be a positive integer, and RULE has to be the name of the rule.', required=False, type=int)
-	parent_parser.add_argument('--report', help='Snakemake - Create an HTML report with results and statistics. This can be either a .html file or a .zip file. In the former case, all results are embedded into the .html (this only works for small data). In the latter case, results are stored along with a file report.html in the zip archive. If no filename is given, an embedded report.html is the default.', action='store_true', required=False)
-	parent_parser.add_argument('-c', '--condaprefix', help='Path of default conda environment, enables recycling built environments, default is in folder conda_env in repository directory.', default=os.path.join(os.path.dirname(os.path.realpath(__file__)), "envs"), required=False)
 	parent_parser.add_argument('-F', '--forceall', help='Snakemake - Force the execution of the selected (or the first) rule and all rules it is dependent on regardless of already created output.', default=False, action='store_true', required=False)
 	parent_parser.add_argument('--ri', '--rerun-incomplete', help='Snakemake - Re-run all jobs the output of which is recognized as incomplete. ', default=False, action='store_true', required=False)
 	parent_parser.add_argument('--unlock', help='Snakemake - Remove a lock on the working directory.', default=False, action='store_true', required=False)
