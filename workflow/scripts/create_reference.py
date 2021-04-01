@@ -6,7 +6,7 @@ from io import StringIO  # python3
 from pathlib import Path
 
 
-def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
+def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list, threads):
 
 	write_dir = f"{cg_dir}/references"
 	try:
@@ -33,7 +33,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list):
 				command_list = []  # Command List
 				sample = f"{write_dir}/{allele_name}"
 				reference = f"{cg_dir}/references/{cds_name}_1"
-				command_list.append(f"minimap2 -ax asm5 {reference}.fasta {sample}.fasta --cs=long -o {sample}.sam 2>&1")
+				command_list.append(f"minimap2 -ax asm5 {reference}.fasta {sample}.fasta -t {threads} --cs=long -o {sample}.sam 2>&1")
 				command_list.append(f"samtools view -Sb {sample}.sam > {sample}.bam")
 				command_list.append(f"samtools index {sample}.bam")
 				command_list.append(f"samtools sort {sample}.bam -o {sample}.sorted.bam")
@@ -155,6 +155,7 @@ if __name__ == "__main__":
 	parser.add_argument('--schema_seed_dir')
 	parser.add_argument('--reference_vcf')
 	parser.add_argument('--reference_fasta')
+	parser.add_argument('--threads')
 
 	args = parser.parse_args()
 
@@ -171,7 +172,7 @@ if __name__ == "__main__":
 
 	# create reference vcf
 	for cds in cg_list:
-		create_cds_vcf(f"{args.schema_seed_dir}", cds, cds_to_merge_list)
+		create_cds_vcf(f"{args.schema_seed_dir}", cds, cds_to_merge_list, {args.threads})
 
 	create_reference_vcf_fasta(f"{args.schema_seed_dir}", cds_to_merge_list)
 

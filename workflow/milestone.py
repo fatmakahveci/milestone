@@ -11,7 +11,7 @@ def create_config():
 
 	# config files
 	output_file.write(f'workdir:  "{args.directory}"\n')
-	output_file.write(f'logs: "{args.directory}/logs/"\n')
+	output_file.write(f'logs: "{args.directory}/logs"\n')
 
 	# config parameters
 	output_file.write('\n')
@@ -78,19 +78,23 @@ def create_snakefile():
 
 	if args.command == 'chewbbaca':
 
+		# create a log file for chewbbaca
+		os.system(f'touch {args.directory}/logs/chewbbaca.log')
+		
 		output_file.write('include: "rules/chewie.smk"\n\n')
 		output_file.write('rule all:\n\tinput:\n')
-		output_file.write(f'\t\treference_vcf = "data/{args.reference}.vcf",')
+		output_file.write(f'\t\treference_vcf = "data/{args.reference}.vcf"')
 
 	elif args.command == 'mlst':
 
+		# create a log file for chewbbaca
+		os.system(f'touch {args.directory}/logs/mlst.log')
+
 		output_file.write('include: "rules/milestone.smk"\n\n')
 		output_file.write('rule all:\n\tinput:\n')
-		read_name = ''.join(args.read1).split('_1')[0]
 
-		# to do remove it and comment out the tsv line
-		output_file.write(f'\t\tsample_fasta = "data/{args.aligner}/{read_name}.fasta"') #..
-		# output_file.write(f'\t\tsample_mlst="data/{args.aligner}/{read_name}.tsv"') #.
+		read_name = ''.join(args.read1).split('_1')[0]
+		output_file.write(f'\t\tsample_mlst="data/{args.aligner}/{read_name}.tsv"') #.
 
 	output_file.close()
 
@@ -118,19 +122,26 @@ if __name__ == "__main__":
 
 	# CHEWIE RUN
 	chewbbaca_parser = subparsers.add_parser("chewbbaca", parents=[parent_parser], description='chewBBACA', help='ChewBBACA - Run chewBBACA workflow to create FASTA and VCF files for reference genome.')
-	chewbbaca_parser.add_argument('-g', '--genome_dir', help='Assembled genome directory name to create species MLST schema', required=True)
+
+	chewbbaca_parser.add_argument('-g', '--genome_dir', help='ChewBBACA - Assembled genome directory name to create species MLST schema', required=True)
 
 	# GRAPH ALIGNMENT
-	mlst_parser = subparsers.add_parser("mlst", parents=[parent_parser], description='Graph Alignment', help='Graph aligner - Choose VG or SBG GRAF aligners to align reads onto the reference genome.')
-	mlst_parser.add_argument('--aligner', help='Aligner option, sbg or vg', default='vg', required=False)
-	mlst_parser.add_argument('-e', '--read1', help='Sample first read', required=True)
-	mlst_parser.add_argument('-E', '--read2', help='Sample second read', required=True)
-	mlst_parser.add_argument('--mlst', help='Update <reference.fasta> and <reference.vcf> after the alignment of the given sample.')
+	mlst_parser = subparsers.add_parser("mlst", parents=[parent_parser], description='Graph Alignment', help='Graph Alignment - Choose VG or SBG GRAF aligners to align reads onto the reference genome.')
+
+	mlst_parser.add_argument('--aligner', help='Graph Alignment - Aligner option, sbg or vg', default='vg', required=False)
+	mlst_parser.add_argument('-e', '--read1', help='Graph Alignment - Sample first read', required=True)
+	mlst_parser.add_argument('-E', '--read2', help='Graph Alignment - Sample second read', required=True)
+	mlst_parser.add_argument('--mlst', help='Reference - Update <reference.fasta> and <reference.vcf> after the alignment of the given sample.')
 
 	args = parser.parse_args()
 
+	# Create working directory if it doesn't exist
 	if not os.path.exists(args.directory):
-		os.makedirs(args.directory)
+		os.makedirs(f'{args.directory}')
+	
+	# Create directory of the log files
+	if not os.path.exists(f'{args.directory}/logs'):
+		os.makedirs(f'{args.directory}/logs')
 
 	configfile = os.path.join(args.directory, "config.yaml")
 	create_config()
@@ -140,5 +151,6 @@ if __name__ == "__main__":
 
 	if os.path.exists(configfile):
 		run_snakemake()
+
 	else:
 		print("Path to configfile does not exist: " + configfile)
