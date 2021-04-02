@@ -218,27 +218,28 @@ rule vcf_to_fasta:
 		echo "Output file is {output.sample_fasta}" | tee -a {params.log_file}
 		echo "---------------------------------------" | tee -a {params.log_file}
 		bcftools consensus --fasta-ref {input.reference_fasta} {input.sample_vcf_gz} -o {output.sample_fasta}
+		now=$(date +"%T")
 		echo "End: $now" | tee -a {params.log_file}
 		'''
 
-rule fasta_to_mlst:
-	input:
-		sample_fasta = "data/"+config["aligner"]+"/"+"".join(config["samples"]["sample1"].split('_1')[0])+".fasta",
-		allele_call_dir = config["allele_call_dir"],
-		schema_seed_dir = f'{config["data_dir"]}/schema_seed',
-		read1 = "data/"+config["samples"]["sample1"],
-		read2 = "data/"+config["samples"]["sample2"]
-		sid = (config["samples"]["sample1"]).split('_')[0]
-	output:
-		sample_mlst = "data/"+config["aligner"]+"/"+"".join(config["samples"]["sample1"].split('_1')[0])+".tsv"
-	message: "Sample's FASTA file is being converted into sample's MLST schema..."
-	params: log_file = f"{config['logs']}/sample_mlst.log"
-	shell:
-		'''
-		echo "---------------------------------------" | tee -a {params.log_file}
-		echo "" | tee -a {params.log_file}
-		echo "---------------------------------------" | tee -a {params.log_file}
-		resultsAllelesTsv=$(ls {input.allele_call_dir}/result*/results_alleles.tsv)
-		python3 scripts/convert_fasta_into_mlst.py -cm $resultsAllelesTsv -cs {input.schema_seed_dir} -mr {input.sample_fasta} \
-		-sid '{params.sid}' -o {output.sample_mlst} -fq1 {input.read1} -fq2 {input.read2}
-		'''
+# rule fasta_to_mlst:
+# 	input:
+# 		sample_fasta = "data/"+config["aligner"]+"/"+"".join(config["samples"]["sample1"].split('_1')[0])+".fasta",
+# 		allele_call_dir = config["allele_call_dir"],
+# 		schema_seed_dir = f'{config["data_dir"]}/schema_seed',
+# 		read1 = "data/"+config["samples"]["sample1"],
+# 		read2 = "data/"+config["samples"]["sample2"]
+# 		sid = (config["samples"]["sample1"]).split('_')[0]
+# 	output:
+# 		sample_mlst = "data/"+config["aligner"]+"/"+"".join(config["samples"]["sample1"].split('_1')[0])+".tsv"
+# 	message: "Sample's FASTA file is being converted into sample's MLST schema..."
+# 	params: log_file = f"{config['logs']}/sample_mlst.log"
+# 	shell:
+# 		'''
+# 		echo "---------------------------------------" | tee -a {params.log_file}
+# 		echo "" | tee -a {params.log_file}
+# 		echo "---------------------------------------" | tee -a {params.log_file}
+# 		resultsAllelesTsv=$(ls {input.allele_call_dir}/result*/results_alleles.tsv)
+# 		python3 scripts/convert_fasta_into_mlst.py -cm $resultsAllelesTsv -cs {input.schema_seed_dir} -mr {input.sample_fasta} \
+# 		-sid '{params.sid}' -o {output.sample_mlst} -fq1 {input.read1} -fq2 {input.read2}
+# 		'''

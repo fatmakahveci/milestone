@@ -94,7 +94,7 @@ def create_snakefile():
 		output_file.write('rule all:\n\tinput:\n')
 
 		read_name = ''.join(args.read1).split('_1')[0]
-		output_file.write(f'\t\tsample_mlst="data/{args.aligner}/{read_name}.tsv"') #.
+		output_file.write(f'\t\tsample_fasta="data/{args.aligner}/{read_name}.fasta"') #.
 
 	output_file.close()
 

@@ -4,9 +4,11 @@ rule create_wgmlst_schema:
     input:
         genome_dir = config["genome_dir"]
     output:
-        data_dir = directory(f'{config["data_dir"]}/schema_seed')
+        schema_seed_dir = directory(f'{config["data_dir"]}/schema_seed')
     message: "chewBBACA is creating whole genome MLST (wgMLST) schema."
-    params: log_file = f"{config['logs']}/chewbbaca.log"
+    params:
+        data_dir = config["data_dir"],
+        log_file = f"{config['logs']}/chewbbaca.log"
     threads: config["parameters"]["threads"]
     shell:
         '''
@@ -15,9 +17,9 @@ rule create_wgmlst_schema:
         echo "Start: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         echo "chewBBACA CreateSchema is running on {input.genome_dir} with {threads} threads." | tee -a {params.log_file}
-        echo "Output files on {output.data_dir}" | tee -a {params.log_file}
+        echo "Output files on {output.schema_seed_dir}" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        chewBBACA.py CreateSchema -i {input.genome_dir} -o {output.data_dir} --cpu {threads} 2>&1 | tee -a {params.log_file}
+        chewBBACA.py CreateSchema -i {input.genome_dir} -o {params.data_dir} --cpu {threads} 2>&1 | tee -a {params.log_file}
         '''
 
 rule call_allele:
@@ -35,7 +37,7 @@ rule call_allele:
         echo "chewBBACA AlleleCall is running on {input.genome_dir} and {input.schema_seed_dir}/schema_seed with {threads} threads." | tee -a {params.log_file}
         echo "Output files on {output.allele_call_dir}" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        chewBBACA.py AlleleCall -i {input.genome_dir} -g {input.schema_seed_dir}/schema_seed -o {output.allele_call_dir} --cpu {threads} 2>&1 | tee -a {params.log_file}
+        chewBBACA.py AlleleCall -i {input.genome_dir} -g {input.schema_seed_dir} -o {output.allele_call_dir} --cpu {threads} 2>&1 | tee -a {params.log_file}
         '''
 
 rule create_cgmlst_schema:
@@ -70,10 +72,10 @@ rule create_reference_vcf_fasta:
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "scripts/create_reference.py is runnning on {input.cgmlst_dir} and {input.schema_seed_dir}/schema_seed." | tee -a {params.log_file}
+        echo "scripts/create_reference.py is runnning on {input.cgmlst_dir} and {input.schema_seed_dir}." | tee -a {params.log_file}
         echo "Output files '{output.reference_vcf}' and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        python3 scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir}/schema_seed --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --threads {threads} 2>&1 | tee -a {params.log_file}
+        python3 scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --threads {threads} 2>&1 | tee -a {params.log_file}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         '''
