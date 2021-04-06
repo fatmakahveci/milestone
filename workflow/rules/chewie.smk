@@ -25,7 +25,7 @@ rule create_wgmlst_schema:
 rule call_allele:
     input:
         genome_dir = config["genome_dir"],
-        schema_seed_dir = f'{config["data_dir"]}/schema_seed',
+        schema_seed_dir = f'{config["data_dir"]}/schema_seed'
     output:
         allele_call_dir = directory(f'{config["data_dir"]}/allele_call')
     message: "chewBBACA is calling alleles."
@@ -75,7 +75,7 @@ rule create_reference_vcf_fasta:
         echo "scripts/create_reference.py is runnning on {input.cgmlst_dir} and {input.schema_seed_dir}." | tee -a {params.log_file}
         echo "Output files '{output.reference_vcf}' and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        python3 scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --threads {threads} 2>&1 | tee -a {params.log_file}
+        python scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --threads {threads} 2>&1 | tee -a {params.log_file}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         '''
