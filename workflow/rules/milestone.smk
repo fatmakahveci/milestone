@@ -225,7 +225,8 @@ rule vcf_to_fasta:
 rule fasta_to_mlst:
     input:
         schema_seed_dir = f'{config["data_dir"]}/schema_seed',
-        sample_fasta = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.fasta'
+        sample_fasta = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.fasta',
+        allele_call_dir = f'{config["data_dir"]}/allele_call'
     output:
         sample_mlst = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.tsv'
     message: "Sample's FASTA file is being converted into sample's MLST schema..."
@@ -239,7 +240,7 @@ rule fasta_to_mlst:
         echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         resultsAllelesTsv=$(ls {input.allele_call_dir}/result*/results_alleles.tsv)
-        python scripts/comp_milestone_chewie.py -cm "$resultsAllelesTsv" -cs {input.schema_seed_dir} -mr {input.sample_fasta} -sid '{params.sid}' -o {output.sample_mlst}
+        python scripts/create_sample_mlst.py --chewbbaca_path {input.schema_seed_dir} --milestone_path {input.sample_fasta} --strain_id '{params.sid}' --o {output.sample_mlst}
         '''
 
 # rule update_reference:
@@ -248,11 +249,16 @@ rule fasta_to_mlst:
 #         reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
 #         reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz'
 #     output:
-#         reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}_updated.vcf.gz',
-#         reference_fasta = f'{config["data_dir"]}/{config["reference"]}_updated.fasta'
+#         updated_reference_vcf = f'{config["data_dir"]}/{config["reference"]}_updated.vcf',
+#         updated_reference_fasta = f'{config["data_dir"]}/{config["reference"]}_updated.fasta'
 #     message: "Reference VCF and FASTA files are being updated according to the sample's variants..."
 #     params:
 #         log_file = f'{config["logs"]}/mlst.log'
 #     shell:
 #         '''
+#         echo "---------------------------------------" | tee -a {params.log_file}
+#         echo "{input.sample_vcf_gz} and {input.reference_vcf_gz} are merged..." | tee -a {params.log_file}
+#         echo "Output file is {output.updated_reference_vcf}."
+#         echo "---------------------------------------" | tee -a {params.log_file}
+#         bcftools merge --merge all {input.reference_vcf_gz} {input.sample_vcf_gz} -O v -o {output.updated_reference_vcf}
 #         '''

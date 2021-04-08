@@ -96,7 +96,7 @@ def create_snakefile():
         sample_name = ''.join(args.read1).split('_1')[0]
 
         if args.sample_mlst:
-            output_file.write(f'\t\tsample_mlst = "data/{args.aligner}/{sample_name}_mlst.tsv"')
+            output_file.write(f'\t\tsample_mlst = "data/{args.aligner}/{sample_name}.tsv"')
         elif args.update_reference:
             output_file.write(f'\t\treference_vcf = "data/{args.reference}_updated.vcf"')
             output_file.write(f'\t\treference_vcf = "data/{args.reference}_updated.fasta"')
@@ -196,7 +196,7 @@ def parse_arguments():
         dest='update_reference', default=False, required=False)
     mlst_parser.add_argument('--sm', '--sample_mlst',
         help='Sample MLST - Create MLST profile of the given sample.',
-        dest='sample_mlst', default=False, required=False)
+        dest='sample_mlst', default=False, action='store_true', required=False)
 
     args = parser.parse_args()
 
