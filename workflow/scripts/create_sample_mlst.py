@@ -3,7 +3,7 @@
 
 '''
 author: @rfm, @fatmakhv
-the latest update: April 12, 2021
+the latest update: April 09, 2021
 after_completion - it will be used in snakemake so parameters will be arranged there
 '''
 
@@ -210,10 +210,11 @@ def find_variants(milestone_cds: str, chewbbaca_seq: str, milestone_seq: str, no
         variant_list = call_variants(cds_name=paf_line[0], sequence=paf_line[-1][5:]) # '[5:] skip cs:z:'
 
         if args.reference_vcf != "": # if --update_reference is used to run this script
-            write_variants_to_file(variant_list)
+            # write_variants_to_file(variant_list)
 
-        for variant in variant_list:
-            print(variant)
+            for _ in variant_list: # write novel allele sequences among the chewbbaca's schema_seed
+                novel_sequence_id = f'{milestone_cds}_{novel_allele_id}'
+                write_seq_to_file(novel_sequence_id, milestone_seq, f'{args.chewbbaca_path}/{novel_sequence_id}.fasta')
 
 
 def compare_milestone_seq_to_chewbbaca_allele_seqs(milestone_seq_dict: dict) -> None:
@@ -252,9 +253,8 @@ def compare_milestone_seq_to_chewbbaca_allele_seqs(milestone_seq_dict: dict) -> 
             novel_allele_id = len(chewbbaca_sequence_list_of_given_cds) + 1
 
             find_variants(milestone_cds, chewbbaca_cds_reference, milestone_seq, novel_allele_id)
-            
+
             # todo - create MLST schema for the sample
-            # todo - milestone_cds sequence add to schema_seed/cds alleles
             # todo - add milestone_allele_id to sample.mlst.tsv allele_id = {{number of alleles of chewbbaca CDS}+1}
             # todo - write novel allele to schema_seed (Keeping allele sequences of CDSs seems to be required.)
 
