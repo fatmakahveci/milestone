@@ -3,11 +3,10 @@
 
 '''
 author: @rfm, @fatmakhv
-the latest update: April 09, 2021
-after_completion - it will be used in snakemake so parameters will be arranged there
+the latest update: April 13, 2021
 '''
 
-import argparse, csv, subprocess
+import argparse, csv, os, subprocess
 
 from Bio import SeqIO
 
@@ -101,6 +100,7 @@ def read_tabular(input_file: str) -> list:
     """
 
     with open(input_file, 'r') as infile:
+
         reader = csv.reader(infile, delimiter='\t')
         lines = [line for line in reader]
 
@@ -175,10 +175,11 @@ def write_variants_to_file(variant_list: list[variant]) -> None:
 
         for variant in variant_list:
             vcf_file.write(f'{variant.id}_1\t{variant.pos}\t.\t{variant.ref}\t{variant.alt}\t{30}\t.\tDP=1;SGB=-0.379885;MQ0F=0;AF1=1;AC1=1;DP4=0,0,1,0;MQ=60;FQ=-999   GT:PL\t1:60,0\n')
+
         vcf_file.close()
 
 
-def find_variants(milestone_cds: str, chewbbaca_seq: str, milestone_seq: str, novel_allele_id: int) -> None:
+def find_variants(milestone_cds: str, chewbbaca_seq: str, milestone_seq: str, milestone_allele_id: int) -> None:
     """ compares milestone_cds sequence to chewbbaca_cds
         alleles minimap2 to find variants
 
@@ -187,7 +188,7 @@ def find_variants(milestone_cds: str, chewbbaca_seq: str, milestone_seq: str, no
     milestone_cds : CDS ID to work on
     chewbbaca_seq : reference sequence of CDS created by chewBBACA
     milestone_seq : sequence of CDS created by milestone
-    novel_allele_id : allele ID to be written into <sample.mlst.tsv>
+    milestone_allele_id : (novel) allele ID to be written into <sample.mlst.tsv>
     """
 
     chewbbaca_seq_fasta = f'{args.output_dir}/{milestone_cds}_chewbbaca.fasta'
@@ -201,6 +202,9 @@ def find_variants(milestone_cds: str, chewbbaca_seq: str, milestone_seq: str, no
     cmd = (f'minimap2 -cx asm5 {chewbbaca_seq_fasta} {milestone_seq_fasta} -t {args.threads} --cs=long -o {cds_paf_file_name} 2>&1')
     subprocess.call(cmd, shell=True, stdout=subprocess.DEVNULL)
 
+    os.remove(chewbbaca_seq_fasta) if os.path.exists(chewbbaca_seq_fasta) else None
+    os.remove(milestone_seq_fasta) if os.path.exists(milestone_seq_fasta) else None
+
     paf_line = read_tabular(cds_paf_file_name)
 
     # case: len(paf_lines) = 0
@@ -210,12 +214,15 @@ def find_variants(milestone_cds: str, chewbbaca_seq: str, milestone_seq: str, no
         variant_list = call_variants(cds_name=paf_line[0], sequence=paf_line[-1][5:]) # '[5:] skip cs:z:'
 
         if args.reference_vcf != "": # if --update_reference is used to run this script
+
             write_variants_to_file(variant_list)
 
             for _ in variant_list: # write novel allele sequences among the chewbbaca's schema_seed
-                novel_sequence_id = f'{milestone_cds}_{novel_allele_id}'
-                write_seq_to_file(novel_sequence_id, milestone_seq, f'{args.chewbbaca_path}/{novel_sequence_id}.fasta')
+                # milestone_sequence_id = novel sequence id
+                milestone_sequence_id = f'{milestone_cds}_{milestone_allele_id}'
+                write_seq_to_file(milestone_sequence_id, milestone_seq, f'{args.chewbbaca_path}/{milestone_sequence_id}.fasta')
 
+    os.remove(cds_paf_file_name) if os.path.exists(cds_paf_file_name) else None
 
 def compare_milestone_seq_to_chewbbaca_allele_seqs(milestone_seq_dict: dict) -> None:
     """ compares each CDS sequence created by milestone to the allele sequences
@@ -242,21 +249,20 @@ def compare_milestone_seq_to_chewbbaca_allele_seqs(milestone_seq_dict: dict) -> 
 
                 if milestone_seq == chewbbaca_allele_seq:
 
-                    # chewbbaca_allele_name = <chewbbaca_CDS_name>_<chewbbaca_allele_id>
-                    chewbbaca_allele_id = chewbbaca_allele_name.split('_')[-1]
+                    # chewbbaca_allele_name = <chewbbaca_CDS_name>_[<chewbbaca_allele_id>==(milestone_allele_id)]
+                    milestone_allele_id = chewbbaca_allele_name.split('_')[-1]
 
         else:
 
             chewbbaca_cds_reference = chewbbaca_sequence_list_of_given_cds[f'{milestone_cds}_1']
 
             # change allele ID for the novel allele to add new allele
-            novel_allele_id = len(chewbbaca_sequence_list_of_given_cds) + 1
+            # novel allele id = milestone_allele_id
+            milestone_allele_id = len(chewbbaca_sequence_list_of_given_cds) + 1
 
-            find_variants(milestone_cds, chewbbaca_cds_reference, milestone_seq, novel_allele_id)
+            find_variants(milestone_cds, chewbbaca_cds_reference, milestone_seq, milestone_allele_id)
 
-            # todo - create MLST schema for the sample
-
-        sample_mlst_file.write(f'{milestone_cds}\t{chewbbaca_allele_id}\n')
+        sample_mlst_file.write(f'{milestone_cds}\t{milestone_allele_id}\n')
 
     sample_mlst_file.close()
 
