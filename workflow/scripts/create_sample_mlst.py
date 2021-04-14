@@ -162,7 +162,7 @@ def call_variants(cds_name: str, sequence: str) -> list:
     return variant_list
 
 
-def write_variants_to_file(variant_list: list[variant]) -> None:
+def write_variants_to_file(variant_list: list) -> None:
     """ gets variants from PAF-formatted alignment and
         appends variants at the end of the <reference.vcf> file.
 

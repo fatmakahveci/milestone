@@ -30,7 +30,7 @@ def create_cds_vcf(cg_dir, cds_fasta, cds_to_merge_list, threads):
 
 			if allele_id != '1':
 
-				command_list = []  # Command List
+				command_list = []
 				sample = f"{write_dir}/{allele_name}"
 				reference = f"{cg_dir}/references/{cds_name}_1"
 				command_list.append(f"minimap2 -ax asm5 {reference}.fasta {sample}.fasta -t {threads} --cs=long -o {sample}.sam 2>&1")

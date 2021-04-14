@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+'''
+author: @fatmakhv
+the latest update: April 13, 2021
+'''
+
 import argparse, glob, os, subprocess, sys
 
 
@@ -19,7 +24,6 @@ def create_config():
     output_file.write(f'parameters: \n')
     output_file.write(f' threads: {args.threads}\n')
     output_file.write(f'reference: {args.reference}\n')
-    output_file.write(f'sample: {"".join({args.read1}).split("_1")[0]}\n')
 
     ## chewBBACA run
     if args.command == 'chewbbaca':
@@ -33,6 +37,8 @@ def create_config():
     ## Run to create <sample.mlst> or
     ## [<reference.updated.fasta> and <reference.updated.vcf>]
     elif args.command == 'mlst':
+
+        output_file.write(f'sample: {"".join({args.read1}).split("_1")[0]}\n')
 
         ## graph alignment
         output_file.write(f'samples:\n sample1: "{args.read1}"\n sample2: "{args.read2}"\n')
@@ -96,12 +102,17 @@ def create_snakefile():
         sample_name = ''.join(args.read1).split('_1')[0]
 
         if args.sample_mlst:
-            output_file.write(f'\t\tsample_mlst = "data/{args.aligner}/{sample_name}.tsv"')
-        elif args.update_reference:
-            output_file.write(f'\t\treference_vcf = "data/{args.reference}_updated.vcf"')
-            output_file.write(f'\t\treference_vcf = "data/{args.reference}_updated.fasta"')
+
+            output_file.write(f'\t\tsample_mlst = "data/{sample_name}.mlst.tsv"\n')
+
+            if args.update_reference:
+
+                output_file.write(f'\t\treference_vcf = "data/{args.reference}.vcf"\n')
+                output_file.write(f'\t\treference_fasta = "data/{args.reference}.fasta"')
+
         else:
-            output_file.write(f'\t\tsample_fasta = "data/{args.aligner}/{sample_name}.fasta"')
+
+            output_file.write(f'\t\tsample_fasta = "data/{args.aligner}/{sample_name}.fasta"\n')
 
     output_file.close()
 
@@ -193,7 +204,7 @@ def parse_arguments():
     mlst_parser.add_argument('--ur', '--update_reference',
         help='Reference - Update <reference.fasta> and <reference.vcf> after\
              the alignment of the given sample.',
-        dest='update_reference', default=False, required=False)
+        dest='update_reference', default=False, action='store_true', required=False)
     mlst_parser.add_argument('--sm', '--sample_mlst',
         help='Sample MLST - Create MLST profile of the given sample.',
         dest='sample_mlst', default=False, action='store_true', required=False)
