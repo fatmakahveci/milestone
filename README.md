@@ -49,6 +49,8 @@ TO-DO
 
 ---
 
+![images/milestone_pipeline.png](images/milestone_pipeline.png)
+
 ## Creation of reference genome
 
 > python milestone.py chewbbaca -d <input_data_directory> -t <number_of_threads> -g <reference_genome_assemblies_directory> -p -r <to_be_created_reference_file_name_without_extension> --snakefile Snakefile -F
