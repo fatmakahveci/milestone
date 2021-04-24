@@ -120,6 +120,7 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, 
 
 	return allele_dict
 
+
 def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
 
 	write_dir = f"{cg_dir}/references"
