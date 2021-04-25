@@ -54,7 +54,6 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 		out_file.close()
 
 
-
 def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
 
 	pos_dict = {}
