@@ -8,7 +8,7 @@ from pathlib import Path
 
 class vcf:
 
-	def __init__(self, vcf_line, allele_id):
+	def __init__(self, vcf_line):
 
 		fields = vcf_line.split('\t')
 
@@ -33,6 +33,8 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 	out_file_name = args.reference_vcf.strip('.vcf')+"_info.txt"
 
 	with open(out_file_name, 'a') as out_file:
+		
+		out_file.write(f'{cds_name}_{allele_id} ')
 
 		pos_list = []
 
@@ -45,8 +47,12 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 
 			pos_list.append('>'.join([pos, "/".join(alt_list)]))
 
-			out_file.write(f'{cds_name}_{allele_id}%{",".join(pos_list)}\n')
+			out_file.write(",".join(pos_list))
+
+		out_file.write('\n')
+
 		out_file.close()
+
 
 
 def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
@@ -59,7 +65,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 			if not line.startswith("#"):
 
-				vcf_line = vcf(line, allele_id)
+				vcf_line = vcf(line)
 
 				pos_ref = f'{vcf_line.pos}*{vcf_line.ref}'
 
@@ -263,11 +269,11 @@ if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
 
-	parser.add_argument('--cgmlst_dir')
-	parser.add_argument('--schema_seed_dir')
-	parser.add_argument('--reference_vcf')
-	parser.add_argument('--reference_fasta')
-	parser.add_argument('--threads')
+	parser.add_argument('--cgmlst_dir', required=True)
+	parser.add_argument('--schema_seed_dir', required=True)
+	parser.add_argument('--reference_vcf', required=True)
+	parser.add_argument('--reference_fasta', required=True)
+	parser.add_argument('--threads', required=True)
 
 	args = parser.parse_args()
 
