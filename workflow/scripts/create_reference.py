@@ -47,7 +47,7 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 
 			pos_list.append('>'.join([pos, "/".join(alt_list)]))
 
-			out_file.write(",".join(pos_list))
+		out_file.write(",".join(pos_list))
 
 		out_file.write('\n')
 
@@ -73,7 +73,9 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 					pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
 
 				else: # if there is a proof for a high quality variant take with the highest
+
 					if pos_dict[pos_ref][vcf_line.alt] < vcf_line.qual:
+				
 						pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
 
 		file.close()
@@ -84,7 +86,6 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 
 def get_allele_id_from_allele_name(allele_name: str) -> str:
-
 	return allele_name.strip("\n").split("_")[-1]
 
 
