@@ -35,6 +35,22 @@ rule compress_vcf:
         bgzip {input.reference_vcf} && tabix -p vcf {output.reference_vcf_gz}
         '''
 
+rule decompress_vcf:
+    input:
+        reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz'
+    output:
+        reference_vcf = f'{config["data_dir"]}/{config["reference"]}.vcf'
+    message: "VCF file is being decompressed..."
+    params: log_file = f'{config["logs"]}/mlst.log'
+    shell:
+        '''
+        echo "---------------------------------------" | tee -a {params.log_file}
+        echo "{input.reference_vcf_gz} file is being decompressed." | tee -a {params.log_file}
+        echo "Output decompressed file is {output.reference_vcf}." | tee -a {params.log_file}
+        echo "---------------------------------------" | tee -a {params.log_file}
+        gunzip -f {input.reference_vcf_gz}
+        '''
+
 rule vg_construct:
     input:
         reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
@@ -99,24 +115,21 @@ rule sbg_graf:
         reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
         reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz',
         read1 = f'{config["data_dir"]}/{config["samples"]["sample1"]}',
-        read2 = f'{config["data_dir"]}/{config["samples"]["sample2"]}'
+        read2 = f'{config["data_dir"]}/{config["samples"]["sample2"]}',
     output:
         sample_bam = f'{config["data_dir"]}/sbg/{config["sample"]}.bam'
     params:
-        reference_vcf = f'data/{config["reference"]}.vcf'
+        log_file = f'{config["logs"]}/mlst.log'
     threads: config["parameters"]["threads"]
-    params: log_file = f'{config["logs"]}/mlst.log'
     message: "SBG GRAF is running..."
     shell: 
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
         echo "{input.reference_vcf_gz} is being uncompressed for SBG GRAF." | tee -a {params.log_file}
-        echo "SBG GRAF is running on {input.reference_fasta}, {params.reference_vcf}, {input.read1}, and {input.read2} with {threads} threads." | tee -a {params.log_file}
+        echo "SBG GRAF is running on {input.reference_fasta}, {input.reference_vcf_gz}, {input.read1}, and {input.read2} with {threads} threads." | tee -a {params.log_file}
         echo "Output file is {output.sample_bam}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        gunzip {input.reference_vcf_gz}
-        sbg-aligner -v {params.reference_vcf} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam}
-        gzip {input.reference_vcf}
+        sbg-aligner -v {input.reference_vcf_gz} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam}
         '''
 
 ## SAMPLE.FASTA FOR BOTH SBG AND VG ##
@@ -187,82 +200,18 @@ rule bam_to_vcf:
         freebayes -f {input.reference_fasta} {input.sample_sorted_rmdup_bam} | vcffilter -f "QUAL > 24" > {output.sample_vcf}
         '''
 
-rule index_vcf:
+rule vcf_to_sample_allele_info:
     input:
         sample_vcf = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf'
     output:
-        sample_vcf_gz = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf.gz'
-    message: "Sample's VCF file is being compressed and indexed..."
+        sample_info_txt = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}_info.txt'
+    message: "File for allele defining variants for each CDS is being created."
     params: log_file = f'{config["logs"]}/mlst.log'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "bgzip and tabix are running." | tee -a {params.log_file}
-        echo "{input.sample_vcf} file is being compressed and indexed." | tee -a {params.log_file}
+        echo "create_allele_info.py is running on {input.sample_vcf}." | tee -a {params.log_file}
+        echo "Output file is {output.sample_info_txt}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        bgzip {input.sample_vcf} && tabix -p vcf {output.sample_vcf_gz}
+        python scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {output.sample_info_txt}
         '''
-
-rule vcf_to_fasta:
-    input:
-        reference_fasta = "data/"+config["reference"]+".fasta",
-        sample_vcf_gz = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf.gz'
-    output:
-        sample_fasta = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.fasta'
-    message: "Sample's VCF file is being converted into sample's FASTA..."
-    params: log_file = f'{config["logs"]}/mlst.log'
-    shell:
-        '''
-        echo "---------------------------------------" | tee -a {params.log_file}
-        echo "bcftools consensus is running on {input.reference_fasta} and {input.sample_vcf_gz}." | tee -a {params.log_file}
-        echo "Output file is {output.sample_fasta}." | tee -a {params.log_file}
-        echo "---------------------------------------" | tee -a {params.log_file}
-        bcftools consensus --fasta-ref {input.reference_fasta} {input.sample_vcf_gz} -o {output.sample_fasta}
-        now=$(date +"%T")
-        echo "End: $now" | tee -a {params.log_file}
-        '''
-
-rule fasta_to_mlst:
-    input:
-        schema_seed_dir = f'{config["data_dir"]}/schema_seed',
-        sample_fasta = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.fasta',
-        data_dir = f'{config["data_dir"]}'
-    output:
-        sample_mlst = f'{config["data_dir"]}/{config["sample"]}.mlst.tsv'
-    message: "Sample's FASTA file is being converted into sample's MLST schema..."
-    params:
-        log_file = f'{config["logs"]}/mlst.log',
-        sid = f'{config["sample"]}'
-    threads: config["parameters"]["threads"]
-    shell:
-        '''
-        echo "---------------------------------------" | tee -a {params.log_file}
-        echo "Sample's MLST schema is being created using {input.sample_fasta} and {input.schema_seed_dir}." | tee -a {params.log_file}
-        echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
-        echo "---------------------------------------" | tee -a {params.log_file}
-        python scripts/create_sample_mlst.py --chewbbaca_path {input.schema_seed_dir} --milestone_path {input.sample_fasta} --sample_id '{params.sid}' --output_dir {input.data_dir} --threads {threads}
-        '''
-
-# rule update_reference:
-#     input:
-#         schema_seed_dir = f'{config["data_dir"]}/schema_seed',
-#         sample_fasta = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.fasta',
-#         data_dir = f'{config["data_dir"]}',
-#         reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz'
-#     output:
-#         reference_vcf = f'{config["data_dir"]}/{config["reference"]}.updated.vcf',
-#         reference_fasta = f'{config["data_dir"]}/{config["reference"]}.updated.fasta'
-#     message: "Reference VCF and FASTA files are being updated according to the sample's variants..."
-#     params:
-#         log_file = f'{config["logs"]}/mlst.log',
-#         sid = f'{config["sample"]}'
-#     threads: config["parameters"]["threads"]
-#     shell:
-#         '''
-#         echo "---------------------------------------" | tee -a {params.log_file}
-#         echo "{input.sample_vcf_gz} and {input.reference_vcf_gz} are merged..." | tee -a {params.log_file}
-#         echo "Output file is {output.updated_reference_vcf}."
-#         echo "---------------------------------------" | tee -a {params.log_file}
-#         python scripts/create_sample_mlst.py --chewbbaca_path {input.schema_seed_dir} --milestone_path {input.sample_fasta}
-#         '''
-

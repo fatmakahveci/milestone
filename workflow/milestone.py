@@ -101,18 +101,7 @@ def create_snakefile():
 
         sample_name = ''.join(args.read1).split('_1')[0]
 
-        if args.sample_mlst:
-
-            output_file.write(f'\t\tsample_mlst = "data/{sample_name}.mlst.tsv"\n')
-
-            if args.update_reference:
-
-                output_file.write(f'\t\treference_vcf = "data/{args.reference}.vcf"\n')
-                output_file.write(f'\t\treference_fasta = "data/{args.reference}.fasta"')
-
-        else:
-
-            output_file.write(f'\t\tsample_fasta = "data/{args.aligner}/{sample_name}.fasta"\n')
+        output_file.write(f'\t\tsample_info_txt = "data/{args.aligner}/{sample_name}_info.txt"\n')
 
     output_file.close()
 

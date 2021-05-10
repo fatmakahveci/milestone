@@ -72,6 +72,7 @@ class SAMPLE_INFO:
 	
 		self.cds = vcf_line.cds
 		self.pos_list = [vcf_line.pos]
+		self.ref = vcf_line.ref
 
 		alt_list = []
 		if len(vcf_line.alt) > 1:
@@ -83,7 +84,7 @@ class SAMPLE_INFO:
 		self.qual_list = vcf_line.qual.split(',')
 
 	def __repr__(self):
-		return f'cds: {self.cds} positions: {self.pos_list} alts: {self.alt_list} quals: {self.qual_list}'
+		return f'cds: {self.cds} positions: {self.pos_list} ref: {self.ref} alts: {self.alt_list} quals: {self.qual_list}'
 
 
 class SAM:
@@ -136,11 +137,35 @@ class PAF:
 
 
 def get_allele_id_from_allele_name(allele_name: str) -> str:
+	"""
+	Get <allele-id> from <cds-name_allele-id>
 
-	return allele_name.strip("\n").split("_")[-1]
+	Parameters
+	----------
+	allele_name : <cds-name_allele-id>
+
+	Returns
+	-------
+	allele_id : <allele-id>
+	"""
+
+	allele_id = allele_name.strip("\n").split("_")[-1]
+
+	return allele_id
 
 
 def read_vcf_file(vcf_file: str) -> dict:
+	"""
+	Read <sample.vcf> file and return dictionary for each variant.
+
+	Parameters
+	----------
+	vcf_file : name of <sample.vcf> file
+
+	Returns
+	-------
+	sample_variant_dict : { <cds> : [ vcf_line, pos, alt, qual] }
+	"""
 
 	sample_variant_dict = {}
 
@@ -170,11 +195,35 @@ def read_vcf_file(vcf_file: str) -> dict:
 
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
+	"""
+	Get <cds-name> from <cds-name_allele-id>
 
-	return allele_name.strip("\n").split("_")[0]
+	Parameters
+	----------
+	allele_name : <cds-name_allele-id>
+
+	Returns
+	-------
+	cds_name : <cds_name>
+	"""
+	
+	cds_name = allele_name.strip("\n").split("_")[0]
+
+	return cds_name
 
 
 def read_info_txt_file(info_txt_file: str) -> dict:
+	"""
+	@todo
+
+	Parameters
+	----------
+	info_txt_file : @todo
+
+	Returns
+	-------
+	info_line_dict : @todo
+	"""
 
 	info_line_dict = {}
 
@@ -189,25 +238,6 @@ def read_info_txt_file(info_txt_file: str) -> dict:
 		file.close()
 
 	return info_line_dict
-
-
-def assign_allele_id(sample_variant_dict, reference_variant_dict):
-
-	for sample_cds, sample_info in sample_variant_dict.items():
-
-		if sample_cds in reference_variant_dict.keys():
-
-			is_known_allele = True
-
-			for reference_cds, reference_info in reference_variant_dict.items():
-
-				if reference_info.pos_list == sample_info.pos_list:
-					print('a')
-
-			print(sample_variant_dict[sample_cds], reference_variant_dict[sample_cds])
-
-		else:
-			print(len(sample_variant_dict[sample_cds].pos_list), sample_variant_dict[sample_cds])
 
 
 def merge_intervals(start_end_coverage_list: list) -> list:
@@ -268,7 +298,7 @@ def select_variants( variant_dict: dict, interval_dict: dict ) -> list[ dict, di
 	Returns
 	-------
 	[
-	selected_variant_dict: {<cds> : a dictionary with position:variant tuples as keys and with a position_coverage:variant_coverage tuple as value. Stores variants with frequency equal or greater than value passed to minimum_frequency.
+	selected_variant_dict: {<cds> : a dictionary with position:variant tuples as keys and with a position_coverage:variant_coverage tuple as value. Stores variants with frequency >= minimum_frequency.
 	high_frequency : Same structure as previous returned variable but only stores variants with frequency value equal or greater than value passed to variant_frequency.
 	]
 	"""
@@ -441,8 +471,9 @@ def process_paf() -> list[dict, list, dict, dict]:
 	-------
 	[
 	merged_interval_dict : {<cds> : [[<start>, <end>, {base_at_start: cov, ..., base_at_end: cov}], [...], ...]}
-	 : {<cds> : a dictionary with position:variant tuples as keys and with a position_coverage:variant_coverage tuple as value}
-	 : {<cds> : a list as value. Each list has the following elements: a list with the breadth of coverage value and the number of covered bases. A list with a dictionary with cds as key and a list with missing positions as value and the number of missing positions. Mean depth of coverage. Number of positions with 0 coverage. Number of positions below minimum coverage threshold.}
+	probable_variant_dict : {<cds> : a dictionary with position:variant tuples as keys and with a position_coverage:variant_coverage tuple as value}
+	coverage_stat_dict : {<cds> : a list as value. Each list has the following elements: a list with the breadth of coverage value and the number of covered bases. A list with a dictionary with cds as key and a list with missing positions as value and the number of missing positions. Mean depth of coverage. Number of positions with 0 coverage. Number of positions below minimum coverage threshold.}
+	selected_miss_dict : {<cds> : list for missing}
 	]
 	"""
 
@@ -469,7 +500,7 @@ def process_paf() -> list[dict, list, dict, dict]:
 	# identify variants and highly probable variants
 	selected_miss_dict, probable_variant_dict = select_variants( loci_miss, merged_interval_dict )
 
-	coverage_stats = { cds: [] for cds in merged_interval_dict }
+	coverage_stat_dict = { cds: [] for cds in merged_interval_dict }
 
 	for cds, start_end_coverage in merged_interval_dict.items():
 
@@ -492,9 +523,9 @@ def process_paf() -> list[dict, list, dict, dict]:
 		depth_sum = sum([ k*v for k, v in depth_count_dict.items() ])
 		mean_depth = round( depth_sum / cds_length_dict[cds], 4 )
 
-		coverage_stats[cds].extend( [ coverage, missing, mean_depth, zero_coverage, below_coverage ] )
+		coverage_stat_dict[cds].extend( [ coverage, missing, mean_depth, zero_coverage, below_coverage ] )
 
-	return [ merged_interval_dict, selected_miss_dict, coverage_stats, probable_variant_dict ]
+	return [ merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict ]
 
 
 def get_single_position_coverage(coverage_info: list, start: int) -> list[dict, list]:
@@ -726,6 +757,53 @@ def convert_sam_into_paf(sam_file_name: str) -> list[PAF]:
 	return [ cds_length_dict, paf_list ]
 
 
+def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict) -> list[str]:
+	"""
+	Assign allele ID's are not equal to chewBBACA's.
+
+	Parameters
+	----------
+	sample_variant_dict :
+	reference_variant_dict :
+	"""
+
+	# different_cds_list = []
+
+	for sample_cds, sample_info in sample_variant_dict.items():
+
+		if sample_cds in reference_variant_dict.keys():
+
+			is_known_allele = True
+
+			for reference_cds, reference_info in reference_variant_dict.items():
+
+				if reference_info.pos_list == sample_info.pos_list:
+					print('a')
+
+			print(sample_variant_dict[sample_cds], reference_variant_dict[sample_cds])
+
+		else:
+			print(len(sample_variant_dict[sample_cds].pos_list), sample_variant_dict[sample_cds])
+
+	# return different_cds_list
+
+
+def write_analysis():
+
+	for cds, info in sample_variant_dict.items():
+		cds = f'{cds}_1'
+		print('------------------------------------------------------------------------------------')
+		print('=================================')
+		print(f'cds: {cds} ref: {info.ref}')
+		print('=================================')
+		print(f'positions: {info.pos_list} ALTs: {info.alt_list} QUALs: {info.qual_list}')
+		print(f'missing: {selected_miss_dict[cds]}')
+		print(f'coverage: {coverage_stat_dict[cds][0]}, missing: {coverage_stat_dict[cds][1]}, mean_depth: {coverage_stat_dict[cds][2]}, zero_coverage: {coverage_stat_dict[cds][3]}, below_coverage: {coverage_stat_dict[cds][4]}')
+		print(f'probable variants (frequency >= minimum_frequency): {probable_variant_dict[cds]}')
+		print(f'merged intervals: {merged_interval_dict[cds]}')
+		print('------------------------------------------------------------------------------------')
+
+
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
@@ -760,10 +838,13 @@ if __name__ == "__main__":
 
 	args = parser.parse_args()
 	
-	assign_allele_id( sample_variant_dict = read_vcf_file(args.vcf), reference_variant_dict = read_info_txt_file(args.info_txt) )
+	cds_length_dict, paf_list = convert_sam_into_paf(args.sam)
+
+	merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict = process_paf()
 	
-	# cds_length_dict, paf_list = convert_sam_into_paf(args.sam)
+	sample_variant_dict = read_vcf_file(args.vcf)
+	reference_variant_dict = read_info_txt_file(args.info_txt)
 
-	# merged_interval_dict, selected_miss_dict, coverage_stats, probable_variant_dict = process_paf()
-
-
+	assign_allele_id( sample_variant_dict, reference_variant_dict )
+	
+	write_analysis()
