@@ -42,7 +42,7 @@ $ >> conda create -n milestone chewbbaca=2.7 freebayes=1.3.1 minimap2=2.17 snake
 
 ---
 
-![images/milestone_pipeline.png](images/milestone_pipeline.png)
+![milestone pipeline](images/milestone_pipeline.png)
 
 ## Creation of reference genome
 
@@ -52,18 +52,19 @@ $ >> conda create -n milestone chewbbaca=2.7 freebayes=1.3.1 minimap2=2.17 snake
 
 > python milestone.py chewbbaca -d . -t 8 -g schema_ref_fasta -p -r reference --snakefile Snakefile -F
 
-## Creation of MLST schema of the given sample
+## Creation of MLST schema of the given sample and update reference genome
 
 > python milestone.py mlst -d <input_data_directory> -t <number_of_threads> -p -r <to_be_created_reference_file_name_without_extension> -e <sample_1.fastq> -E <sample_2.fastq> --aligner <vg/sbg> --snakefile Snakefile --sample-mlst -F
 
 @ delete this part later
 > python milestone.py mlst -d . -t 8 -p -r reference -e ERR3464558_1.fastq -E ERR3464558_2.fastq --aligner vg --snakefile Snakefile -F
 
+- [ ] @todo Add create_allele_info.py to milestone pipeline
 
+![allele to vcf](images/allele_to_vcf.png)
 
-TO-DO
+## To-do
 
-- [ ] Add create_allele_info.py to milestone pipeline
 - [ ] `$ >> pip install milestone`
 - [ ] `$ >> conda install milestone`
 - [ ] `$ >> docker pull milestone`
