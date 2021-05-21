@@ -5,7 +5,7 @@
 Aim: Assignment of allele IDs for core CDSs
 -------------------------------------------
 Authors: @fatmakhv @rafael
-Date: May 20, 2021
+Date: May 21, 2021
 -------------------------------------------
 '''
 
@@ -825,7 +825,7 @@ def get_reference_cds_seq_dict() -> dict:
 	return cds_seq_dict
 
 
-def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, covered_allele_list ):
+def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, covered_allele_list ) -> list[ dict, dict ]:
 	"""
 	Assign allele ID's are not equal to chewBBACA's.
 
@@ -834,20 +834,46 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 	sample_variant_dict : Variations found in sample data
 	reference_variant_dict : Variations found in CDS alleles in comparison to the reference allele
 	covered_allele_list : List of CDSs of which breadth coverage is valid
+
+	Returns
+	-------
+	sample_cds_and_allele_dict : 
+	cds_and_novel_allele_dict : 
 	"""
+
+	number_of_reference_cds_in_reference_dict = {}
+
+	for reference_cds in reference_variant_dict.keys():
+		
+		cds, allele_id = reference_cds.split('_')
+
+		if cds not in number_of_reference_cds_in_reference_dict.keys():
+			number_of_reference_cds_in_reference_dict[f'{cds}_1'] = allele_id
+
+		else:
+			if allele_id > number_of_reference_cds_in_reference_dict[cds]:
+				number_of_reference_cds_in_reference_dict[f'{cds}_1'] = allele_id
 
 	# FASTA sequences for all CDSs that are found in reference
 	sample_cds_seq_dict = get_reference_cds_seq_dict()
 
+	sample_cds_and_allele_dict = {}
+	cds_and_novel_allele_dict = {}
+
 	# all CDSs that are found in reference
 	for sample_cds in cds_length_dict.keys():
+
+		is_equal_to_reference_cds = False
+		is_matched_to_a_known_allele_id = False
+		is_matched_to_a_known_allele_with_variants_id = False
+		is_passed_quality_check = False
 
 		# CDSs of which breadth is more than given identity
 		if sample_cds in covered_allele_list:
 			
 			# there is no variant so it equals to the CDS reference
 			if sample_cds not in sample_variant_dict.keys():
-				print(f'{sample_cds} is equal to reference CDS. Allele ID: 1')
+				is_equal_to_reference_cds = True
 			
 			# alleles that have differences in comparison to the reference allele for the CDS
 			else:
@@ -857,10 +883,6 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 				# length 3n, start codon, stop codon
 				# sample_cds_seq_dict[sample_cds] := its sequence 
 				if quality_check(sample_cds, sample_info, sample_cds_seq_dict[sample_cds]):
-
-					is_matched_to_a_known_allele_id = False
-					is_matched_to_a_known_allele_with_variants_id = False
-					is_a_novel_allele = False
 
 					# known allele (one of the alleles from chewBBACA)
 					for reference_cds, reference_info in reference_variant_dict.items():
@@ -876,22 +898,45 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 							else:
 								is_matched_to_a_known_allele_with_variants_id = True
 
-					if is_matched_to_a_known_allele_id:
-						print(f'{sample_cds} has a known allele. Allele ID: {reference_variant_dict[reference_cds].allele_id}')
-
-					elif is_matched_to_a_known_allele_with_variants_id:
-						print(f'{sample_cds} has a known allele with variations (novel).')
-					else:
-						print(f'{sample_cds} has a novel allele.')
-
 				else:
-					print(f'{sample_cds} couldn\'t pass the quality check')
+					is_passed_quality_check = True
+
+			# {sample_cds} is equal to reference CDS. Allele ID: 1'
+			if is_equal_to_reference_cds: # a known allele = reference
+				allele_id = '1'
+
+			# {sample_cds} has a known allele. Allele ID: {reference_variant_dict[reference_cds].allele_id}
+			elif is_matched_to_a_known_allele_id: # a known allele
+				allele_id = reference_variant_dict[reference_cds].allele_id
+			
+			# {sample_cds} has a known allele with variations (novel). Allele ID: {allele_id}
+			elif is_matched_to_a_known_allele_with_variants_id: # a novel allele
+				allele_id = str(int(number_of_reference_cds_in_reference_dict[sample_cds]) + 1)
+				cds_and_novel_allele_dict[sample_cds] = allele_id
+			
+			# {sample_cds} couldn\'t pass the quality check. Allele ID: NOT CDS
+			elif is_passed_quality_check: # skipped
+				allele_id = 'NOT CDS'
+
+			else:
+
+				# {sample_cds} has a novel allele. Allele ID: 2
+				if sample_cds not in number_of_reference_cds_in_reference_dict:
+					allele_id = 2 # cds with single allele
+				
+				# {sample_cds} has a novel allele. Allele ID: {number_of_reference_cds_in_reference_dict[sample_cds]}
+				else:
+					allele_id = number_of_reference_cds_in_reference_dict[sample_cds]
+
+				cds_and_novel_allele_dict[sample_cds] = allele_id	
 
 		# CDSs of which breadth is less than given identity
 		# Remaining CDS in reference on which sample reads are not mapped.
-		# Locus Not Found (LNF)
+		# {sample_cds} is not covered. Allele ID: Locus Not Found (LNF)
 		else:
-			print(f'{sample_cds} is not covered. Allele ID: LNF')
+			allele_id = 'LNF'
+
+		sample_cds_and_allele_dict[sample_cds] = allele_id
 
 	# for cds, info in sample_variant_dict.items():
 
@@ -906,6 +951,8 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 	# 	print(f'probable variants (frequency >= minimum_frequency): {probable_variant_dict[cds]}')
 	# 	print(f'merged intervals: {merged_interval_dict[cds]}')
 	# 	print('------------------------------------------------------------------------------------')
+
+	return [ sample_cds_and_allele_dict, cds_and_novel_allele_dict ]
 
 
 if __name__ == "__main__":
@@ -952,8 +999,15 @@ if __name__ == "__main__":
 
 	merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict, covered_allele_list = process_paf()
 
-	assign_allele_id( read_vcf_file(args.vcf), read_info_txt_file(args.info_txt), covered_allele_list ) # sample_variant_dict, reference_variant_dict
+	# read_vcf_file(args.vcf): sample_variant_dict, read_info_txt_file(args.info_txt): reference_variant_dict
+	sample_cds_and_allele_dict, cds_and_novel_allele_dict = assign_allele_id( read_vcf_file(args.vcf), read_info_txt_file(args.info_txt), covered_allele_list )
 
+	for key,value in sample_cds_and_allele_dict.items():
+		print(f'sample: {key} - {value}')
+
+	# for key,value in cds_and_novel_allele_dict.items():
+	# 	print(f'novel: {key} - {value}')
+		
 	# @todo: write the ratio of bases for each position high-quality check
 	
 	# @todo: update reference files
