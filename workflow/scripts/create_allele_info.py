@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
 '''
-author: @rafael and @fatmakhv
-date: April 30s, 2021
-aim: Compare sample's variants to assign allele ID using CDS alleles of reference genome
+-------------------------------------------
+Aim: Assignment of allele IDs for core CDSs
+-------------------------------------------
+Authors: @fatmakhv @rafael
+Date: May 20, 2021
+-------------------------------------------
 '''
-
 
 import argparse, pysam, re
 
@@ -14,13 +16,14 @@ from collections import Counter
 from copy import deepcopy
 from itertools import groupby
 
+
 class VCF:
 
 	def __init__(self, vcf_line):
 
 		fields = vcf_line.split('\t')
 
-		self.cds = get_cds_name_from_allele_name(fields[0])
+		self.cds = fields[0]
 		self.pos = fields[1]
 		self.id = fields[2]
 		self.ref = fields[3]
@@ -49,7 +52,7 @@ class REFERENCE_INFO:
 
 		fields = info_line.strip('\n').split(' ')
 
-		self.cds = get_cds_name_from_allele_name(fields[0])
+		self.cds = fields[0]
 		self.allele_id = get_allele_id_from_allele_name(fields[0])
 
 		pos_list, alt_list, qual_list = [], [], []
@@ -71,8 +74,8 @@ class SAMPLE_INFO:
 	def __init__(self, vcf_line):
 	
 		self.cds = vcf_line.cds
-		self.pos_list = [vcf_line.pos]
-		self.ref = vcf_line.ref
+		self.pos_list = [ vcf_line.pos ]
+		self.ref_list = [ vcf_line.ref ]
 
 		alt_list = []
 		if len(vcf_line.alt) > 1:
@@ -84,7 +87,7 @@ class SAMPLE_INFO:
 		self.qual_list = vcf_line.qual.split(',')
 
 	def __repr__(self):
-		return f'cds: {self.cds} positions: {self.pos_list} ref: {self.ref} alts: {self.alt_list} quals: {self.qual_list}'
+		return f'cds: {self.cds} positions: {self.pos_list} ref: {self.ref_list} alts: {self.alt_list} quals: {self.qual_list}'
 
 
 class SAM:
@@ -186,6 +189,7 @@ def read_vcf_file(vcf_file: str) -> dict:
 				else:
 
 					sample_variant_dict[vcf_line.cds].pos_list.append(vcf_line.pos)
+					sample_variant_dict[vcf_line.cds].ref_list.append(vcf_line.ref)
 					sample_variant_dict[vcf_line.cds].alt_list.append(vcf_line.alt)
 					sample_variant_dict[vcf_line.cds].qual_list.append(vcf_line.qual)
 
@@ -194,35 +198,18 @@ def read_vcf_file(vcf_file: str) -> dict:
 	return sample_variant_dict
 
 
-def get_cds_name_from_allele_name(allele_name: str) -> str:
-	"""
-	Get <cds-name> from <cds-name_allele-id>
-
-	Parameters
-	----------
-	allele_name : <cds-name_allele-id>
-
-	Returns
-	-------
-	cds_name : <cds_name>
-	"""
-	
-	cds_name = allele_name.strip("\n").split("_")[0]
-
-	return cds_name
-
-
 def read_info_txt_file(info_txt_file: str) -> dict:
 	"""
-	@todo
+	Read the file containing CDS with variants and returns it
+	as dictionary
 
 	Parameters
 	----------
-	info_txt_file : @todo
+	info_txt_file : File containing CDS and its variants
 
 	Returns
 	-------
-	info_line_dict : @todo
+	info_line_dict : { cds_with_variant_1: [variant_list], ... }
 	"""
 
 	info_line_dict = {}
@@ -286,7 +273,7 @@ def merge_intervals(start_end_coverage_list: list) -> list:
 	return merged
 
 
-def select_variants( variant_dict: dict, interval_dict: dict ) -> list[ dict, dict ]:
+def select_variants( variant_dict: dict, interval_dict: dict ) -> list[dict,dict]:
 	"""
 	Identifies variants with high frequency.
 	
@@ -477,18 +464,20 @@ def process_paf() -> list[dict, list, dict, dict]:
 	]
 	"""
 
+	covered_allele_list = []
+	
 	# get indels and SNPs for each locus
 	loci_miss = {}
-	for paf in paf_list:
-		loci_miss.setdefault( paf.target_sequence_name, [] ).extend( paf.single_position_coverage[1] )
-
-	# indels and SNPs counts
-	loci_miss = { cds: [coverage, Counter(coverage)] for cds, coverage in loci_miss.items() }
 
 	# identify subsequences that are well covered by reads
 	covered_interval_dict = {}
+
 	for paf in paf_list:
+		loci_miss.setdefault( paf.target_sequence_name, [] ).extend( paf.single_position_coverage[1] )
 		covered_interval_dict.setdefault( paf.target_sequence_name, [] ).append( [ paf.target_start_on_original_strand, paf.target_end_on_original_strand, paf.single_position_coverage[0] ] )
+	
+	# indels and SNPs counts
+	loci_miss = { cds: [coverage, Counter(coverage)] for cds, coverage in loci_miss.items() }
 
 	# sort covered intervals
 	covered_interval_dict_sorted = { cds: sorted(start_end_coverage, key=lambda start: start[0]) for cds, start_end_coverage in covered_interval_dict.items() }
@@ -506,6 +495,11 @@ def process_paf() -> list[dict, list, dict, dict]:
 
 		# breadth of coverage and number of covered bases
 		coverage = determine_breadth_coverage( cds, start_end_coverage )
+
+		# get the CDS to which reads are mapped
+		# to check whether if reads are mapped onto cds
+		if coverage[0] >= args.identity: # coverage[0] := breadth value
+			covered_allele_list.append(cds)
 
 		# determine subsequences that are not covered
 		missing = determine_missing_intervals( cds, start_end_coverage )
@@ -525,7 +519,7 @@ def process_paf() -> list[dict, list, dict, dict]:
 
 		coverage_stat_dict[cds].extend( [ coverage, missing, mean_depth, zero_coverage, below_coverage ] )
 
-	return [ merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict ]
+	return [ merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict, covered_allele_list ]
 
 
 def get_single_position_coverage(coverage_info: list, start: int) -> list[dict, list]:
@@ -584,10 +578,10 @@ def get_single_position_coverage(coverage_info: list, start: int) -> list[dict, 
 	return [ coverage, mismatches ]
 
 
-def convert_sam_into_paf(sam_file_name: str) -> list[PAF]:
+def convert_sam_into_paf(sam_file_name: str) -> list[PAF]: # the highest runtime
 	"""
 	Convert SAM-formatted file into PAF list.
-
+	
 	Parameters
 	----------
 	sam_file_name : Name of the SAM file to be converted.
@@ -757,51 +751,161 @@ def convert_sam_into_paf(sam_file_name: str) -> list[PAF]:
 	return [ cds_length_dict, paf_list ]
 
 
-def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict) -> list[str]:
+def insert_variants_into_sequence(cds_reference: str, pos_list: list, alt_list: list) -> str:
+	"""
+	Takes reference sequence of CDS and inserts variants
+	to create sequence with variants for CDS 
+	
+	Parameters
+	----------
+	cds_reference : reference sequence for given CDS
+	pos_list : list of variant positions for given CDS
+	alt_list : alternate bases of variants in pos_list for given CDS
+
+	Returns
+	-------
+	cds_sequence : CDS sequence with variants
+	"""
+
+	cds_seq_list = list(cds_reference)
+
+	for pos, alt in zip(pos_list, alt_list[0]):
+
+		for base in range(len(alt)):
+		
+			base_pos = int(pos) + base
+			cds_seq_list[base_pos] = alt[base]
+
+	cds_sequence = "".join(cds_seq_list)
+
+	return cds_sequence
+
+
+def quality_check(sample_cds: str, sample_info: SAMPLE_INFO, cds_reference: str) -> bool:
+	"""
+	Checks its length is 3n, the first three base is for start codon,
+	and the last three base is for stop codon
+	Returns True if all is valid
+
+	Parameters
+	----------
+	sample_cds : name of cds to be checked
+	sample_info : details for variants
+	cds_reference : FASTA sequence for CDS reference
+	"""
+
+	cds_sequence = insert_variants_into_sequence(cds_reference, sample_info.pos_list, sample_info.alt_list)
+
+	# check if cds length is multiple of 3
+	# stop codons: cds_sequence[-3:] - 49% TAG (likely for high GC), 32% TAA (likely for low GC), 19% TGA
+	# start codons: cds_sequence[:3] - 90% MET (ATG)
+	
+	if ( len(cds_sequence) % 3 == 0 ) and ( cds_sequence[-3:] in ['TAG', 'TAA', 'TGA'] ) and ( cds_sequence[:3] in ['ATG', 'CTG', 'GTG', 'TTG'] ):
+		return True
+
+	return False
+
+
+def get_reference_cds_seq_dict() -> dict:
+	"""
+	Reads <reference.fasta> and returns cds_seq_dict
+	
+	Returns
+	-------
+	cds_seq_dict : { cds1: seq1, cds2: seq2, ... }
+	"""
+
+	cds_seq_dict = {}
+
+	for sequence in list(SeqIO.parse(args.reference_fasta, "fasta")):
+		
+		# if sequence.id in sample_variant_dict.keys():
+		cds_seq_dict[sequence.id] = str(sequence.seq)
+
+	return cds_seq_dict
+
+
+def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, covered_allele_list ):
 	"""
 	Assign allele ID's are not equal to chewBBACA's.
 
 	Parameters
 	----------
-	sample_variant_dict :
-	reference_variant_dict :
+	sample_variant_dict : Variations found in sample data
+	reference_variant_dict : Variations found in CDS alleles in comparison to the reference allele
+	covered_allele_list : List of CDSs of which breadth coverage is valid
 	"""
 
-	# different_cds_list = []
+	# FASTA sequences for all CDSs that are found in reference
+	sample_cds_seq_dict = get_reference_cds_seq_dict()
 
-	for sample_cds, sample_info in sample_variant_dict.items():
+	# all CDSs that are found in reference
+	for sample_cds in cds_length_dict.keys():
 
-		if sample_cds in reference_variant_dict.keys():
+		# CDSs of which breadth is more than given identity
+		if sample_cds in covered_allele_list:
+			
+			# there is no variant so it equals to the CDS reference
+			if sample_cds not in sample_variant_dict.keys():
+				print(f'{sample_cds} is equal to reference CDS. Allele ID: 1')
+			
+			# alleles that have differences in comparison to the reference allele for the CDS
+			else:
 
-			is_known_allele = True
+				sample_info = sample_variant_dict[sample_cds]
 
-			for reference_cds, reference_info in reference_variant_dict.items():
+				# length 3n, start codon, stop codon
+				# sample_cds_seq_dict[sample_cds] := its sequence 
+				if quality_check(sample_cds, sample_info, sample_cds_seq_dict[sample_cds]):
 
-				if reference_info.pos_list == sample_info.pos_list:
-					print('a')
+					is_matched_to_a_known_allele_id = False
+					is_matched_to_a_known_allele_with_variants_id = False
+					is_a_novel_allele = False
 
-			print(sample_variant_dict[sample_cds], reference_variant_dict[sample_cds])
+					# known allele (one of the alleles from chewBBACA)
+					for reference_cds, reference_info in reference_variant_dict.items():
 
+						reference_cds_name_without_allele_id = reference_cds.split('_')[0]
+						sample_cds_name_without_allele_id = sample_cds.split('_')[0]
+
+						if sample_cds_name_without_allele_id == reference_cds_name_without_allele_id:
+	
+							if Counter(reference_info.pos_list) == Counter(sample_info.pos_list) and Counter(reference_info.alt_list) == Counter(sample_info.alt_list):			
+								is_matched_to_a_known_allele_id = True
+
+							else:
+								is_matched_to_a_known_allele_with_variants_id = True
+
+					if is_matched_to_a_known_allele_id:
+						print(f'{sample_cds} has a known allele. Allele ID: {reference_variant_dict[reference_cds].allele_id}')
+
+					elif is_matched_to_a_known_allele_with_variants_id:
+						print(f'{sample_cds} has a known allele with variations (novel).')
+					else:
+						print(f'{sample_cds} has a novel allele.')
+
+				else:
+					print(f'{sample_cds} couldn\'t pass the quality check')
+
+		# CDSs of which breadth is less than given identity
+		# Remaining CDS in reference on which sample reads are not mapped.
+		# Locus Not Found (LNF)
 		else:
-			print(len(sample_variant_dict[sample_cds].pos_list), sample_variant_dict[sample_cds])
+			print(f'{sample_cds} is not covered. Allele ID: LNF')
 
-	# return different_cds_list
+	# for cds, info in sample_variant_dict.items():
 
-
-def write_analysis():
-
-	for cds, info in sample_variant_dict.items():
-		cds = f'{cds}_1'
-		print('------------------------------------------------------------------------------------')
-		print('=================================')
-		print(f'cds: {cds} ref: {info.ref}')
-		print('=================================')
-		print(f'positions: {info.pos_list} ALTs: {info.alt_list} QUALs: {info.qual_list}')
-		print(f'missing: {selected_miss_dict[cds]}')
-		print(f'coverage: {coverage_stat_dict[cds][0]}, missing: {coverage_stat_dict[cds][1]}, mean_depth: {coverage_stat_dict[cds][2]}, zero_coverage: {coverage_stat_dict[cds][3]}, below_coverage: {coverage_stat_dict[cds][4]}')
-		print(f'probable variants (frequency >= minimum_frequency): {probable_variant_dict[cds]}')
-		print(f'merged intervals: {merged_interval_dict[cds]}')
-		print('------------------------------------------------------------------------------------')
+	# 	cds = f'{cds}'
+	# 	print('------------------------------------------------------------------------------------')
+	# 	print('=================================')
+	# 	print(f'cds: {cds} ref: {info.ref_list}')
+	# 	print('=================================')
+	# 	print(f'positions: {info.pos_list} ALTs: {info.alt_list} QUALs: {info.qual_list}')
+	# 	print(f'missing: {selected_miss_dict[cds]}')
+	# 	print(f'coverage: {coverage_stat_dict[cds][0]}, missing: {coverage_stat_dict[cds][1]}, mean_depth: {coverage_stat_dict[cds][2]}, zero_coverage: {coverage_stat_dict[cds][3]}, below_coverage: {coverage_stat_dict[cds][4]}')
+	# 	print(f'probable variants (frequency >= minimum_frequency): {probable_variant_dict[cds]}')
+	# 	print(f'merged intervals: {merged_interval_dict[cds]}')
+	# 	print('------------------------------------------------------------------------------------')
 
 
 if __name__ == "__main__":
@@ -811,6 +915,15 @@ if __name__ == "__main__":
 	parser.add_argument('--vcf', type=str, required=True,
 						help='Sample\'s VCF file to be compared.')
 
+	# @todo: update for novel allele
+	parser.add_argument('--reference_vcf', type=str, required=False,
+						help='Reference VCF file to update for novel allele.')
+
+	# @todo: update for novel allele
+	parser.add_argument('--reference_fasta', type=str, required=False,
+						help='Reference FASTA file for quality checks.')
+
+	# @todo: update for novel allele
 	parser.add_argument('--info_txt', type=str, required=True,
 						help='<reference>_info.txt file to be compared.')
 	
@@ -833,18 +946,17 @@ if __name__ == "__main__":
 	parser.add_argument('--sam', type=str, required=True,
 						help='Create SAM file with mapping results.')
 
-	parser.add_argument('--sample_fasta', type=str, required=True,
-						help='Path to sample\'s FASTA file containing CDS sequences')
-
 	args = parser.parse_args()
-	
+
 	cds_length_dict, paf_list = convert_sam_into_paf(args.sam)
 
-	merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict = process_paf()
-	
-	sample_variant_dict = read_vcf_file(args.vcf)
-	reference_variant_dict = read_info_txt_file(args.info_txt)
+	merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict, covered_allele_list = process_paf()
 
-	assign_allele_id( sample_variant_dict, reference_variant_dict )
+	assign_allele_id( read_vcf_file(args.vcf), read_info_txt_file(args.info_txt), covered_allele_list ) # sample_variant_dict, reference_variant_dict
+
+	# @todo: write the ratio of bases for each position high-quality check
 	
-	write_analysis()
+	# @todo: update reference files
+	# if args.reference_vcf:
+		# update_info_txt()
+		# update_reference_vcf()
