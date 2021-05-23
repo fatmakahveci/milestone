@@ -79,7 +79,7 @@ rule create_reference_vcf_fasta:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
         echo "scripts/create_reference.py is runnning on {input.cgmlst_dir} and {input.schema_seed_dir}." | tee -a {params.log_file}
-        echo "Output files '{output.reference_vcf}' and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
+        echo "Output files '{output.reference_vcf}', '{output.reference_info_txt},' and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         python scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {output.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
         now=$(date +"%T")
