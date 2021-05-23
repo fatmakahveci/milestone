@@ -867,6 +867,8 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 		is_matched_to_a_known_allele_id = False
 		is_matched_to_a_known_allele_with_variants_id = False
 		is_passed_quality_check = False
+		
+		sample_cds_and_allele_dict[sample_cds] = []
 
 		# CDSs of which breadth is more than given identity
 		if sample_cds in covered_allele_list:
@@ -879,6 +881,7 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 			else:
 
 				sample_info = sample_variant_dict[sample_cds]
+				sample_cds_and_allele_dict[sample_cds].append(sample_info)
 
 				# length 3n, start codon, stop codon
 				# sample_cds_seq_dict[sample_cds] := its sequence 
@@ -936,7 +939,7 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 		else:
 			allele_id = 'LNF'
 
-		sample_cds_and_allele_dict[sample_cds] = allele_id
+		sample_cds_and_allele_dict[sample_cds].append(allele_id)
 
 	# for cds, info in sample_variant_dict.items():
 
@@ -1005,12 +1008,13 @@ if __name__ == "__main__":
 	for key,value in sample_cds_and_allele_dict.items():
 		print(f'sample: {key} - {value}')
 
-	# for key,value in cds_and_novel_allele_dict.items():
-	# 	print(f'novel: {key} - {value}')
-		
-	# @todo: write the ratio of bases for each position high-quality check
-	
 	# @todo: update reference files
 	# if args.reference_vcf:
 		# update_info_txt()
 		# update_reference_vcf()
+	
+	for key,value in cds_and_novel_allele_dict.items():
+		print(f'novel: {key} - {value}')
+
+	# @todo: write the ratio of bases for each position high-quality check
+	
