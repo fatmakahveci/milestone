@@ -1,3 +1,8 @@
+#####################################
+# author: @fatmakhv                ##
+# the latest update: May 23, 2021  ##
+#####################################
+
 ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema > create_reference_vcf_fasta
 
 rule create_wgmlst_schema:
@@ -65,7 +70,8 @@ rule create_reference_vcf_fasta:
         cgmlst_dir = config["cgmlst_dir"]
     output:
         reference_vcf = "data/"+config["reference"]+".vcf",
-        reference_fasta = "data/"+config["reference"]+".fasta"
+        reference_fasta = "data/"+config["reference"]+".fasta",
+        reference_info_txt = "data/"+config["reference"]+"_info.txt"
     message: "Reference fasta and vcf files are being created..."
     threads: config["parameters"]["threads"]
     params: log_file = f"{config['logs']}/chewbbaca.log"
@@ -75,7 +81,7 @@ rule create_reference_vcf_fasta:
         echo "scripts/create_reference.py is runnning on {input.cgmlst_dir} and {input.schema_seed_dir}." | tee -a {params.log_file}
         echo "Output files '{output.reference_vcf}' and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        python scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --threads {threads} 2>&1 | tee -a {params.log_file}
+        python scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {output.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         '''
