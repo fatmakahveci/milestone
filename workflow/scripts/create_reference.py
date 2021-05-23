@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+'''
+-----------------------------------------------
+Aim: Reference FASTA VCF and INFO file creation
+-----------------------------------------------
+Authors: @fatmakhv
+The latest update: May 23, 2021
+-----------------------------------------------
+'''
+
 import argparse, glob, os, shutil, subprocess
 from Bio import SeqIO
 from io import StringIO  # python3
@@ -29,10 +38,17 @@ class vcf:
 
 
 def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
+	'''
+	@todo
 
-	out_file_name = args.reference_vcf.strip('.vcf')+"_info.txt"
+	Parameters
+	----------
+	cds_name : @todo
+	allele_id : @todo
+	pos_dict : @todo
+	'''
 
-	with open(out_file_name, 'a') as out_file:
+	with open(args.reference_info, 'a') as out_file:
 		
 		out_file.write(f'{cds_name}_{allele_id} ')
 
@@ -55,7 +71,17 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 
 
 def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
+	'''
+	Parameters
+	----------
+	vcf_file : @todo
+	cds_name : @todo
+	allele_id : @todo
 
+	Returns
+	-------
+	pos_dict : @todo
+	'''
 	pos_dict = {}
 
 	with open(vcf_file, 'r') as file:
@@ -86,14 +112,57 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 
 def get_allele_id_from_allele_name(allele_name: str) -> str:
-	return allele_name.strip("\n").split("_")[-1]
+	'''
+	@todo
+
+	Parameters
+	----------
+	allele_name : @todo
+
+	Returns
+	-------
+	allele_id : @todo
+	'''
+
+	allele_id = allele_name.strip("\n").split("_")[-1]
+
+	return allele_id
 
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
-	return allele_name.strip("\n").split("_")[0]
+	'''
+	@todo
+
+	Parameters
+	----------
+	allele_name : @todo
+
+	Returns
+	-------
+	cds_name : @todo
+	'''
+
+	cds_name = allele_name.strip("\n").split("_")[0]
+
+	return cds_name
 
 
 def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, cds_name: str, threads: str) -> dict:
+	'''
+	@todo
+
+	Parameters
+	----------
+	write_dir : @todo
+	allele_name : @todo
+	cg_dir : @todo
+	cds_name : @todo
+	threads : @todo
+
+	Returns
+	-------
+	allele_dict : @todo
+	'''
 
 	sample = f"{write_dir}/{allele_name}"
 	reference = f"{cg_dir}/references/{cds_name}_1"
@@ -128,7 +197,20 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, 
 
 
 def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
+	'''
+	@todo
 
+	Parameters
+	----------
+	cg_dir : @todo
+	cds_fasta : @todo
+	cds_to_merge_list : @todo
+	threads : @todo
+
+	Returns
+	-------
+	cds_to_merge_list : @todo
+	'''
 	write_dir = f"{cg_dir}/references"
 
 	cds_dict = {}
@@ -194,6 +276,14 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, thread
 
 
 def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
+	'''
+	@todo
+
+	Parameters
+	----------
+	wd : @todo
+	cds_to_merge_list : @todo
+	'''
 
 	reference_file = open(f"{args.reference_vcf}.temp", 'w')
 
@@ -250,6 +340,17 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 
 
 def get_cg_list(cg_schema_file: str) -> list:
+	'''
+	@todo
+	
+	Parameters
+	----------
+	cg_schema_file : @todo
+
+	Returns
+	-------
+	cg_list : @todo
+	'''
 
 	cg_list = []
 
@@ -273,6 +374,7 @@ if __name__ == "__main__":
 	parser.add_argument('--schema_seed_dir', required=True)
 	parser.add_argument('--reference_vcf', required=True)
 	parser.add_argument('--reference_fasta', required=True)
+	parser.add_argument('--reference_info', required=True)
 	parser.add_argument('--threads', required=True)
 
 	args = parser.parse_args()
@@ -297,4 +399,5 @@ if __name__ == "__main__":
 
 	create_reference_vcf_fasta(f"{args.schema_seed_dir}", cds_to_merge_list)
 
+	# @todo redundant files will be removed.
 	# os.system(f"rm -rf {args.schema_seed_dir}")
