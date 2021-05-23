@@ -39,13 +39,13 @@ class vcf:
 
 def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
 	'''
-	@todo
+	Writes the variants of alleles that are not equal to the reference CDS
 
 	Parameters
 	----------
-	cds_name : @todo
-	allele_id : @todo
-	pos_dict : @todo
+	cds_name : name of cds of which allele will be written
+	allele_id : ID of allele of which variant will be written
+	pos_dict : positions of variants for the allele
 	'''
 
 	with open(args.reference_info, 'a') as out_file:
@@ -72,16 +72,20 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 
 def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
 	'''
+	Reads {sample}.vcf to create dictionary that contains positions
+	of variants of allele of cds.
+
 	Parameters
 	----------
-	vcf_file : @todo
-	cds_name : @todo
-	allele_id : @todo
+	vcf_file : {sample}.vcf contains {allele_id}'s variants for {cds_name}
+	cds_name : name of CDS of which positions will be taken
+	allele_id : ID of allele of CDS of which positions will be taken
 
 	Returns
 	-------
-	pos_dict : @todo
+	pos_dict : Dictionary of variant positions for allele
 	'''
+
 	pos_dict = {}
 
 	with open(vcf_file, 'r') as file:
@@ -113,15 +117,15 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 def get_allele_id_from_allele_name(allele_name: str) -> str:
 	'''
-	@todo
+	Gets {cds_name}_{allele_id} and returns {allele_id}
 
 	Parameters
 	----------
-	allele_name : @todo
+	allele_name : {cds_name}_{allele_id}
 
 	Returns
 	-------
-	allele_id : @todo
+	allele_id : allele ID for given allele_name
 	'''
 
 	allele_id = allele_name.strip("\n").split("_")[-1]
@@ -131,15 +135,15 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
 	'''
-	@todo
+	Gets {cds_name}_{allele_id} and returns {cds_name}
 
 	Parameters
 	----------
-	allele_name : @todo
+	allele_name : {cds_name}_{allele_id}
 
 	Returns
 	-------
-	cds_name : @todo
+	cds_name : name of CDS for given allele_name
 	'''
 
 	cds_name = allele_name.strip("\n").split("_")[0]
@@ -149,19 +153,19 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 
 def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, cds_name: str, threads: str) -> dict:
 	'''
-	@todo
+	Creates allele dictionary for given CDS
 
 	Parameters
 	----------
-	write_dir : @todo
-	allele_name : @todo
-	cg_dir : @todo
-	cds_name : @todo
-	threads : @todo
+	write_dir : core genome directory
+	allele_name : {cds_name}_{allele_id}
+	cg_dir : schema_seed directory that contains sequences of alleles
+	cds_name : CDS name to create its allele dictionary
+	threads : number of threads to run minimap2
 
 	Returns
 	-------
-	allele_dict : @todo
+	allele_dict : position dictionary for allele
 	'''
 
 	sample = f"{write_dir}/{allele_name}"
@@ -198,18 +202,18 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, 
 
 def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
 	'''
-	@todo
+	Creates CDS list
 
 	Parameters
 	----------
-	cg_dir : @todo
-	cds_fasta : @todo
-	cds_to_merge_list : @todo
-	threads : @todo
+	cg_dir : schema_seed directory that contains sequences of alleles
+	cds_fasta : FASTA file for CDS
+	cds_to_merge_list : all CDSs for reference vcf
+	threads : number of threads to run minimap2
 
 	Returns
 	-------
-	cds_to_merge_list : @todo
+	cds_to_merge_list : all CDSs for reference vcf
 	'''
 	write_dir = f"{cg_dir}/references"
 
@@ -277,12 +281,12 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, thread
 
 def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	'''
-	@todo
+	Creates FASTA file for reference 
 
 	Parameters
 	----------
-	wd : @todo
-	cds_to_merge_list : @todo
+	wd : working directory
+	cds_to_merge_list : all CDSs for reference vcf
 	'''
 
 	reference_file = open(f"{args.reference_vcf}.temp", 'w')
@@ -341,15 +345,15 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 
 def get_cg_list(cg_schema_file: str) -> list:
 	'''
-	@todo
+	Returns names of core genes as list
 	
 	Parameters
 	----------
-	cg_schema_file : @todo
+	cg_schema_file : file that is created by chewBBACA and contains core gene names
 
 	Returns
 	-------
-	cg_list : @todo
+	cg_list : List of core genes
 	'''
 
 	cg_list = []
