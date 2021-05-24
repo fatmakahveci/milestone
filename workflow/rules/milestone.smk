@@ -1,4 +1,11 @@
-## VG ##
+#####################################
+## author: @fatmakhv               ##
+## the latest update: May 23, 2021 ##
+#####################################
+
+#####################################
+## VG                              ##
+#####################################
 
 rule index_fasta:
     input:
@@ -108,7 +115,9 @@ rule vg_map:
         vg map -x {input.reference_xg} -g {input.reference_gcsa} -f {input.read1} -f {input.read2} -t {threads} --surject-to bam > {output.sample_bam}
         '''
 
-## SBG ##
+#####################################
+## SBG                             ##
+#####################################
 
 rule sbg_graf:
     input:
@@ -132,7 +141,9 @@ rule sbg_graf:
         sbg-aligner -v {input.reference_vcf_gz} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam}
         '''
 
-## SAMPLE.FASTA FOR BOTH SBG AND VG ##
+#####################################
+## FOR BOTH SBG AND VG             ##
+#####################################
 
 rule alignment_quality_check:
     input:
@@ -165,6 +176,23 @@ rule remove_pcr_duplicates:
         echo "Output file is {output.sample_sorted_rmdup_bam}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         samtools collate -o - {input.sample_sorted_bam} | samtools fixmate -m - - | samtools sort -o - - | samtools markdup -r - {output.sample_sorted_rmdup_bam}
+        '''
+
+rule bam_to_sam:
+    input:
+        sample_sorted_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
+    output:
+        sample_sam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sam'
+    message: "Sample's bam file is being converted into sam format."
+    params: log_file = f'{config["logs"]}/mlst.log'
+    shell:
+        '''
+        echo "---------------------------------------" | tee -a {params.log_file}
+        echo "Sample's bam file is being converted into sam format." | tee -a {params.log_file}
+        echo "samtools view is running on {input.sample_sorted_bam}." | tee -a {params.log_file}
+        echo "Output file is {output.sample_sam}." | tee -a {params.log_file}
+        echo "---------------------------------------" | tee -a {params.log_file}
+        samtools view -h {input.sample_sorted_bam} -o {output.sample_sam}
         '''
 
 rule index_sample_bam:
@@ -202,16 +230,19 @@ rule bam_to_vcf:
 
 rule vcf_to_sample_allele_info:
     input:
-        sample_vcf = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf'
+        sample_vcf = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',
+        sample_sam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sam',
+        reference_info_txt = f'{config["data_dir"]}/{config["reference"]}_info.txt',
+        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta'
     output:
-        sample_info_txt = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}_info.txt'
+        sample_mlst = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
     message: "File for allele defining variants for each CDS is being created."
     params: log_file = f'{config["logs"]}/mlst.log'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "create_allele_info.py is running on {input.sample_vcf}." | tee -a {params.log_file}
-        echo "Output file is {output.sample_info_txt}." | tee -a {params.log_file}
+        echo "create_allele_info.py is running on {input.sample_vcf}, {input.sample_sam}, {input.reference_info_txt}, and {input.reference_fasta}." | tee -a {params.log_file}
+        echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        python scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {output.sample_info_txt}
+        python scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {input.reference_info_txt} --sam {input.sample_sam} --reference_fasta {input.reference_fasta} --sample_mlst {output.sample_mlst}
         '''

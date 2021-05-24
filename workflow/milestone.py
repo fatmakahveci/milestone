@@ -106,7 +106,7 @@ def create_snakefile():
 
         sample_name = ''.join(args.read1).split('_1')[0]
 
-        output_file.write(f'\t\tsample_info_txt = "data/{args.aligner}/{sample_name}_info.txt"\n')
+        output_file.write(f'\t\tsample_mlst = "data/{args.aligner}/{sample_name}_mlst.tsv"\n')
 
     output_file.close()
 

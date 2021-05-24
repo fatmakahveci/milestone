@@ -5,7 +5,7 @@
 Aim: Assignment of allele IDs for core CDSs
 -------------------------------------------
 Authors: @fatmakhv @rafael
-Date: May 21, 2021
+The latest update: May 21, 2021
 -------------------------------------------
 '''
 
@@ -217,10 +217,11 @@ def read_info_txt_file(info_txt_file: str) -> dict:
 	with open(info_txt_file, 'r') as file:
 
 		for line in file.readlines():
-
-			reference_info = REFERENCE_INFO(line)
+			fields = line.strip('\n').split(' ')
 			
-			info_line_dict[reference_info.cds] = reference_info
+			if fields[1] != '':
+				reference_info = REFERENCE_INFO(line)
+				info_line_dict[reference_info.cds] = reference_info
 
 		file.close()
 
@@ -837,8 +838,10 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 
 	Returns
 	-------
-	sample_cds_and_allele_dict : 
-	cds_and_novel_allele_dict : 
+	[
+	sample_cds_and_allele_dict : @todo
+	cds_and_novel_allele_dict : @todo
+	]
 	"""
 
 	number_of_reference_cds_in_reference_dict = {}
@@ -859,6 +862,9 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 
 	sample_cds_and_allele_dict = {}
 	cds_and_novel_allele_dict = {}
+	
+	mlst_file = open(args.sample_mlst, 'w')
+	mlst_file.write(f'sample_cds\tallele_id\n')
 
 	# all CDSs that are found in reference
 	for sample_cds in cds_length_dict.keys():
@@ -940,6 +946,9 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 			allele_id = 'LNF'
 
 		sample_cds_and_allele_dict[sample_cds].append(allele_id)
+		mlst_file.write(f'{sample_cds}\t{allele_id}\n')
+
+	mlst_file.close()
 
 	# for cds, info in sample_variant_dict.items():
 
@@ -958,6 +967,12 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 	return [ sample_cds_and_allele_dict, cds_and_novel_allele_dict ]
 
 
+def check_base_ratio_of_cds() -> None:
+
+	for key,value in cds_and_novel_allele_dict.items():
+		print(f'novel: {key} - {value}')
+
+
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
@@ -965,13 +980,12 @@ if __name__ == "__main__":
 	parser.add_argument('--vcf', type=str, required=True,
 						help='Sample\'s VCF file to be compared.')
 
+	parser.add_argument('--reference_fasta', type=str, required=False,
+						help='Reference FASTA file for quality checks.')
+
 	# @todo: update for novel allele
 	parser.add_argument('--reference_vcf', type=str, required=False,
 						help='Reference VCF file to update for novel allele.')
-
-	# @todo: update for novel allele
-	parser.add_argument('--reference_fasta', type=str, required=False,
-						help='Reference FASTA file for quality checks.')
 
 	# @todo: update for novel allele
 	parser.add_argument('--info_txt', type=str, required=True,
@@ -992,18 +1006,23 @@ if __name__ == "__main__":
 	parser.add_argument('--variant_frequency', type=float, required=False, default=0.30,
 						help='Indels or SNPs with a relative frequency that is equal or greater that this value are reported as highly probable.')
 
-	# @todo add to workflow convert <sample.bam> into <sample.sam> before running this
 	parser.add_argument('--sam', type=str, required=True,
 						help='Create SAM file with mapping results.')
+
+	parser.add_argument('--sample_mlst', type=str, required=True,
+						help='Create sample_mlst file.')
 
 	args = parser.parse_args()
 
 	cds_length_dict, paf_list = convert_sam_into_paf(args.sam)
 
 	merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict, covered_allele_list = process_paf()
-
+	
 	# read_vcf_file(args.vcf): sample_variant_dict, read_info_txt_file(args.info_txt): reference_variant_dict
 	sample_cds_and_allele_dict, cds_and_novel_allele_dict = assign_allele_id( read_vcf_file(args.vcf), read_info_txt_file(args.info_txt), covered_allele_list )
+
+	# @todo: write the ratio of bases for each position high-quality check
+	check_base_ratio_of_cds()
 
 	for key,value in sample_cds_and_allele_dict.items():
 		print(f'sample: {key} - {value}')
@@ -1011,10 +1030,5 @@ if __name__ == "__main__":
 	# @todo: update reference files
 	# if args.reference_vcf:
 		# update_info_txt()
-		# update_reference_vcf()
-	
-	for key,value in cds_and_novel_allele_dict.items():
-		print(f'novel: {key} - {value}')
-
-	# @todo: write the ratio of bases for each position high-quality check
+		# update_reference_vcf() # @todo if it is in novel list add.
 	
