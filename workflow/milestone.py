@@ -50,6 +50,9 @@ def create_config():
         ## name of aligner vg or sbg
         output_file.write(f'aligner: "{args.aligner}"\n')
 
+        ## update reference
+        output_file.write(f'update_reference: "{args.update_reference}"\n')
+
     output_file.close()
 
 

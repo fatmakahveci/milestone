@@ -826,21 +826,20 @@ def get_reference_cds_seq_dict() -> dict:
 	return cds_seq_dict
 
 
-def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, covered_allele_list ) -> list[ dict, dict ]:
+def assign_allele_id( sample_variant_dict: dict, covered_allele_list ) -> list[ dict, dict ]:
 	"""
 	Assign allele ID's are not equal to chewBBACA's.
 
 	Parameters
 	----------
 	sample_variant_dict : Variations found in sample data
-	reference_variant_dict : Variations found in CDS alleles in comparison to the reference allele
 	covered_allele_list : List of CDSs of which breadth coverage is valid
 
 	Returns
 	-------
 	[
-	sample_cds_and_allele_dict : @todo
-	cds_and_novel_allele_dict : @todo
+	sample_cds_and_allele_dict : dictionary for name of cds and its alleles
+	cds_and_novel_allele_dict : novel allele dictionary of cds
 	]
 	"""
 
@@ -967,10 +966,42 @@ def assign_allele_id( sample_variant_dict: dict, reference_variant_dict: dict, c
 	return [ sample_cds_and_allele_dict, cds_and_novel_allele_dict ]
 
 
-def check_base_ratio_of_cds() -> None:
+def update_reference() -> None:
+	'''
+	Updates reference_info.txt and reference.vcf
+	'''
 
-	for key,value in cds_and_novel_allele_dict.items():
-		print(f'novel: {key} - {value}')
+	# @todo update reference_info.txt
+	with open(args.info_txt, 'a') as file:
+
+		 # @todo if it is in novel list add.
+		for key, value in cds_and_novel_allele_dict.items():
+			print(key, value)
+
+		for key, value in reference_variant_dict.items():
+			print(key, value)
+	
+		file.close()
+
+	# @todo update reference.vcf
+	with open(args.reference_vcf, 'a') as file:
+
+		 # @todo if it is in novel list add.
+		for key, value in cds_and_novel_allele_dict.items():
+			print(key, value)
+
+		for key, value in reference_variant_dict.items():
+			print(key, value)
+	
+		file.close()
+
+
+# @todo: write the ratio of bases for each position high-quality check
+def base_quality_check():
+	'''
+	'''
+
+	pass
 
 
 if __name__ == "__main__":
@@ -983,11 +1014,9 @@ if __name__ == "__main__":
 	parser.add_argument('--reference_fasta', type=str, required=False,
 						help='Reference FASTA file for quality checks.')
 
-	# @todo: update for novel allele
 	parser.add_argument('--reference_vcf', type=str, required=False,
 						help='Reference VCF file to update for novel allele.')
 
-	# @todo: update for novel allele
 	parser.add_argument('--info_txt', type=str, required=True,
 						help='<reference>_info.txt file to be compared.')
 	
@@ -1012,23 +1041,21 @@ if __name__ == "__main__":
 	parser.add_argument('--sample_mlst', type=str, required=True,
 						help='Create sample_mlst file.')
 
+	parser.add_argument('--update_reference', type=bool, required=True,
+						help='Update VCF and info file of reference for further analysis.')
+
 	args = parser.parse_args()
 
 	cds_length_dict, paf_list = convert_sam_into_paf(args.sam)
 
 	merged_interval_dict, selected_miss_dict, coverage_stat_dict, probable_variant_dict, covered_allele_list = process_paf()
 	
-	# read_vcf_file(args.vcf): sample_variant_dict, read_info_txt_file(args.info_txt): reference_variant_dict
-	sample_cds_and_allele_dict, cds_and_novel_allele_dict = assign_allele_id( read_vcf_file(args.vcf), read_info_txt_file(args.info_txt), covered_allele_list )
+	reference_variant_dict = read_info_txt_file(args.info_txt)
 
-	# @todo: write the ratio of bases for each position high-quality check
-	check_base_ratio_of_cds()
+	# read_vcf_file(args.vcf): sample_variant_dict
+	sample_cds_and_allele_dict, cds_and_novel_allele_dict = assign_allele_id( read_vcf_file(args.vcf), covered_allele_list )
 
-	for key,value in sample_cds_and_allele_dict.items():
-		print(f'sample: {key} - {value}')
-
-	# @todo: update reference files
-	# if args.reference_vcf:
-		# update_info_txt()
-		# update_reference_vcf() # @todo if it is in novel list add.
+	if args.update_reference:
+		update_reference()
 	
+	base_ratio_check()
