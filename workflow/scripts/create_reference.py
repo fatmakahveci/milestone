@@ -104,7 +104,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 				else: # if there is a proof for a high quality variant take with the highest
 
-					if pos_dict[pos_ref][vcf_line.alt] < vcf_line.qual:
+					if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
 				
 						pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
 
