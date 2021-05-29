@@ -375,7 +375,7 @@ def select_variants(variants, intervals, minimum_frequency, variant_frequency):
             coverage_values = intervals[k]
             # determine which region the indel/SNP is in
             for region in coverage_values:
-                if p[0] >= region[0] and p[0] <= region[1]:
+                if region[0] <= p[0] <= region[1]:
                     pos_cov = region[2][p[0]]
                     # store indel/SNP info if coverage value for the position
                     # is 0 or the indel/SNP has high frequency

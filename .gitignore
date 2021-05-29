@@ -145,3 +145,4 @@ workflow/Snakefile
 workflow/config.yaml
 workflow/listGenes2Call.txt
 workflow/listGenomes2Call.txt
+workflow/scripts/.idea/
