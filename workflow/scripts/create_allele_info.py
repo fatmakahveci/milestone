@@ -1183,7 +1183,8 @@ def update_reference_info_txt() -> dict:
                 # the same variant. Thus, we avoid redundancy.
                 add_variant_to_reference_vcf_dict[cds_reference_name] = \
                     allele_info
-        file.write(f'{cds_name}_{allele_id}\t{",".join(line)}\n')
+
+                file.write(f'{cds_name}_{allele_id}\t{",".join(line)}\n')
 
         file.close()
 
