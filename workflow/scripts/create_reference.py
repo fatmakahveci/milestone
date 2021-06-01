@@ -54,7 +54,7 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str,
 
 	with open(args.reference_info, 'a') as out_file:
 		
-		out_file.write(f'{cds_name}_{allele_id} ')
+		out_file.write(f'{cds_name}_{allele_id}\t')
 
 		pos_list = []
 

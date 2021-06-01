@@ -1171,6 +1171,8 @@ def update_reference_info_txt() -> dict:
                                                allele_info.ref_list,
                                                allele_info.alt_list,
                                                allele_info.qual_list):
+                    if type(alt) is list:
+                        alt = ";".join(alt)
                     line.append(f'{pos}*{ref[0]}>{alt}-{qual}')
 
                 # add_variant_to_reference_vcf_dict keeps variants that are
