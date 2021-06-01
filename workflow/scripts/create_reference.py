@@ -63,6 +63,8 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str,
 			alt_list = []
 
 			for alt, qual in alt_dict.items():
+				if type(alt) is list:
+					alt = ';'.join(alt)
 				alt_list.append("-".join([alt, qual]))
 
 			pos_list.append('>'.join([pos, "/".join(alt_list)]))
@@ -93,11 +95,15 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str,
 
 	pos_dict = {}
 
+	has_variant = False
+
 	with open(vcf_file, 'r') as file:
 
 		for line in file.readlines():
 
 			if not line.startswith("#"):
+
+				has_variant = True
 
 				vcf_line = vcf(line)
 
@@ -116,7 +122,8 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str,
 
 		file.close()
 
-	write_allele_defining_variant_list_to_file(cds_name, allele_id, pos_dict)
+	if has_variant:
+		write_allele_defining_variant_list_to_file(cds_name, allele_id, pos_dict)
 
 	return pos_dict
 
