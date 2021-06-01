@@ -604,7 +604,7 @@ def process_paf() -> list[dict, list, dict, dict]:
     # [selected_miss_dict, probable_variant_dict] = select_variants\
     #                                          (loci_miss, merged_interval_dict)
 
-    coverage_stat_dict = {cds: [] for cds in merged_interval_dict}
+    # coverage_stat_dict = {cds: [] for cds in merged_interval_dict}
 
     for cds, start_end_coverage in merged_interval_dict.items():
 
@@ -929,8 +929,7 @@ def insert_variants_into_sequence(cds_reference: str, pos_list: list,
     return cds_sequence
 
 
-def quality_check(sample_cds: str, sample_info: SampleInfo,
-                                                    cds_reference: str) -> bool:
+def quality_check(sample_info: SampleInfo, cds_reference: str) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
@@ -938,7 +937,6 @@ def quality_check(sample_cds: str, sample_info: SampleInfo,
 
     Parameters
     ----------
-    sample_cds : name of cds to be checked
     sample_info : details for variants
     cds_reference : FASTA sequence for CDS reference
     """
@@ -1051,8 +1049,7 @@ def assign_allele_id() -> list[dict, dict]:
 
                 # length 3n, start codon, stop codon
                 # sample_cds_seq_dict[sample_cds] := its sequence
-                if quality_check(sample_cds, sample_info,
-                                 sample_cds_seq_dict[sample_cds]):
+                if quality_check(sample_info, sample_cds_seq_dict[sample_cds]):
 
                     # known allele (one of the alleles from chewBBACA)
                     for reference_cds, reference_info in \
@@ -1225,9 +1222,9 @@ def update_reference_vcf() -> None:
                       f'{",".join(a_alt)}\t{a_qual}\t'
                       f'{a_filter}\t{a_info}\t{a_format}\t{a_sample}\n')
             else:
-                temp_file.write(f'{allele.cds}\t{a_pos}\t{a_id}\t{a_ref}\t{a_alt}\t'
-                      f'{a_qual}\t{a_filter}\t{a_info}\t{a_format}\t{a_sample}'
-                      f'\n')
+                temp_file.write(f'{allele.cds}\t{a_pos}\t{a_id}\t{a_ref}\t'
+                                f'{a_alt}\t{a_qual}\t{a_filter}\t{a_info}\t'
+                                f'{a_format}\t{a_sample}\n')
 
     temp_file.close()
 
@@ -1239,24 +1236,13 @@ def update_reference_vcf() -> None:
     os.system(f'bgzip {temp_file_name}')
     os.system(f'tabix -f {args.reference_vcf}.gz')
     os.system(f'tabix -f {temp_file_name}.gz')
-    os.system(f'bcftools merge {args.reference_vcf}.gz {temp_file_name}.gz -o {updated_reference_vcf} -O v')
+    os.system(f'bcftools merge {args.reference_vcf}.gz {temp_file_name}.gz -o'
+              f' {updated_reference_vcf} -O v')
     os.system(f'gunzip {args.reference_vcf}.gz')
 
     os.remove(f'{temp_file_name}.gz')
     os.remove(f'{temp_file_name}.gz.tbi')
     os.remove(f'{args.reference_vcf}.gz.tbi')
-
-
-# # @todo: write the ratio of bases for each position high-quality check
-# def base_ratio_check():
-# 	"""
-#
-# 	Returns
-# 	-------
-#
-# 	"""
-#
-# 	pass
 
 
 if __name__ == "__main__":
@@ -1300,7 +1286,7 @@ if __name__ == "__main__":
                                'reported as highly probable.')
 
     parser.add_argument('--sam', type = str, required = True,
-                        help = 'Create Sam file with mapping results.')
+                        help = 'Sample\'s sam file')
 
     parser.add_argument('--sample_mlst', type = str, required = True,
                         help = 'Create sample_mlst file.')
@@ -1317,5 +1303,3 @@ if __name__ == "__main__":
 
     if args.update_reference:
         update_reference_vcf()
-
-# base_ratio_check()
