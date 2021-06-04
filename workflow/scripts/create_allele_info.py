@@ -21,7 +21,7 @@ class Vcf:
         fields = vcf_line.split('\t')
 
         self.cds = fields[0]
-        self.pos = fields[1]
+        self.pos = int(fields[1])
         self.id = fields[2]
         self.ref = fields[3]
 
@@ -71,7 +71,7 @@ class ReferenceInfo:
                 variation[variation.index('>') + 1:variation.index('-')])
             qual_list.append(variation[variation.index('-') + 1:])
 
-        self.pos_list = pos_list
+        self.pos_list = map(int, pos_list)
         self.alt_list = alt_list
         self.qual_list = qual_list
 
@@ -222,6 +222,120 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     return allele_id
 
 
+def reference_cds_seq(cds_name: str) -> str:
+    """
+    Reads <reference.fasta> and returns sequence for CDS
+
+    Returns
+    -------
+    cds_ref_seq: Sequence of CDS reference
+    """
+
+    from Bio import SeqIO
+
+    for sequence in list(SeqIO.parse(args.reference_fasta, 'fasta')):
+
+        if sequence.id == cds_name:
+
+            cds_ref_seq = str(sequence.seq)
+
+            return cds_ref_seq
+
+
+def mapping_quality_check(sam) -> bool:
+    """
+    Compares Sam's mapping quality to user-specified parameter
+
+    Returns
+    -------
+    is_passed : True if its mapping quality is higher than parameter
+    """
+
+    is_passed = True if int(sam.mapping_quality) >= args.mapping_quality else \
+        False
+
+    return is_passed
+
+
+def base_dict_for_sam(sam: Sam, base_dict: dict, variant_pos: int) -> None:
+    """
+    @todo
+
+    Parameters
+    ----------
+    sam : @todo
+    """
+
+    import re
+
+    match_pos_list = []
+    current_position = 0
+    pos_in_ref = variant_pos - 1
+    sam_start_pos = sam.position - 1
+
+    # match/mismatch loci in sam sequence
+    for case, number_of_case in zip(re.findall("[A-Z]", sam.cigar),
+                                    map(int, re.findall("[0-9]+", sam.cigar))):
+        if case == 'M':
+            match_start = current_position
+            current_position += number_of_case
+            match_end = current_position - 1
+            match_pos_list.append([match_start, match_end])
+
+        elif case == 'D':
+            current_position -= number_of_case
+
+        else:
+            current_position += number_of_case
+
+    for start, end in match_pos_list:
+
+        pos_in_sam = pos_in_ref - sam_start_pos + start
+
+        if start <= pos_in_sam <= end:
+            base_dict[sam.sequence[pos_in_sam]] += 1
+
+    return base_dict
+
+
+def base_ratio_check(variant_pos: int, cds_name: str) -> None:
+    """
+
+    Returns
+    -------
+
+    """
+
+    # avoid redundant operations after cds is found
+    is_cds_found = False
+
+    base_dict = { 'A': 0, 'C': 0, 'G': 0, 'T': 0 }
+
+    with open(args.sam, 'r') as file:
+
+        for line in file.readlines():
+
+            # skip header
+            if not line.startswith('@'):
+
+                sam = Sam(line)
+
+                # get sample related sam lines
+                if sam.target_sequence_name == cds_name:
+
+                    is_cds_found = True
+
+                    if mapping_quality_check(sam):
+                        base_dict_for_sam(sam, base_dict, variant_pos)
+
+                # avoid redundant operations after cds is found
+                if sam.target_sequence_name != cds_name and is_cds_found:
+                    break
+
+        file.close()
+    print(base_dict)
+
+
 def read_vcf_file(vcf_file: str) -> dict:
     """
     Read <sample.vcf> file and return dictionary for each variant.
@@ -243,7 +357,9 @@ def read_vcf_file(vcf_file: str) -> dict:
             if not line.startswith('#'):
 
                 vcf_line = Vcf(line.strip())
+                print(vcf_line)
 
+                base_ratio_check(vcf_line.pos, vcf_line.cds)
                 sample_info = SampleInfo(vcf_line)
 
                 if vcf_line.cds not in sample_variant_dict.keys():
