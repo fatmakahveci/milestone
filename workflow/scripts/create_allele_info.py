@@ -298,7 +298,7 @@ def base_dict_for_sam(sam: Sam, base_dict: dict, variant_pos: int) -> None:
     return base_dict
 
 
-def base_ratio_check(variant_pos: int, cds_name: str) -> None:
+def get_dominant_base(variant_pos: int, cds_name: str) -> None:
     """
 
     Returns
@@ -333,7 +333,9 @@ def base_ratio_check(variant_pos: int, cds_name: str) -> None:
                     break
 
         file.close()
-    print(base_dict)
+
+    # base with the highest number
+    return max(base_dict, key=base_dict.get)
 
 
 def read_vcf_file(vcf_file: str) -> dict:
@@ -357,33 +359,35 @@ def read_vcf_file(vcf_file: str) -> dict:
             if not line.startswith('#'):
 
                 vcf_line = Vcf(line.strip())
-                print(vcf_line)
 
-                base_ratio_check(vcf_line.pos, vcf_line.cds)
-                sample_info = SampleInfo(vcf_line)
+                # if number of reference base is more than alt
+                # comment out for both dominant and recessive variants
+                if get_dominant_base(vcf_line.pos, vcf_line.cds) != \
+                        vcf_line.ref:
+                    sample_info = SampleInfo(vcf_line)
 
-                if vcf_line.cds not in sample_variant_dict.keys():
-                    sample_variant_dict[vcf_line.cds] = sample_info
+                    if vcf_line.cds not in sample_variant_dict.keys():
+                        sample_variant_dict[vcf_line.cds] = sample_info
 
-                else:
-                    sample_variant_dict[vcf_line.cds].pos_list.append(
-                        vcf_line.pos)
-                    sample_variant_dict[vcf_line.cds].ref_list.append(
-                        vcf_line.ref)
-                    sample_variant_dict[vcf_line.cds].alt_list.append(
-                        vcf_line.alt)
-                    sample_variant_dict[vcf_line.cds].id_list.append(
-                        vcf_line.id)
-                    sample_variant_dict[vcf_line.cds].qual_list.append(
-                        vcf_line.qual)
-                    sample_variant_dict[vcf_line.cds].filter_list.append(
-                        vcf_line.filter)
-                    sample_variant_dict[vcf_line.cds].format_list.append(
-                        vcf_line.format)
-                    sample_variant_dict[vcf_line.cds].info_list.append(
-                        vcf_line.info)
-                    sample_variant_dict[vcf_line.cds].sample_list.append(
-                        vcf_line.sample)
+                    else:
+                        sample_variant_dict[vcf_line.cds].pos_list.append(
+                            vcf_line.pos)
+                        sample_variant_dict[vcf_line.cds].ref_list.append(
+                            vcf_line.ref)
+                        sample_variant_dict[vcf_line.cds].alt_list.append(
+                            vcf_line.alt)
+                        sample_variant_dict[vcf_line.cds].id_list.append(
+                            vcf_line.id)
+                        sample_variant_dict[vcf_line.cds].qual_list.append(
+                            vcf_line.qual)
+                        sample_variant_dict[vcf_line.cds].filter_list.append(
+                            vcf_line.filter)
+                        sample_variant_dict[vcf_line.cds].format_list.append(
+                            vcf_line.format)
+                        sample_variant_dict[vcf_line.cds].info_list.append(
+                            vcf_line.info)
+                        sample_variant_dict[vcf_line.cds].sample_list.append(
+                            vcf_line.sample)
 
         file.close()
 
