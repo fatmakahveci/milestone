@@ -8,11 +8,10 @@
 - Install VG
 - Creation of reference genome
 - Creation of MLST schema of the given sample and update reference genome
-- To-do
+- Creates sample's mlst without updating reference files
+- Creates sample's mlst and updates reference files
 
 <!-- /MarkdownTOC -->
-
----
 
 Milestone is an end-to-end sample-based cgMLST profile creation workflow for given bacterial species. It only uses available genome assemblies of the species provided by the user or NCBI's public database, and raw reads of the given sample.
 
@@ -35,7 +34,6 @@ $ >> conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 sna
 
 - Activate the created environment: `$ >> source activate milestone`
 - Deactivate the created environment: `$ >> source deactivate milestone`
-- Remove the created environment: `$ >> conda env remove milestone`
 
 ## Install VG
 
@@ -45,28 +43,20 @@ $ >> conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 sna
 
 ![milestone pipeline](images/milestone_pipeline.png)
 
+
+
+![allele to vcf](images/allele_to_vcf.png)
+
 ## Creation of reference genome
 
 > python milestone.py chewbbaca -d <input_data_directory> -t <number_of_threads> -g <reference_genome_assemblies_directory> -p -r <to_be_created_reference_file_name_without_extension> --snakefile Snakefile -F
 
-@ delete this part later
-
-> python milestone.py chewbbaca -d . -t 8 -g schema_ref_fasta -p -r reference --snakefile Snakefile -F
-
 ## Creation of MLST schema of the given sample and update reference genome
+
+## Creates sample's mlst without updating reference files
 
 > python milestone.py mlst -d <input_data_directory> -t <number_of_threads> -p -r <to_be_created_reference_file_name_without_extension> -e <sample_1.fastq> -E <sample_2.fastq> --aligner <vg/sbg> --snakefile Snakefile -F
 
-@ delete this part later
-> python milestone.py mlst -d . -t 8 -p -r reference -e ERR3464558_1.fastq -E ERR3464558_2.fastq --aligner vg --snakefile Snakefile -F
+## Creates sample's mlst and updates reference files
 
-- [ ] @todo Add create_allele_info.py to milestone pipeline
-
-![allele to vcf](images/allele_to_vcf.png)
-
-## To-do
-
-- [ ] `$ >> pip install milestone`
-- [ ] `$ >> conda install milestone`
-- [ ] `$ >> docker pull milestone`
-- [ ] Prepared MLST from chewie-NS: https://chewbbaca.online/stats 
+> python milestone.py mlst -d <input_data_directory> -t <number_of_threads> -p -r <to_be_created_reference_file_name_without_extension> -e <sample_1.fastq> -E <sample_2.fastq> --aligner <vg/sbg> --snakefile Snakefile -F
