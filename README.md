@@ -1,5 +1,7 @@
 <div align="left"> <h1> <img src="images/milestone.png" alt="milestone_logo"> MILESTONE </h1> </div>
 
+## Table of Contents
+
 <!-- MarkdownTOC -->
 
 - Preprocess
