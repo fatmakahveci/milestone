@@ -1367,7 +1367,7 @@ def update_reference_vcf() -> None:
     os.remove(f'{args.reference_vcf}.gz.tbi')
 
 
-if __name__ == "__main__":
+def parse_arguments():
 
     parser = argparse.ArgumentParser()
 
@@ -1413,15 +1413,21 @@ if __name__ == "__main__":
     parser.add_argument('--sample_mlst', type = str, required = True,
                         help = 'Create sample_mlst file.')
 
-    parser.add_argument('--update_reference', type = bool, required = True,
+    parser.add_argument('--update_reference', type = str, required = False,
                         help = 'Update Vcf and info file of reference for'
                                'further analysis.')
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+
+    args = parse_arguments()
 
     cds_length_dict, paf_list = convert_sam_into_paf(args.sam)
 
     [sample_cds_and_allele_dict, cds_and_novel_allele_dict] = assign_allele_id()
 
-    if args.update_reference:
+    if args.update_reference == 'True':
+        print('True')
         update_reference_vcf()

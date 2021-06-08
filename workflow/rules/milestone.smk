@@ -233,7 +233,8 @@ rule vcf_to_sample_allele_info:
         sample_vcf = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',
         sample_sam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sam',
         reference_info_txt = f'{config["data_dir"]}/{config["reference"]}_info.txt',
-        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta'
+        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
+        reference_vcf = f'{config["data_dir"]}/{config["reference"]}.vcf'
     output:
         sample_mlst = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
     message: "File for allele defining variants for each CDS is being created."
@@ -246,5 +247,6 @@ rule vcf_to_sample_allele_info:
         echo "create_allele_info.py is running on {input.sample_vcf}, {input.sample_sam}, {input.reference_info_txt}, and {input.reference_fasta}." | tee -a {params.log_file}
         echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        python scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {input.reference_info_txt} --sam {input.sample_sam} --reference_fasta {input.reference_fasta} --sample_mlst {output.sample_mlst} --update_reference {params.update_reference}
+        echo "{params.update_reference}"
+        python scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {input.reference_info_txt} --sam {input.sample_sam} --reference_fasta {input.reference_fasta} --reference_vcf {input.reference_vcf} --sample_mlst {output.sample_mlst} --update_reference {params.update_reference}
         '''
