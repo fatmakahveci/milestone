@@ -63,5 +63,5 @@ $ >> conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 sna
 
 #### 2. Creates sample's mlst and updates reference files
 
-`$ >> python milestone.py mlst -d <input_data_directory> -t <number_of_threads> -p -r <to_be_created_reference_file_name_without_extension> -e <sample_1.fastq> -E <sample_2.fastq> --aligner <vg/sbg> --snakefile Snakefile -F`
+`$ >> python milestone.py mlst -d <input_data_directory> -t <number_of_threads> -p -r <to_be_created_reference_file_name_without_extension> -e <sample_1.fastq> -E <sample_2.fastq> --aligner <vg/sbg> --snakefile Snakefile --update_reference -F`
 
