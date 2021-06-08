@@ -15,6 +15,8 @@
 
 <!-- /MarkdownTOC -->
 
+---
+
 Milestone is an end-to-end sample-based cgMLST profile creation workflow for given bacterial species. It only uses available genome assemblies of the species provided by the user or NCBI's public database, and raw reads of the given sample.
 
 ## Preprocess
