@@ -3,9 +3,10 @@
 """
 -------------------------------------------
 Aim: Assignment of allele IDs for core CDSs
+and updates reference genome
 -------------------------------------------
 Authors: @fatmakhv @rafael
-The latest update: May 30, 2021
+The latest update: June 09, 2021
 -------------------------------------------
 """
 
@@ -257,15 +258,20 @@ def mapping_quality_check(sam) -> bool:
     return is_passed
 
 
-def base_dict_for_sam(sam: Sam, base_dict: dict, variant_pos: int) -> None:
+def base_dict_for_sam(sam: Sam, base_dict: dict, variant_pos: int) -> dict:
     """
-    @todo
+    Returns dictionary for matched and mismatched bases of given position
 
     Parameters
     ----------
-    sam : @todo
-    """
+    sam : sam line to analyze
+    base_dict : base_dict to update
+    variant_pos : position to analyze
 
+    Returns
+    -------
+    base_dict : { 'A': #A's, 'C': #C's, 'G': #G's, 'T': #T's }
+    """
     import re
 
     match_pos_list = []
@@ -298,12 +304,18 @@ def base_dict_for_sam(sam: Sam, base_dict: dict, variant_pos: int) -> None:
     return base_dict
 
 
-def get_dominant_base(variant_pos: int, cds_name: str) -> None:
+def get_dominant_base(variant_pos: int, cds_name: str) -> str:
     """
+    Returns the dominant base for given position
+
+    Parameters
+    ----------
+    variant_pos : position to analyze
+    cds_name : sam line to analyze
 
     Returns
     -------
-
+    dominant_base : the dominant base for given position
     """
 
     # avoid redundant operations after cds is found
@@ -335,7 +347,9 @@ def get_dominant_base(variant_pos: int, cds_name: str) -> None:
         file.close()
 
     # base with the highest number
-    return max(base_dict, key=base_dict.get)
+    dominant_base = max(base_dict, key=base_dict.get)
+
+    return dominant_base
 
 
 def read_vcf_file(vcf_file: str) -> dict:
@@ -1053,29 +1067,32 @@ def quality_check(sample_info: SampleInfo, cds_reference: str) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
-    Returns True if all is valid
 
     Parameters
     ----------
     sample_info : details for variants
     cds_reference : FASTA sequence for CDS reference
+
+    Returns
+    -------
+    is_passed : Returns True if all is valid
     """
 
     cds_sequence = insert_variants_into_sequence(cds_reference,
                                                  sample_info.pos_list,
                                                  sample_info.alt_list)
 
+    is_passed = False
     # check if cds length is multiple of 3
     # stop codons: cds_sequence[-3:] - 49% TAG (likely for high GC),
     #                                  32% TAA (likely for low GC), 19% TGA
     # start codons: cds_sequence[:3] - 90% MET (ATG)
-
     if (len(cds_sequence) % 3 == 0) and (
             cds_sequence[-3:] in ['TAG', 'TAA', 'TGA']) and (
             cds_sequence[:3] in ['ATG', 'CTG', 'GTG', 'TTG']):
-        return True
+        is_passed = True
 
-    return False
+    return is_passed
 
 
 def get_reference_cds_seq_dict() -> dict:
@@ -1241,24 +1258,6 @@ def assign_allele_id() -> list[dict, dict]:
         mlst_file.write(f'{sample_cds}\t{allele_id}\n')
 
     mlst_file.close()
-
-    # for cds, info in sample_variant_dict.items():
-    #     print(f'----------------------------------------\n'
-    #           f'=================================\n'
-    #           f'cds: {cds} ref: {info.ref_list}\n'
-    #           f'=================================\n'
-    #           f'positions: {info.pos_list} ALTs: {info.alt_list} '
-    #           f'QUALs: {info.qual_list} '
-    #           f'missing: {selected_miss_dict[cds]} '
-    #           f'coverage: {coverage_stat_dict[cds][0]} '
-    #           f'missing: {coverage_stat_dict[cds][1]} '
-    #           f'mean_depth: {coverage_stat_dict[cds][2]} '
-    #           f'zero_coverage: {coverage_stat_dict[cds][3]} '
-    #           f'below_coverage: {coverage_stat_dict[cds][4]} '
-    #           f'probable variants (frequency >= minimum_frequency): '
-    #           '{probable_variant_dict[cds]} '
-    #           f'merged intervals: {merged_interval_dict[cds]} \n'
-    #           '----------------------------------------\n')
 
     return [sample_cds_and_allele_dict_, cds_and_novel_allele_dict_]
 
@@ -1429,5 +1428,4 @@ if __name__ == "__main__":
     [sample_cds_and_allele_dict, cds_and_novel_allele_dict] = assign_allele_id()
 
     if args.update_reference == 'True':
-        print('True')
         update_reference_vcf()
