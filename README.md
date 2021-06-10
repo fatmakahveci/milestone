@@ -45,7 +45,7 @@ $ >> conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 sna
 
 ---
 
-![milestone pipeline](images/milestone_pipeline.png)
+![milestone workflow](images/milestone_workflow.png)
 
 
 
