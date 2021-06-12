@@ -45,11 +45,11 @@ $ >> conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 sna
 
 ---
 
-![milestone workflow](images/milestone_workflow.png)
+![milestone workflow](images/milestone_workflow_github.png)
 
 
 
-![allele to vcf](images/allele_to_vcf.png)
+![allele to vcf](images/allele_to_vcf_github.png)
 
 ## Creation of reference genome
 
