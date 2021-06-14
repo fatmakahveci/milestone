@@ -130,7 +130,6 @@ def create_snakefile():
         output_file.write('rule all:\n\tinput:\n')
 
         sample_name = args.read1.split("/")[-1].split("_1")[0]
-        # output_file.write(f'\t\tsample_bam = "{args.output}/{args.aligner}/{sample_name}.bam"\n')
         output_file.write(f'\t\tsample_mlst = "{args.output}/{args.aligner}/{sample_name}_mlst.tsv"\n')
 
     output_file.close()
