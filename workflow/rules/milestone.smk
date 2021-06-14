@@ -9,11 +9,11 @@
 
 rule index_fasta:
     input:
-        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta'
+        reference_fasta = config["reference_fasta"]
     output:
-        reference_fasta_fai = f'{config["data_dir"]}/{config["reference"]}.fasta.fai'
+        reference_fasta_fai = f'{config["reference_fasta"]}.fai'
     message: "Reference fasta file is being indexed..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "'python milestone.py mlst' is running..." | tee {params.log_file}
@@ -28,11 +28,11 @@ rule index_fasta:
 
 rule compress_vcf:
     input:
-        reference_vcf = f'{config["data_dir"]}/{config["reference"]}.vcf'
+        reference_vcf = config["reference_vcf"]
     output:
-        reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz'
+        reference_vcf_gz = f'{config["reference_vcf"]}.gz'
     message: "VCF file is being compressed..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -44,11 +44,11 @@ rule compress_vcf:
 
 rule decompress_vcf:
     input:
-        reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz'
+        reference_vcf_gz = f'{config["reference_vcf"]}.gz'
     output:
-        reference_vcf = f'{config["data_dir"]}/{config["reference"]}.vcf'
+        reference_vcf = config["reference_vcf"]
     message: "VCF file is being decompressed..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -60,13 +60,13 @@ rule decompress_vcf:
 
 rule vg_construct:
     input:
-        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
-        reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz'
+        reference_fasta = config["reference_fasta"],
+        reference_vcf_gz = f'{config["reference_vcf"]}.gz'
     output:
-        reference_vg = f'{config["data_dir"]}/vg/{config["reference"]}.vg'
+        reference_vg = f'{config["aligner_reference"]}.vg'
     threads: config["parameters"]["threads"]
     message: "VG construct is running..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -78,13 +78,13 @@ rule vg_construct:
 
 rule vg_index:
     input:
-        reference_vg = f'{config["data_dir"]}/vg/{config["reference"]}.vg'
+        reference_vg = f'{config["aligner_reference"]}.vg'
     output:
-        reference_xg = f'{config["data_dir"]}/vg/{config["reference"]}.xg',
-        reference_gcsa = f'{config["data_dir"]}/vg/{config["reference"]}.gcsa'
+        reference_xg = f'{config["aligner_reference"]}.xg',
+        reference_gcsa = f'{config["aligner_reference"]}.gcsa'
     threads: config["parameters"]["threads"]
     message: "VG index is running..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -94,18 +94,17 @@ rule vg_index:
         vg index -x {output.reference_xg} -g {output.reference_gcsa} -k {threads} -t {threads} {input.reference_vg}
         '''
 
-
 rule vg_map:
     input:
-        reference_xg = f'{config["data_dir"]}/vg/{config["reference"]}.xg',
-        reference_gcsa = f'{config["data_dir"]}/vg/{config["reference"]}.gcsa',
-        read1 = f'{config["data_dir"]}/{config["samples"]["sample1"]}',
-        read2 = f'{config["data_dir"]}/{config["samples"]["sample2"]}'
+        reference_xg = f'{config["aligner_reference"]}.xg',
+        reference_gcsa = f'{config["aligner_reference"]}.gcsa',
+        read1 = config["samples"]["sample1"],
+        read2 = config["samples"]["sample2"]
     output:
-        sample_bam = f'{config["data_dir"]}/vg/{config["sample"]}.bam'
+        sample_bam = f'{config["output_dir"]}/vg/{config["sample"]}.bam'
     threads: config["parameters"]["threads"]
     message: "VG map is running..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -121,14 +120,13 @@ rule vg_map:
 
 rule sbg_graf:
     input:
-        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
-        reference_vcf_gz = f'{config["data_dir"]}/{config["reference"]}.vcf.gz',
-        read1 = f'{config["data_dir"]}/{config["samples"]["sample1"]}',
-        read2 = f'{config["data_dir"]}/{config["samples"]["sample2"]}',
+        reference_fasta = config["reference_fasta"],
+        reference_vcf_gz = f'{config["reference"]}.vcf.gz',
+        read1 = config["samples"]["sample1"],
+        read2 = config["samples"]["sample2"]
     output:
-        sample_bam = f'{config["data_dir"]}/sbg/{config["sample"]}.bam'
-    params:
-        log_file = f'{config["logs"]}/mlst.log'
+        sample_bam = f'{config["output_dir"]}/sbg/{config["sample"]}.bam'
+    params: log_file = f'{config["mlst_log_file"]}'
     threads: config["parameters"]["threads"]
     message: "SBG GRAF is running..."
     shell: 
@@ -147,11 +145,11 @@ rule sbg_graf:
 
 rule alignment_quality_check:
     input:
-        sample_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.bam'
+        sample_bam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.bam'
     output:
-        sample_sorted_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
+        sample_sorted_bam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
     message: "Sample bam file is being sorted..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -163,11 +161,11 @@ rule alignment_quality_check:
 
 rule remove_pcr_duplicates:
     input:
-        sample_sorted_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
+        sample_sorted_bam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
     output:
-        sample_sorted_rmdup_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam'
+        sample_sorted_rmdup_bam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam'
     message: "PCR duplicates are being removed..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -180,11 +178,11 @@ rule remove_pcr_duplicates:
 
 rule bam_to_sam:
     input:
-        sample_sorted_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
+        sample_sorted_bam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.bam'
     output:
-        sample_sam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sam'
+        sample_sam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sam'
     message: "Sample's bam file is being converted into sam format."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -197,11 +195,11 @@ rule bam_to_sam:
 
 rule index_sample_bam:
     input:
-        sample_sorted_rmdup_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam'
+        sample_sorted_rmdup_bam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam'
     output:
-        sample_sorted_rmdup_bam_bai = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam.bai'
+        sample_sorted_rmdup_bam_bai = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam.bai'
     message: "Sample bam file is being indexed..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -213,12 +211,12 @@ rule index_sample_bam:
 
 rule bam_to_vcf:
     input:
-        sample_sorted_rmdup_bam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam',
-        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta'
+        sample_sorted_rmdup_bam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sorted.rmdup.bam',
+        reference_fasta = config["reference_fasta"]
     output:
-        sample_vcf = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf'
+        sample_vcf = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.vcf'
     message: "Sample's variant are being called..."
-    params: log_file = f'{config["logs"]}/mlst.log'
+    params: log_file = f'{config["mlst_log_file"]}'
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -230,16 +228,17 @@ rule bam_to_vcf:
 
 rule vcf_to_sample_allele_info:
     input:
-        sample_vcf = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',
-        sample_sam = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}.sam',
-        reference_info_txt = f'{config["data_dir"]}/{config["reference"]}_info.txt',
-        reference_fasta = f'{config["data_dir"]}/{config["reference"]}.fasta',
-        reference_vcf = f'{config["data_dir"]}/{config["reference"]}.vcf'
+        sample_vcf = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',
+        sample_sam = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sam',
+        reference_info_txt = config["reference_info_txt"],
+        reference_fasta = config["reference_fasta"],
+        reference_vcf = config["reference_vcf"],
+        code_dir = config["working_dir"]
     output:
-        sample_mlst = f'{config["data_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
+        sample_mlst = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
     message: "File for allele defining variants for each CDS is being created."
     params:
-        log_file = f'{config["logs"]}/mlst.log',
+        log_file = f'{config["mlst_log_file"]}',
         update_reference = f'{config["update_reference"]}'
     shell:
         '''
@@ -248,5 +247,5 @@ rule vcf_to_sample_allele_info:
         echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         echo "{params.update_reference}"
-        python scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {input.reference_info_txt} --sam {input.sample_sam} --reference_fasta {input.reference_fasta} --reference_vcf {input.reference_vcf} --sample_mlst {output.sample_mlst} --update_reference {params.update_reference}
+        python {input.code_dir}/scripts/create_allele_info.py --vcf {input.sample_vcf} --info_txt {input.reference_info_txt} --sam {input.sample_sam} --reference_fasta {input.reference_fasta} --reference_vcf {input.reference_vcf} --sample_mlst {output.sample_mlst} --update_reference {params.update_reference}
         '''

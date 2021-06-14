@@ -401,14 +401,20 @@ def get_cg_list(cg_schema_file: str) -> list:
 
 if __name__ == "__main__":
 
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(add_help = True)
 
-	parser.add_argument('--cgmlst_dir', required=True)
-	parser.add_argument('--schema_seed_dir', required=True)
-	parser.add_argument('--reference_vcf', required=True)
-	parser.add_argument('--reference_fasta', required=True)
-	parser.add_argument('--reference_info', required=True)
-	parser.add_argument('--threads', required=True)
+	parser.add_argument('--cgmlst_dir', required=True,
+						help='cgMLST directory')
+	parser.add_argument('--schema_seed_dir', required=True,
+						help='schema seed directory')
+	parser.add_argument('--reference_vcf', required=True,
+						help='VCF file of reference genome')
+	parser.add_argument('--reference_fasta', required=True,
+						help='FASTA file of reference genome')
+	parser.add_argument('--reference_info', required=True,
+						help='Info file of reference genome')
+	parser.add_argument('--threads', required=True,
+						help='Number of threads')
 
 	args = parser.parse_args()
 
