@@ -5,7 +5,7 @@
 Aim: Creation of config file and milestone run
 ----------------------------------------------
 Authors: @fatmakhv
-The latest update: May 23, 2021
+The latest update: June 14, 2021
 ----------------------------------------------
 '''
 

@@ -6,7 +6,7 @@ Aim: Assignment of allele IDs for core CDSs
 and updates reference genome
 -------------------------------------------
 Authors: @fatmakhv @rafael
-The latest update: June 09, 2021
+The latest update: June 14, 2021
 -------------------------------------------
 """
 

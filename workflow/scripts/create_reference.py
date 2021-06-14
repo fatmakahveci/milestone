@@ -5,7 +5,7 @@
 Aim: Reference FASTA VCF and INFO file creation
 -----------------------------------------------
 Authors: @fatmakhv
-The latest update: May 23, 2021
+The latest update: June 14, 2021
 -----------------------------------------------
 """
 

@@ -1,6 +1,6 @@
 #####################################
 # author: @fatmakhv                ##
-# the latest update: May 23, 2021  ##
+# the latest update: June 14, 2021  ##
 #####################################
 
 ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema > create_reference_vcf_fasta
