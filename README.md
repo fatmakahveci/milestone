@@ -145,11 +145,13 @@ conda install -c bioconda vg=1.33 # only for Linux
 
 `-o OUTPUT, --output OUTPUT` Directory to be created for the output files
 
- `--aligner ALIGNER`   Graph Aligner option, sbg or vg
+`--aligner ALIGNER`   Graph Aligner option, sbg or vg
 
 `-e READ1, --read1 READ1` Sample first read including its directory
 
  `-E READ2, --read2 READ2` Sample second read including its directory
 
-`--ur, --update_reference` Update <reference.fasta> and <reference.vcf> after the alignment of the given sample.
+`--ur, --update_reference` Update <reference_info.txt> and <reference.vcf> after the alignment of the given sample.
+
+- `--update_reference` is an optional parameter. If you only need cgMLST schema for the sample, you should skip this parameter. If you use it, it will update the reference genome for the further analysis.
 
