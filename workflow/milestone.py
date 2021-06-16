@@ -196,7 +196,7 @@ def parse_arguments():
 
     # OUTPUT DIRECTORY
     parent_parser.add_argument('-o', '--output', 
-        help='Directory to be created for the output files)', required=True)
+        help='Directory to be created for the output files', required=True)
     ########################################
 
     parser = argparse.ArgumentParser(add_help=True)
@@ -210,7 +210,6 @@ def parse_arguments():
         help='ChewBBACA - Run chewBBACA workflow to create FASTA and VCF files\
              for reference genome.')
 
-
     chewbbaca_parser.add_argument('-g', '--genome_dir',
         help='ChewBBACA - Assembled genome directory name to create species\
              MLST schema',
@@ -219,26 +218,26 @@ def parse_arguments():
 
     ########################################
     # milestone.py mlst mode PARAMETERS
+
     mlst_parser = subparsers.add_parser("mlst", parents=[parent_parser],
         description='Graph Alignment',
-        help='Graph Alignment - Choose VG or SBG GRAF aligners to align reads\
+        help='Graph Aligner - Choose VG or SBG GRAF aligners to align reads\
              onto the reference genome.')
 
-
     mlst_parser.add_argument('--aligner',
-        help='Graph Alignment - Aligner option, sbg or vg',
+        help='Graph Aligner option, sbg or vg',
         default='vg', required=False)
 
     mlst_parser.add_argument('-e', '--read1', type=str,
-        help='Graph Alignment - Sample first read including its directory',
+        help='Graph Aligner - Sample first read including its directory',
         required=True)
 
     mlst_parser.add_argument('-E', '--read2', type=str,
-        help='Graph Alignment - Sample second read including its directory',
+        help='Graph Aligner - Sample second read including its directory',
         required=True)
 
     mlst_parser.add_argument('--ur', '--update_reference',
-        help='Reference - Update <reference.fasta> and <reference.vcf> after\
+        help='Reference genome - Update <reference_info.txt> and <reference.vcf> after\
              the alignment of the given sample.',
         dest='update_reference', default=False, action='store_true', required=False)
     ########################################
