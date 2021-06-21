@@ -155,3 +155,4 @@ conda install -c bioconda vg=1.33 # only for Linux
 
 - `--update_reference` is an optional parameter. If you only need cgMLST schema for the sample, you should skip this parameter. If you use it, it will update the reference genome for the further analysis.
 
+@todo A short example/tutorial
