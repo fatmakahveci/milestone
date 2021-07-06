@@ -59,10 +59,10 @@ conda install -c bioconda vg=1.33 # only for Linux
 - For macOS, you need to skip the last command and install VG to your local by following the steps in https://github.com/vgteam/vg#building-on-macos as an additional step.
 
 - You can activate the created environment to work in it:
-  - `conda activate milestone`
+  - `source activate milestone`
 
 - When your analysis is done, you can deactivate the created environment:
-  - `conda deactivate milestone`
+  - `conda deactivate`
   - Your environment will be kept unless you remove it. You can use it again by activating with the line given above.
 
 ## Milestone
@@ -156,3 +156,7 @@ conda install -c bioconda vg=1.33 # only for Linux
 - `--update_reference` is an optional parameter. If you only need cgMLST schema for the sample, you should skip this parameter. If you use it, it will update the reference genome for the further analysis.
 
 @todo A short example/tutorial
+@todo Citation information
+@todo Information for contributors
+@todo Link to e-mail address at the end
+@todo List all the version of the files along with the major edits you did in each version
