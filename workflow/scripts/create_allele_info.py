@@ -1081,6 +1081,14 @@ def quality_check(sample_info: SampleInfo, cds_reference: str) -> bool:
     cds_sequence = insert_variants_into_sequence(cds_reference,
                                                  sample_info.pos_list,
                                                  sample_info.alt_list)
+    
+    allele_id = "unknown"
+
+    if len(cds_sequence) < len(cds_reference) * 0.8:
+        allele_id = "ASM"
+
+    elif len(cds_sequence) > len(cds_reference) * 1.2:
+        allele_id = "ALM"
 
     is_passed = False
     # check if cds length is multiple of 3
@@ -1092,7 +1100,7 @@ def quality_check(sample_info: SampleInfo, cds_reference: str) -> bool:
             cds_sequence[:3] in ['ATG', 'CTG', 'GTG', 'TTG']):
         is_passed = True
 
-    return is_passed
+    return [is_passed, allele_id]
 
 
 def get_reference_cds_seq_dict() -> dict:
@@ -1175,18 +1183,20 @@ def assign_allele_id() -> list[dict, dict]:
 
             # there is no variant so it equals to the CDS reference
             if sample_cds not in sample_variant_dict.keys():
-                is_equal_to_reference_cds = True
+                # {sample_cds} is equal to reference CDS. Allele ID: 1', a known allele = reference
+                allele_id = '1'
 
             # alleles that have differences in comparison to the
             # reference allele for the CDS
             else:
-
                 sample_info = sample_variant_dict[sample_cds]
                 sample_cds_and_allele_dict_[sample_cds].append(sample_info)
 
                 # length 3n, start codon, stop codon
                 # sample_cds_seq_dict[sample_cds] := its sequence
-                if quality_check(sample_info, sample_cds_seq_dict[sample_cds]):
+                is_passed, is_alm_or_asm = quality_check(sample_info, sample_cds_seq_dict[sample_cds])
+                
+                if is_passed: # if it passed the check
 
                     # known allele (one of the alleles from chewBBACA)
                     for reference_cds, reference_info in \
@@ -1213,40 +1223,46 @@ def assign_allele_id() -> list[dict, dict]:
                 else:
                     is_passed_quality_check = True
 
-            # {sample_cds} is equal to reference CDS. Allele ID: 1'
-            if is_equal_to_reference_cds:  # a known allele = reference
-                allele_id = '1'
+                # the length of the new allele is larger than reference (1.2 length)
+                if is_alm_or_asm == "ALM":
+                    allele_id = "ALM"
 
-            # {sample_cds} has a known allele.
-            # Allele ID: {reference_variant_dict[reference_cds].allele_id}
-            elif is_matched_to_a_known_allele_id:  # a known allele
-                allele_id = reference_variant_dict[reference_cds].allele_id
+                # the length of the new allele is less than reference (0.8 length)
+                elif is_alm_or_asm == "ASM":
+                    allele_id = "ASM"
 
-            # {sample_cds} has a known allele with variations (novel).
-            # Allele ID: {allele_id}
-            elif is_matched_to_a_known_allele_with_variants_id:  # novel allele
-                allele_id = str(int(
-                    number_of_reference_cds_in_reference_dict[sample_cds]) + 1)
-                cds_and_novel_allele_dict_[sample_cds] = allele_id
+                if is_alm_or_asm == "unknown":
 
-            # {sample_cds} couldn\'t pass the quality check. Allele ID: NOT CDS
-            elif is_passed_quality_check:  # skipped
-                allele_id = 'NOT CDS'
+                    # {sample_cds} has a known allele.
+                    # Allele ID: {reference_variant_dict[reference_cds].allele_id}
+                    if is_matched_to_a_known_allele_id:  # a known allele
+                        allele_id = reference_variant_dict[reference_cds].allele_id
 
-            else:
+                    # {sample_cds} has a known allele with variations (novel).
+                    # Allele ID: {allele_id}
+                    elif is_matched_to_a_known_allele_with_variants_id:  # novel allele
+                        allele_id = str(int(
+                        number_of_reference_cds_in_reference_dict[sample_cds]) + 1)
+                        cds_and_novel_allele_dict_[sample_cds] = allele_id
 
-                # {sample_cds} has a novel allele. Allele ID: 2
-                if sample_cds not in number_of_reference_cds_in_reference_dict:
-                    allele_id = 2  # cds with single allele
+                    # {sample_cds} couldn\'t pass the quality check. Allele ID: NOT CDS
+                    elif is_passed_quality_check:  # skipped
+                        allele_id = 'NOT CDS'
 
-                # {sample_cds} has a novel allele.
-                # Allele ID:
-                #       {number_of_reference_cds_in_reference_dict[sample_cds]}
-                else:
-                    allele_id = number_of_reference_cds_in_reference_dict[
-                        sample_cds]
+                    else:
 
-                cds_and_novel_allele_dict_[sample_cds] = allele_id
+                        # {sample_cds} has a novel allele. Allele ID: 2
+                        if sample_cds not in number_of_reference_cds_in_reference_dict:
+                            allele_id = 2  # cds with single allele
+
+                        # {sample_cds} has a novel allele.
+                        # Allele ID:
+                        #       {number_of_reference_cds_in_reference_dict[sample_cds]}
+                        else:
+                            allele_id = number_of_reference_cds_in_reference_dict[
+                            sample_cds]
+
+                        cds_and_novel_allele_dict_[sample_cds] = allele_id
 
         # CDSs of which breadth is less than given identity
         # Remaining CDS in reference on which sample reads are not mapped.

@@ -350,6 +350,7 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	header = ['##fileformat=VCFv4.2',
 			'##FILTER=<ID=PASS,Description="All filters passed">")',
 			'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+			'##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">',
     		'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
     		'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of '
 			'alleles">']
