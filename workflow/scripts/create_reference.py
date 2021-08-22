@@ -5,7 +5,7 @@
 Aim: Reference FASTA VCF and INFO file creation
 -----------------------------------------------
 Authors: @fatmakhv
-The latest update: June 14, 2021
+The latest update: August 22, 2021
 -----------------------------------------------
 """
 
@@ -76,8 +76,7 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str,
 		out_file.close()
 
 
-def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str,
-														allele_id: str) -> dict:
+def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
 	"""
 	Reads {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
@@ -117,7 +116,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str,
 						# with the highest
 
 					if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
-				
+
 						pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
 
 		file.close()
@@ -187,32 +186,19 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str,
 	allele_id = get_allele_id_from_allele_name(allele_name)
 
 	# create <sample_allele.vcf>
-	command_list = []
-
-	command_list.append(f"minimap2 -ax asm5 {reference}.fasta {sample}.fasta -t"
-						f" {threads} --cs=long -o {sample}.sam 2>&1")
-	command_list.append(f"samtools view -Sb {sample}.sam > {sample}.bam")
-	command_list.append(f"samtools index {sample}.bam")
-	command_list.append(f"samtools sort {sample}.bam -o {sample}.sorted.bam")
-	command_list.append(f"samtools index {sample}.sorted.bam")
-	command_list.append(f"bcftools mpileup -O u -f {reference}.fasta {sample}."
-						f"sorted.bam | bcftools call --ploidy 1 -Ov -c -v -o "
-						f"{sample}.vcf")
-
-	for command in command_list:
-		subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
+	command = f"minimap2 -c --cs=long {reference}.fasta {sample}.fasta | sort -k6,6 -k8,8n | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - > {sample}.vcf"
+	subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
 
 	# {sample}.vcf contains {allele_id}'s variants for {cds_name}
-	allele_dict = get_ref_alt_qual_of_position_s_variant_dict(f'{sample}.vcf',
-															cds_name, allele_id)
-	
+	allele_dict = get_ref_alt_qual_of_position_s_variant_dict(f'{sample}.vcf', cds_name, allele_id)
+
 	command_list = []
 
-	command_list.append(f"bgzip -c {sample}.vcf > {sample}.vcf.gz")
+	command_list.append(f"bgzip -f -c {sample}.vcf > {sample}.vcf.gz")
 	command_list.append(f"tabix -p vcf {sample}.vcf.gz")
-	command_list.append(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam;"
-						f" rm {sample}.sorted.bam; rm {sample}.bam.bai; rm "
-						f"{sample}.sorted.bam.bai; rm {sample}.vcf;")
+	# command_list.append(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam;"
+	#					f" rm {sample}.sorted.bam; rm {sample}.bam.bai; rm "
+	#					f"{sample}.sorted.bam.bai; rm {sample}.vcf;")
 
 	for command in command_list:
 		subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
@@ -220,8 +206,7 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str,
 	return allele_dict
 
 
-def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list,
-														threads: str) -> list:
+def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
 	"""
 	Creates CDS list
 
@@ -243,8 +228,7 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list,
 
 	try:
 
-		for sequence in list(SeqIO.parse(StringIO(open(f"{cg_dir}/{cds_fasta}",
-														'r').read()), 'fasta')):
+		for sequence in list(SeqIO.parse(StringIO(open(f"{cg_dir}/{cds_fasta}", 'r').read()), 'fasta')):
 
 			cds_name = get_cds_name_from_allele_name(sequence.id)
 			allele_id = get_allele_id_from_allele_name(sequence.id)
@@ -264,8 +248,7 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list,
 
 			if allele_id != '1':
 
-				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir,
-										allele_name, cg_dir, cds_name, threads)
+				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cg_dir, cds_name, threads)
 
 	except FileNotFoundError:
 		pass # {cds_fasta} file does not exist.
@@ -439,8 +422,7 @@ if __name__ == "__main__":
 	# create reference vcf
 	for cds in cg_list:
 
-		create_cds_list(f"{args.schema_seed_dir}", cds, cds_to_merge_list,
-																{args.threads})
+		create_cds_list(f"{args.schema_seed_dir}", cds, cds_to_merge_list, {args.threads})
 
 	create_reference_vcf_fasta(f"{args.schema_seed_dir}", cds_to_merge_list)
 
