@@ -194,7 +194,7 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str,
 
 	command_list = []
 
-	command_list.append(f"bgzip -f -c {sample}.vcf > {sample}.vcf.gz")
+	command_list.append(f"bgzip -f {sample}.vcf > {sample}.vcf.gz")
 	command_list.append(f"tabix -p vcf {sample}.vcf.gz")
 	# command_list.append(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam;"
 	#					f" rm {sample}.sorted.bam; rm {sample}.bam.bai; rm "
