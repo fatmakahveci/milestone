@@ -30,6 +30,7 @@ Milestone is an end-to-end sample-based cgMLST profile creation workflow for bac
 - pysam=0.16
 - bcftools=1.12
 - vg=1.33
+- fastp=
 
 ### 0.1. Downloading data from NCBI (optional)
 
@@ -51,7 +52,7 @@ Milestone is an end-to-end sample-based cgMLST profile creation workflow for bac
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 snakemake=5.32 pysam=0.16 bcftools=1.12
+conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 snakemake=5.32 pysam=0.16 bcftools=1.12 fastp=0.12.4
 conda install -c bioconda vg=1.33 # only for Linux
 ```
 
