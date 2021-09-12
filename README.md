@@ -111,7 +111,9 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
 `python milestone.py schema_creation [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT -g GENOME_DIR [-mt MLST_TYPE]`
 
-- `-h, --help` Show the instructions.
+- `-h, --help`
+
+  Show the instructions.
 
 - `-r REFERENCE, --reference REFERENCE`
 
@@ -135,7 +137,9 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
 `milestone.py allele_calling [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT [--aligner ALIGNER] -e READ1 -E READ2 [--ur]`
 
-- `-h, --help` Show the instructions.
+- `-h, --help`
+
+  Show the instructions.
 
 - `-r REFERENCE, --reference REFERENCE`
 
