@@ -2,62 +2,29 @@
 
 ## Table of Contents
 
-<!-- MarkdownTOC -->
-
-- Preprocess
-    - Downloading NCBI data to create the reference genome for given species
-- Install conda environment
-- Install VG
-- Creation of reference genome
-- Creation of MLST schema of the given sample and update reference genome
-- Creates sample's mlst without updating reference files
-- Creates sample's mlst and updates reference files
-
-<!-- /MarkdownTOC -->
-
----
-
-Milestone is an end-to-end sample-based cgMLST profile creation workflow for bacterial species. It only requires genome assemblies to create reference genome for the species. In case of the lack of assemblies for the bacterial species to be analyzed, you can download from NCBI's public database to create reference genome for the species.
+Milestone is an end-to-end sample-based MLST profile creation workflow for bacterial species.
 
 ## 0. Setting up the analysis
 
-#### Dependencies (requirements.txt)
+- **Downloading data from NCBI (optional): ** `bash download_species_reference_fasta.sh -s <species_name>`
 
-- chewbbaca=2.7
-- freebayes=1.3
-- minimap2=2.17
-- snakemake=5.32
-- pysam=0.16
-- bcftools=1.12
-- vg=1.33
-- fastp=
+### 0.1. Creating conda environment (optional)
 
-### 0.1. Downloading data from NCBI (optional)
+- **pip installation:** `sudo apt install python-pip`
+- **dependencies:** _requirements.txt_, python 3.8.10
+- **conda installation:** `pip install conda`
 
-`bash download_species_reference_fasta.sh -s <species_name>`
-
-### 0.2. Creating conda environment (optional)
-
-- pip installation:
-
-  `sudo apt install python-pip`
-
-- conda installation:
-
-  `pip install conda`
-
-### 0.2.1. Install the environment
+### 0.1.1. Installing conda environment (optional)
 
 ```bash
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda create --name milestone chewbbaca=2.7 freebayes=1.3 minimap2=2.17 snakemake=5.32 pysam=0.16 bcftools=1.12 fastp=0.12.4
-conda install -c bioconda vg=1.33 # only for Linux
+conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htslib=1.13 fastp=0.12.4 freebayes=1.3.2 minimap2=2.17 pysam=0.16.0.1 samtools=1.13 snakemake=5.32.2 vg=1.34
 ```
 
-- VG only have installation via conda for Linux so you can directly install it using the last command.
-- For macOS, you need to skip the last command and install VG to your local by following the steps in https://github.com/vgteam/vg#building-on-macos as an additional step.
+- VG only have installation via conda for Linux.
+- For macOS, you need to delete `vg=1.34` from the command above and install VG to your local by following the steps in https://github.com/vgteam/vg#building-on-macos as an additional step.
 
 - You can activate the created environment to work in it:
   - `source activate milestone`
@@ -66,95 +33,135 @@ conda install -c bioconda vg=1.33 # only for Linux
   - `conda deactivate`
   - Your environment will be kept unless you remove it. You can use it again by activating with the line given above.
 
-## Milestone
+## Milestone Workflow
 
-![milestone workflow](images/milestone_workflow_github.png)
+## 1. a. Schema creation for the set of user-defined CDSs
+
+@todo
+
+![milestone workflow](images/milestone_ug_workflow.png)
+
+
 
 ---
 
-### STEP 1 and 2 - *milestone.py chewbbaca*: Creation of reference genome
+
+
+## 1. b. Schema creation for the set of core CDSs
+
+@todo
+
+
+
+![milestone workflow](images/milestone_cg_workflow.png)
+
+
+
+---
+
+### Creation of reference info
 
 ![allele to vcf](images/allele_to_vcf_github.png)
 
-**Usage**
-
-`python milestone.py chewbbaca [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT -g GENOME_DIR`
-
-**Parameters**
-
- `-h, --help` Show this help message and exit.
-
-**1. Snakemake parameters**
-
-` -n, --dryrun, --dry-run` Do not execute anything, and display what would be done. If you have a very large workflow, use --dry-run --quiet to just print a summary of the DAG of jobs.
-
-`-p, --printshellcmds` Print out the shell commands that will be executed.
-
-` -s SNAKEFILE, --snakefile SNAKEFILE` The workflow definition in form of a snakefile. Usually, you should not need to specify this. By default, Snakemake will search for 'Snakefile','snakefile', 'workflow/Snakefile', 'workflow/snakefile' beneath the current working directory, in this order. Only if you definitely want a different layout, you need to use this parameter.
-
- `-t THREADS, --threads THREADS, --set-threads THREADS` Overwrite thread usage of rules. This allows to fine-tune workflow parallelization. In particular, this is helpful to target certain cluster nodes by e.g. shifting a rule to use more, or less threads than defined in the workflow. Thereby, THREADS has to be a positive integer, and RULE has to be the name of the rule.
-
-`-F, --forceall` Force the execution of the selected (or the first) rule and all rules it is dependent on regardless of already created output.
-
- `--ri, --rerun-incomplete` Re-run all jobs the output of which is recognized as incomplete.
-
- `--unlock` Remove a lock on the working directory.
-
-`-q, --quiet` Do not output any progress or rule information.
-
-**2. milestone parameters**
-
- `-r REFERENCE, --reference REFERENCE` Name of reference file to be given without extension and directory. (Both VCF and FASTA file name of the reference.)
-
-`-o OUTPUT, --output OUTPUT` Directory to be created for the output files.
-
- `-g GENOME_DIR, --genome_dir GENOME_DIR` ChewBBACA - Assembled genome directory name to create species MLST schema
+@todo
 
 ---
 
-### STEP 3 and 4 - *milestone.py mlst*: Creation of MLST schema of the given sample and update reference genome
+##### Milestone commands
 
-**Usage**
+---
 
-`python milestone.py mlst [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT [--aligner ALIGNER] -e READ1 -E READ2 [--ur]`
+**1. Snakemake parameters for both schema_creation and allele_calling`**
 
-**Parameters**
+-  `-n, --dryrun, --dry-run`
 
-`-h, --help` Show this help message and exit
+  Do not execute anything, and display what would be done. If you have a very large workflow, use `--dry-run --quiet` to just print a summary of the DAG of jobs.
 
-**1. Snakemake parameters**
+- `-p, --printshellcmds`
 
-`-n, --dryrun, --dry-run` Do not execute anything, and display what would be done. If you have a very large workflow, use --dry-run --quiet to just print a summary of the DAG of jobs.
+  Print out the shell commands that will be executed.
 
-`-p, --printshellcmds` Print out the shell commands that will be executed.
+- `-s SNAKEFILE, --snakefile SNAKEFILE` 
 
-`-s SNAKEFILE, --snakefile SNAKEFILE` The workflow definition in form of a snakefile. Usually, you should not need to specify this. By default, Snakemake will search for  'Snakefile','snakefile', 'workflow/Snakefile', 'workflow/snakefile' beneath the current working directory, in this order. Only if you definitely want a different layout, you need to use this parameter.
+  The workflow definition in form of a snakefile. Usually, you should not need to specify this. By default, Snakemake will search for 'Snakefile','snakefile', 'workflow/Snakefile', 'workflow/snakefile' beneath the current working directory, in this order. Only if you definitely want a different layout, you need to use this parameter.
 
-`-t THREADS, --threads THREADS, --set-threads THREADS` Overwrite thread usage of rules. This allows to fine-tune workflow parallelization. In particular, this is helpful to target certain cluster nodes by e.g. shifting a rule to use more, or less threads than defined in the workflow. Thereby, THREADS has to be a positive integer, and RULE has to be the name of the rule.
+- `-t THREADS, --threads THREADS, --set-threads THREADS`
 
-`-F, --forceall` Force the execution of the selected (or the first) rule and all rules it is dependent on regardless of already created output.
+  Overwrite thread usage of rules. This allows to fine-tune workflow parallelization. In particular, this is helpful to target certain cluster nodes by e.g. shifting a rule to use more, or less threads than defined in the workflow. Thereby, THREADS has to be a positive integer, and RULE has to be the name of the rule.
 
-`--ri, --rerun-incomplete` Re-run all jobs the output of which is recognized as incomplete.
+- `-F, --forceall`
 
-`--unlock` Remove a lock on the working directory.
+  Force the execution of the selected (or the first) rule and all rules it is dependent on regardless of already created output.
 
-`-q, --quiet` Do not output any progress or rule information.
+- `--ri, --rerun-incomplete`
 
-**2. milestone parameters**
+  Re-run all jobs the output of which is recognized as incomplete.
 
-`-r REFERENCE, --reference REFERENCE` Name of reference file to be given without extension and directory. (Both VCF and FASTA file name of the reference.)
+- `--unlock`
 
-`-o OUTPUT, --output OUTPUT` Directory to be created for the output files
+  Remove a lock on the working directory.
 
-`--aligner ALIGNER`   Graph Aligner option, sbg or vg
+- `-q, --quiet`
 
-`-e READ1, --read1 READ1` Sample first read including its directory
+  Do not output any progress or rule information.
 
- `-E READ2, --read2 READ2` Sample second read including its directory
+---
 
-`--ur, --update_reference` Update <reference_info.txt> and <reference.vcf> after the alignment of the given sample.
+**2. schema_creation parameters**
 
-- `--update_reference` is an optional parameter. If you only need cgMLST schema for the sample, you should skip this parameter. If you use it, it will update the reference genome for the further analysis.
+`python milestone.py schema_creation [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT -g GENOME_DIR [-mt MLST_TYPE]`
+
+- `-h, --help` Show the instructions.
+
+- `-r REFERENCE, --reference REFERENCE`
+
+  Name of reference file to be given without extension and directory. (Both VCF and FASTA file name of the reference.)
+
+- `-o OUTPUT, --output OUTPUT`
+
+  Directory to be created for the output files
+
+- `-g GENOME_DIR, --genome_dir GENOME_DIR`
+
+  Assembled genome directory name to create schema
+
+- `-mt MLST_TYPE, --mlst_type MLST_TYPE`
+
+  Create sample's cgMLST or ugMLST (-mt cg or -mt ug or --mlst_type cg or --mlst_type ug)
+
+---
+
+**3. allele_calling parameters**
+
+`milestone.py allele_calling [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT [--aligner ALIGNER] -e READ1 -E READ2 [--ur]`
+
+- `-h, --help` Show the instructions.
+
+- `-r REFERENCE, --reference REFERENCE`
+
+  Name of reference file to be given without extension and directory. (Both VCF and FASTA file name of the reference.)
+
+- `-o OUTPUT, --output OUTPUT`
+
+  Directory to be created for the output files
+
+- `--aligner ALIGNER`
+
+  Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)
+
+- `-e READ1, --read1 READ1`
+
+  Allele Calling and Reference Update - Sample first read including its directory
+
+- `-E READ2, --read2 READ2`
+
+  Allele Calling and Reference Update - Sample second read including its directory
+
+-  `--ur, --update_reference`
+
+  Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after the alignment of the given sample.
+
+---
 
 @todo A short example/tutorial
 @todo Citation information

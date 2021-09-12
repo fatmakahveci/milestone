@@ -5,7 +5,7 @@
 Aim: Creation of config file and milestone run
 ----------------------------------------------
 Authors: @fatmakhv
-The latest update: June 14, 2021
+The latest update: September 08, 2021
 ----------------------------------------------
 '''
 
@@ -30,17 +30,19 @@ def create_config():
     output_file.write(f' threads: {args.threads}\n')
     output_file.write(f'reference: {os.path.join(args.output, f"{args.reference}")}\n')
     output_file.write(f'reference_vcf: {os.path.join(args.output, f"{args.reference}.vcf")}\n')
+    output_file.write(f'reference_vcf_gz: {os.path.join(args.output, f"{args.reference}.vcf.gz")}\n')
+    output_file.write(f'reference_vcf_gz_tbi: {os.path.join(args.output, f"{args.reference}.vcf.gz.tbi")}\n')
     output_file.write(f'reference_info_txt: {os.path.join(args.output, f"{args.reference}_info.txt")}\n')
     output_file.write(f'reference_fasta: {os.path.join(args.output, f"{args.reference}.fasta")}\n')
+    output_file.write(f'cgmlst_dir: "{os.path.join(args.output, "create_cgMLST")}"\n')
 
-    ## chewBBACA run
-    if args.command == 'chewbbaca':
+    ## schema_creation run
+    if args.command == 'schema_creation':
+        ## schema_creation mlst type
+        output_file.write(f'mlst_type: "{args.mlst_type}"\n')
 
         ## create wgMLST
         output_file.write(f'genome_dir: "{args.genome_dir}"\n')
-
-        ## create cgMLST
-        output_file.write(f'cgmlst_dir: "{os.path.join(args.output, "create_cgMLST")}"\n')
 
         ## allele call
         output_file.write(f'allele_call_dir: "{os.path.join(args.output, "allele_call")}"\n')
@@ -51,12 +53,12 @@ def create_config():
         ## schema seed
         output_file.write(f'schema_seed_dir: "{os.path.join(args.output, "alleles/schema_seed")}"\n')
 
-        ## chewbbaca log file
-        output_file.write(f'chewbbaca_log_file: "{chewbbaca_log_file}"\n')
+        ## schema_creation log file
+        output_file.write(f'schema_creation_log_file: "{schema_creation_log_file}"\n')
 
     ## Run to create <sample.mlst> or
     ## [<reference.updated.fasta> and <reference.updated.vcf>]
-    elif args.command == 'mlst':
+    elif args.command == 'allele_calling':
 
         output_file.write(f'sample: "{args.read1.split("/")[-1].split("_1")[0]}"\n')
 
@@ -69,10 +71,10 @@ def create_config():
         output_file.write(f'aligner_reference: {os.path.join(args.output, f"{args.aligner}/{args.reference}")}\n')
 
         ## update reference
-        output_file.write(f'update_reference: "{os.path.join(args.output, str(args.update_reference))}"\n')
+        output_file.write(f'update_reference: "{args.update_reference}"\n')
 
-        ## chewbbaca log file
-        output_file.write(f'mlst_log_file: "{mlst_log_file}"\n')
+        ## allele_calling log file
+        output_file.write(f'allele_calling_log_file: "{allele_calling_log_file}"\n')
 
     output_file.close()
 
@@ -111,22 +113,28 @@ def create_snakefile():
     output_file.write('import glob, os, sys\n\n')
     output_file.write(f'configfile: "{configfile}"\n\n')
 
-    if args.command == 'chewbbaca':
+    if args.command == 'schema_creation':
 
-        # create a log file for chewbbaca
-        os.system(f'touch {chewbbaca_log_file}')
+        # create a log file for schema_creation
+        os.system(f'touch {schema_creation_log_file}')
+        
+        if args.mlst_type == 'cg':
+            output_file.write(f'include: "{rules_dir}/schema_creation_cg.smk"\n\n')
+            output_file.write('rule all:\n\tinput:\n')
+            output_file.write(f'\t\treference_vcf_gz = "{args.output}/{args.reference}.vcf.gz"')
 
-        output_file.write(f'include: "{rules_dir}/chewie.smk"\n\n')
-        output_file.write('rule all:\n\tinput:\n')
-        # <reference.fasta> and <reference_info.txt> can be added, but not obligatory.
-        output_file.write(f'\t\treference_vcf = "{args.output}/{args.reference}.vcf"')
+        elif args.mlst_type == 'ug':
+            output_file.write(f'include: "{rules_dir}/schema_creation_ug.smk"\n\n')
+            output_file.write('rule all:\n\tinput:\n')
+            output_file.write(f'\t\treference_vcf_gz = "{args.output}/{args.reference}.vcf.gz"')
+        
 
-    elif args.command == 'mlst':
+    elif args.command == 'allele_calling':
 
-        # create a log file for chewbbaca
-        os.system(f'touch {mlst_log_file}')
+        # create a log file for allele_calling
+        os.system(f'touch {allele_calling_log_file}')
 
-        output_file.write(f'include: "{rules_dir}/milestone.smk"\n\n')
+        output_file.write(f'include: "{rules_dir}/allele_calling.smk"\n\n')
         output_file.write('rule all:\n\tinput:\n')
 
         sample_name = args.read1.split("/")[-1].split("_1")[0]
@@ -144,11 +152,11 @@ def parse_arguments():
     parent_parser.add_argument('-n', '--dryrun', '--dry-run',
         help="Snakemake - Do not execute anything, and display what would be\
              done. If you have a very large workflow, use --dry-run --quiet to\
-             just print a summary of the DAG of jobs.",
+             just print a summary of the DAG of jobs. (default: False)",
         default=False, action='store_true', required=False)
 
     parent_parser.add_argument('-p', '--printshellcmds',
-        help='Snakemake - Print out the shell commands that will be executed.',
+        help='Snakemake - Print out the shell commands that will be executed. (default: False)',
         default=False, action='store_true', required=False)
 
     parent_parser.add_argument('-s', '--snakefile',
@@ -157,7 +165,7 @@ def parse_arguments():
              Snakemake will search for 'Snakefile','snakefile',\
              'workflow/Snakefile', 'workflow/snakefile' beneath the current\
              working directory, in this order. Only if you definitely want a\
-             different layout, you need to use this parameter.",
+             different layout, you need to use this parameter. (default: Snakefile)",
         default='Snakefile', required=False)
 
     parent_parser.add_argument('-t', '--threads', '--set-threads',
@@ -166,37 +174,37 @@ def parse_arguments():
              helpful to target certain cluster nodes by e.g. shifting a rule\
              to use more, or less threads than defined in the workflow.\
              Thereby, THREADS has to be a positive integer, and RULE has to be\
-             the name of the rule.',
+             the name of the rule. (default: 1)',
         required=False, type=int, default=1)
 
     parent_parser.add_argument('-F', '--forceall',
         help='Snakemake - Force the execution of the selected (or the first)\
              rule and all rules it is dependent on regardless of already\
-             created output.',
+             created output. (default: False)',
         default=False, action='store_true', required=False)
 
     parent_parser.add_argument('--ri', '--rerun-incomplete',
         help='Snakemake - Re-run all jobs the output of which is recognized\
-             as incomplete. ',
+             as incomplete. (default: False)',
         default=False, action='store_true', required=False)
 
     parent_parser.add_argument('--unlock',
-        help='Snakemake - Remove a lock on the working directory.',
+        help='Snakemake - Remove a lock on the working directory. (default: False)',
         default=False, action='store_true', required=False)
 
     parent_parser.add_argument('-q', '--quiet',
-        help='Snakemake - Do not output any progress or rule information.',
+        help='Snakemake - Do not output any progress or rule information. (default: False)',
         default=False, action='store_true', required=False)
 
     # REFERENCE FILES PARAMETER
     parent_parser.add_argument('-r', '--reference',
         help='Name of reference file to be given without extension and directory.\
-             (Both VCF and FASTA file name of the reference.)',
+             (Both VCF and FASTA file name of the reference.) (required)',
         required=True)
 
     # OUTPUT DIRECTORY
     parent_parser.add_argument('-o', '--output', 
-        help='Directory to be created for the output files', required=True)
+        help='Directory to be created for the output files. (required)', required=True)
     ########################################
 
     parser = argparse.ArgumentParser(add_help=True)
@@ -204,41 +212,45 @@ def parse_arguments():
     subparsers = parser.add_subparsers(title='commands', dest='command')
 
     ########################################
-    # milestone.py chewbbaca mode PARAMETERS
-    chewbbaca_parser = subparsers.add_parser("chewbbaca",
-        parents=[parent_parser], description='chewBBACA',
-        help='ChewBBACA - Run chewBBACA workflow to create FASTA and VCF files\
+    # milestone.py schema_creation mode PARAMETERS
+    schema_creation_parser = subparsers.add_parser("schema_creation",
+        parents=[parent_parser], description='schema_creation',
+        help='schema_creation - Run schema_creation workflow to create FASTA and VCF files\
              for reference genome.')
 
-    chewbbaca_parser.add_argument('-g', '--genome_dir',
-        help='ChewBBACA - Assembled genome directory name to create species\
-             MLST schema',
+    schema_creation_parser.add_argument('-g', '--genome_dir',
+        help='Assembled genome directory name to create schema. (required)',
         required=True)
-    ########################################
+
+    schema_creation_parser.add_argument('-mt', '--mlst_type',
+        help='Create sample\'s cgMLST or ugMLST (default: ug) (options: -mt cg or -mt ug or --mlst_type cg or --mlst_type ug)',
+        required=False, type=str, default='ug')
 
     ########################################
-    # milestone.py mlst mode PARAMETERS
 
-    mlst_parser = subparsers.add_parser("mlst", parents=[parent_parser],
-        description='Graph Alignment',
-        help='Graph Aligner - Choose VG or SBG GRAF aligners to align reads\
-             onto the reference genome.')
+    ########################################
+    # milestone.py allele_calling mode PARAMETERS
 
-    mlst_parser.add_argument('--aligner',
-        help='Graph Aligner option, sbg or vg',
+    allele_calling_parser = subparsers.add_parser("allele_calling", parents=[parent_parser],
+        description='Allele Calling and Reference Update',
+        help='Allele Calling and Reference Update- Choose VG or SBG GRAF aligners to align reads\
+             onto the reference genome and Call Alleles. (Optional: --update_reference)')
+
+    allele_calling_parser.add_argument('--aligner',
+        help='Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)',
         default='vg', required=False)
 
-    mlst_parser.add_argument('-e', '--read1', type=str,
-        help='Graph Aligner - Sample first read including its directory',
+    allele_calling_parser.add_argument('-e', '--read1', type=str,
+        help='Allele Calling and Reference Update - Sample first read including its directory. (required)',
         required=True)
 
-    mlst_parser.add_argument('-E', '--read2', type=str,
-        help='Graph Aligner - Sample second read including its directory',
+    allele_calling_parser.add_argument('-E', '--read2', type=str,
+        help='Allele Calling and Reference Update - Sample second read including its directory. (required)',
         required=True)
 
-    mlst_parser.add_argument('--ur', '--update_reference',
-        help='Reference genome - Update <reference_info.txt> and <reference.vcf> after\
-             the alignment of the given sample.',
+    allele_calling_parser.add_argument('--ur', '--update_reference',
+        help='Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after\
+             the alignment of the given sample. (default: False)',
         dest='update_reference', default=False, action='store_true', required=False)
     ########################################
 
@@ -256,8 +268,8 @@ if __name__ == "__main__":
 
     # Create directory of the log files
     log_dir = os.path.join(args.output, 'logs')
-    chewbbaca_log_file = f'{log_dir}/chewbbaca.log'
-    mlst_log_file = f'{log_dir}/mlst.log'
+    schema_creation_log_file = f'{log_dir}/schema_creation.log'
+    allele_calling_log_file = f'{log_dir}/allele_calling.log'
     if not os.path.exists(f'{log_dir}'):
         os.makedirs(log_dir)
 
@@ -275,4 +287,3 @@ if __name__ == "__main__":
 
     else:
         print("Path to configfile does not exist: " + configfile)
-

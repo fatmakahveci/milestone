@@ -5,7 +5,7 @@
 Aim: Reference FASTA VCF and INFO file creation
 -----------------------------------------------
 Authors: @fatmakhv
-The latest update: August 22, 2021
+The latest update: June 14, 2021
 -----------------------------------------------
 """
 
@@ -40,8 +40,7 @@ class vcf:
 				f"sample: {self.sample}"
 
 
-def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str,
-														pos_dict: dict) -> None:
+def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
 	"""
 	Writes the variants of alleles that are not equal to the reference CDS
 
@@ -53,7 +52,7 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str,
 	"""
 
 	with open(args.reference_info, 'a') as out_file:
-		
+
 		out_file.write(f'{cds_name}_{allele_id}\t')
 
 		pos_list = []
@@ -163,8 +162,7 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 	return cds_name
 
 
-def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str,
-								 		cds_name: str, threads: str) -> dict:
+def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, cds_name: str, threads: str) -> dict:
 	"""
 	Creates allele dictionary for given CDS
 
@@ -275,9 +273,7 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, thread
 		else:
 
 			cds_to_merge_list.append(cds_name)
-			command_list.append(f"bcftools merge "
-								f"{' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O"
-								f" v -o {wd}/{cds_name}.vcf")
+			command_list.append(f"bcftools merge {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O v -o {wd}/{cds_name}.vcf")
 
 		for command in command_list:
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
@@ -319,7 +315,8 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 					contig_info_set.add(line)
 
 				elif not line.startswith("#"):
-					fields = (line.split('\t'))[:9]
+					fields = (line.split('\t'))[:8]
+					fields.append("GT:PL")
 					fields.append("1:60,0")
 					line = '\t'.join(fields)
 					reference_file.write(f"{line}\n")
@@ -330,13 +327,21 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 
 	header_file = open(f"{wd}/alleles/header.txt", 'w')
 
-	header = ['##fileformat=VCFv4.2',
-			'##FILTER=<ID=PASS,Description="All filters passed">")',
-			'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
-			'##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">',
-    		'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
-    		'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of '
-			'alleles">']
+	header = [	'##fileformat=VCFv4.2',
+				'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+				'##FORMAT=<ID=PL,Number=G,Type=Float,Description="Phred-scaled Genotype Likelihoods">',
+				'##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">',
+    			'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">',
+    			'##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count, with partial observations recorded fractionally">',
+    			'##FORMAT=<ID=GL,Number=3,Type=Float,Description="Likelihoods for RR,RA,AA genotypes (R=ref,A=alt)">',
+    			'##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Reference allele quality sum in phred">',
+    			'##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Alternate allele quality sum in phred">',
+    			'##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">',
+    			'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
+    			'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
+    			'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
+    		]
+
 
 	header.extend(list(contig_info_set))
 
@@ -359,7 +364,7 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 def get_cg_list(cg_schema_file: str) -> list:
 	"""
 	Returns names of core genes as list
-	
+
 	Parameters
 	----------
 	cg_schema_file : file that is created by chewBBACA and contains core genes

@@ -1,6 +1,6 @@
 #####################################
 # author: @fatmakhv                ##
-# the latest update: June 14, 2021  ##
+# the latest update: June 14, 2021 ##
 #####################################
 
 ruleorder: create_wgmlst_schema > call_allele > create_cgmlst_schema > create_reference_vcf_fasta
@@ -13,7 +13,7 @@ rule create_wgmlst_schema:
     message: "chewBBACA is creating whole genome MLST (wgMLST) schema."
     params:
         alleles_dir = config["alleles_dir"],
-        log_file = config["chewbbaca_log_file"]
+        log_file = config["schema_creation_log_file"]
     threads: config["parameters"]["threads"]
     shell:
         '''
@@ -34,7 +34,7 @@ rule call_allele:
     output:
         allele_call_dir = directory(config["allele_call_dir"])
     message: "chewBBACA is calling alleles."
-    params: log_file = config["chewbbaca_log_file"]
+    params: log_file = config["schema_creation_log_file"]
     threads: config["parameters"]["threads"]
     shell:
         '''
@@ -51,7 +51,7 @@ rule create_cgmlst_schema:
     output:
         cgmlst_dir = directory(config["cgmlst_dir"])
     message: "chewBBACA is creating core genome MLST (cgMLST) schema."
-    params: log_file = config["chewbbaca_log_file"]
+    params: log_file = config["schema_creation_log_file"]
     threads: config["parameters"]["threads"]
     shell:
         '''
@@ -75,7 +75,7 @@ rule create_reference_vcf_fasta:
         reference_info_txt = config["reference_info_txt"]
     message: "Reference fasta and vcf files are being created..."
     threads: config["parameters"]["threads"]
-    params: log_file = config["chewbbaca_log_file"]
+    params: log_file = config["schema_creation_log_file"]
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -83,7 +83,24 @@ rule create_reference_vcf_fasta:
         echo "Output files '{output.reference_vcf}', '{output.reference_info_txt},' and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
         pwd
         echo "---------------------------------------" | tee -a {params.log_file}
-        python {input.code_dir}/scripts/create_reference.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {output.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
+        python {input.code_dir}/scripts/create_reference_cg.py --cgmlst_dir {input.cgmlst_dir} --schema_seed_dir {input.schema_seed_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {output.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
+        '''
+
+rule compress_vcf:
+    input:
+        reference_vcf = config["reference_vcf"]
+    output:
+        reference_vcf_gz = f'{config["reference_vcf"]}.gz',
+        reference_vcf_gz_tbi = f'{config["reference_vcf"]}.gz.tbi'
+    message: "VCF file is being compressed..."
+    params: log_file = f'{config["schema_creation_log_file"]}'
+    shell:
+        '''
+        echo "---------------------------------------" | tee -a {params.log_file}
+        echo "{input.reference_vcf} file is being compressed." | tee -a {params.log_file}
+        echo "Output compressed file is {output.reference_vcf_gz}." | tee -a {params.log_file}
+        echo "---------------------------------------" | tee -a {params.log_file}
+        bgzip {input.reference_vcf} && tabix -p vcf {output.reference_vcf_gz}
         '''
