@@ -6,7 +6,7 @@ Milestone is an end-to-end sample-based MLST profile creation workflow for bacte
 
 ## 0. Setting up the analysis
 
-- **Downloading data from NCBI (optional): ** `bash download_species_reference_fasta.sh -s <species_name>`
+- **Downloading data from NCBI (optional):** `bash download_species_reference_fasta.sh -s <species_name>`
 
 ### 0.1. Creating conda environment (optional)
 
