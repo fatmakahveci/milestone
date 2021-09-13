@@ -5,6 +5,9 @@
 ###########################################
 
 import argparse
+
+from Bio import Align
+from Bio.Seq import Seq
 from collections import Counter
 
 
@@ -99,6 +102,37 @@ class Vcf:
         return f"chr: {self.chr}\npos: {str(self.pos)}\nid: {self.id}\nref: {self.ref}\nalt: {self.alt}\nqual: {str(self.qual)}\nfilter: {self.filter}\ninfo: {self.info}\nformat: {self.format}\nsample: {self.sample}"
 
 
+def compare_different_sized_variations(seq1: str, seq2: str) -> list:
+
+    aligner = Align.PairwiseAligner()
+    alignments = aligner.align(Seq(seq1), Seq(seq2))
+
+    alignment = alignments[len(alignments)-1] # -1 is not working.
+    seq1_aln, matching, seq2_aln = str(alignment).strip('\n').split('\n')
+
+    idx_ref_alt_list = list()
+
+    for idx in range(len(seq1_aln)):
+
+        if matching[idx] != '|':
+
+            if matching[idx] == '-':
+
+                if seq2_aln[idx] == '-':
+
+                    ref = seq1_aln[idx]
+                    alt = '.'
+
+                if seq1_aln[idx] == '-':
+
+                    ref = '.'
+                    alt = seq2_aln[idx]
+
+                idx_ref_alt_list.append([idx, ref, alt])
+
+    return idx_ref_alt_list
+
+
 def reduce_redundant_bases(pos: int, ref: str, alt: str, qual: float) -> [ list, list, list, list ]:
     """
     Reduces redundant bases
@@ -124,15 +158,27 @@ def reduce_redundant_bases(pos: int, ref: str, alt: str, qual: float) -> [ list,
 
     pos_list, ref_list, alt_list, qual_list = [], [], [], []
 
-    for idx in range( min(len(ref), len(alt)) ):
+    if len(ref) == len(alt):
 
-        if ref[idx] == alt[idx]:
-            continue
+        for idx in range( min(len(ref), len(alt)) ):
 
-        else:
-            pos_list.append(pos+idx)
-            ref_list.append(ref[idx])
-            alt_list.append(alt[idx])
+            if ref[idx] == alt[idx]:
+
+                continue
+
+            else:
+                pos_list.append(pos+idx)
+                ref_list.append(ref[idx])
+                alt_list.append(alt[idx])
+                qual_list.append(qual)
+
+    else:
+
+        for idx_ref_alt in compare_different_sized_variations(ref, alt):
+
+            pos_list.append(pos+idx_ref_alt[0])
+            ref_list.append(idx_ref_alt[1])
+            alt_list.append(idx_ref_alt[2])
             qual_list.append(qual)
 
     return [ pos_list, ref_list, alt_list, qual_list ]
