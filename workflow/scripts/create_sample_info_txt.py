@@ -108,27 +108,67 @@ def compare_different_sized_variations(seq1: str, seq2: str) -> list:
     alignments = aligner.align(Seq(seq1), Seq(seq2))
 
     alignment = alignments[len(alignments)-1] # -1 is not working.
+
+    if str(alignment).startswith('-'):
+
+        for aln in list(alignments)[::-1]:
+
+            ref_str, aln_str, alt_str = str(aln).strip().split('\n')
+
+            if not ref_str.startswith('-') and not alt_str.startswith('-'):
+
+                alignment = aln
+
+                break
+
     seq1_aln, matching, seq2_aln = str(alignment).strip('\n').split('\n')
 
     idx_ref_alt_list = list()
 
-    for idx in range(len(seq1_aln)):
+    idx = 0
 
-        if matching[idx] != '|':
+    while idx < len(seq1_aln):
 
-            if matching[idx] == '-':
+        if matching[idx] != '|': # skip the aligned part
 
-                if seq2_aln[idx] == '-':
+            if matching[idx] == '-': # skip .
 
-                    ref = seq1_aln[idx]
+                pos = idx - seq1_aln[:idx].count('-')
+
+                if idx < len(seq1_aln) and seq1_aln[idx] != '-' and seq2_aln[idx] == '-':
+
+                    ref = ""
+
+                    while idx < len(seq1_aln) and seq2_aln[idx] == '-':
+
+                        ref += seq1_aln[idx]
+
+                        idx += 1
+
                     alt = '.'
 
-                if seq1_aln[idx] == '-':
+                    idx_ref_alt_list.append([pos, ref, alt])
 
-                    ref = '.'
-                    alt = seq2_aln[idx]
 
-                idx_ref_alt_list.append([idx, ref, alt])
+                if 0 < idx < len(seq1_aln) and seq1_aln[idx] == '-' and idx != 0:
+
+                    ref = seq1_aln[ idx - 1 ]
+                    alt = seq2_aln[ idx - 1 ]
+
+                    pos = idx - 1 - seq1_aln[:idx].count('-')
+
+                    while 0 < idx < len(seq1_aln) and seq1_aln[idx] == '-':
+
+                        alt += seq2_aln[idx]
+                        idx += 1
+
+                    idx_ref_alt_list.append([pos, ref, alt])
+
+        elif matching[idx] == '.':
+
+            idx_ref_alt_list.append([idx, seq1_aln[idx], seq2_aln[idx]])
+
+        idx += 1
 
     return idx_ref_alt_list
 
@@ -373,10 +413,19 @@ def insert_variants_into_sequence(cds_reference: str, pos_list: list, ref_list: 
         if type(alt) == list:
             alt = alt[0]
 
-        ref_start = int(pos) - 1
-        ref_end = ref_start + len(ref)
+        if alt == '.':
 
-        cds_reference = cds_reference[:ref_start]+alt+cds_reference[ref_end:]
+            cds_reference = cds_reference[:pos]+cds_reference[pos+len(ref):]
+
+        elif len(ref) == 1 and len(alt) == 1:
+
+            cds_ref_list = list(cds_reference)
+            cds_ref_list[ pos ] = alt
+            cds_reference = "".join(cds_ref_list)
+
+        else:
+
+            cds_reference = cds_reference[:pos]+alt+cds_reference[pos+len(ref):]
 
     return cds_reference
 
@@ -403,9 +452,7 @@ def quality_check(seq: str, ref_seq: str) -> bool:
     # stop codons: seq[-3:] - 49% TAG (likely for high GC),
     #                                  32% TAA (likely for low GC), 19% TGA
     # start codons: seq[:3] - 90% MET (ATG)
-    if ( len(seq) % 3 == 0) and \
-            (seq[-3:] in ['TAG', 'TAA', 'TGA']) and \
-            (seq[:3] in ['ATG', 'CTG', 'GTG', 'TTG'] ):
+    if seq[-3:] in ['TAG', 'TAA', 'TGA'] and seq[:3] in ['ATG', 'CTG', 'GTG', 'TTG']:
 
         allele_id = "Q" # It passed quality checks.
     
@@ -441,83 +488,40 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
     is_novel = True
     allele_id = 'not_known'
 
-    # both reference and sample alleles contain only snps
-    # so direct comparison is possible
-    for cds_id, ref_info in reference_info.items():
+    # cds length check
+    diff_len = len("".join(sample_cds_info.ref_list)) - len("".join(sample_cds_info.alt_list)) - "".join(sample_cds_info.alt_list).count('.')
 
-        if Counter(sample_cds_info.pos_list) == Counter(ref_info.pos_list):
+    if diff_len % 3 != 0:
 
-            # get allele ID from the chewbbaca results
-            if Counter(sample_cds_info.ref_list) == Counter(ref_info.ref_list) and Counter(sample_cds_info.alt_list) == Counter(ref_info.alt_list):
+        allele_id = 'NQ'
+        is_novel = False
 
-                allele_id = cds_id
-                is_novel = False # allele is found among the reference alleles
+    else:
 
-                break
+        # both reference and sample alleles contain only snps
+        # so direct comparison is possible
+        for cds_id, ref_info in reference_info.items():
 
-            # detailed search
+            # if positions are not equal there is nothing to compare
+            if Counter(sample_cds_info.pos_list) == Counter(ref_info.pos_list):
+
+                # get allele ID from the chewbbaca results
+                if Counter(sample_cds_info.ref_list) == Counter(ref_info.ref_list) and Counter(sample_cds_info.alt_list) == Counter(ref_info.alt_list):
+
+                    allele_id = cds_id
+                    is_novel = False # allele is found among the reference alleles
+                    
+                    # allele is found on the reference
+                    break
+
             else:
 
-                is_equal = False
+                cds_reference = cds_seq_dict[f'{cds}_1']
+                
+                if quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference) == 'Q':
 
-                for idx, [ref_pos, sample_pos] in enumerate(zip(ref_info.pos_list, sample_cds_info.pos_list)):
-
-                    # remove CC from ref_ref: ACC ref_alt: TCC and create ref_ref: A and ref_alt: T 
-                    if sample_cds_info.alt_list[idx][1:] == sample_cds_info.ref_list[idx][1:] and len(sample_cds_info.alt_list[idx]) > 1 and len(sample_cds_info.ref_list[idx]) > 1:
-
-                        sample_cds_info.alt_list[idx] = sample_cds_info.alt_list[idx][0]
-                        sample_cds_info.ref_list[idx] = sample_cds_info.ref_list[idx][0]
-
-                    # skip for the equal bases on the same position
-                    if sample_cds_info.ref_list[idx] == ref_info.ref_list[idx] and sample_cds_info.alt_list[idx] == ref_info.alt_list[idx]:
-
-                        is_equal = True # base is found on this allele
-
-                    # detailed search for the equal variations that look like different
-                    else:
-
-                        ref_ref = ref_info.ref_list[idx]
-                        ref_alt = ref_info.alt_list[idx]
-                        # ref_ref <-> ref_alt to compare using the longest sequence
-
-                        if len(ref_ref) < len(ref_alt):
-
-                            ref_ref, ref_alt = ref_alt, ref_ref
-
-                        sample_ref = sample_cds_info.ref_list[idx]
-                        sample_alt = sample_cds_info.alt_list[idx]
-
-                        # sample_ref <-> sample_alt to compare using the longest sequence
-                        if len(sample_ref) < len(sample_alt):
-
-                            sample_ref, sample_alt = sample_alt, sample_ref
-
-                        ref = ref_ref[len(ref_alt):]
-
-                        if sample_ref[:sample_ref.index(ref)]+sample_ref[sample_ref.index(ref)+len(ref):] == sample_alt:
-
-                            is_equal = True # base is found on this allele
-    
-                    if not is_equal: # detailed search
-
-                        cds_reference = cds_seq_dict[f'{cds}_1']
-
-                        # sequence_with_variations = insert...
-                        # allele_id = ALM ASM or NQ-Q quality
-                        allele_id = quality_check(seq = insert_variants_into_sequence(cds_reference = cds_reference, pos_list = sample_cds_info.pos_list, ref_list = sample_cds_info.ref_list, alt_list = sample_cds_info.alt_list), ref_seq = cds_reference)
-
-                        if allele_id == 'Q':
-
-                            # novel allele
-                            allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
-                            is_novel = True # this is a new allele that is not found on the reference
-
-                    if is_equal: # all bases are equal to this reference allele's
-
-                        allele_id = cds_id
-                        is_novel = False # allele is found among the reference alleles
-
-                        break       
+                    allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+                    is_novel = True
 
     return [ allele_id, is_novel ]
 
@@ -561,16 +565,30 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
             else:
 
                 if sample_cds not in reference_allele_variant_dict.keys(): # a novel allele for the reference
-
+                    
                     if len(sample_variant_dict[sample_cds].pos_list) != 0:
+                        # cds length check
+                        diff_len = len("".join(sample_variant_dict[sample_cds].ref_list)) - len("".join(sample_variant_dict[sample_cds].alt_list)) - "".join(sample_variant_dict[sample_cds].alt_list).count('.')
 
-                        sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
+                        if diff_len % 3 != 0:
+
+                            sample_allele_dict[cds] = 'NQ'
+                            is_novel = False
+
+                        else:
+                            
+                            cds_reference = cds_seq_dict[f'{sample_cds}_1']
+
+                            if quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference) == 'Q':
+
+                                is_novel = True
+                                sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
 
                     else:
 
                         sample_allele_dict[cds] = '1'
 
-                    if args.update_reference == 'True':
+                    if args.update_reference == 'True' and is_novel == True:
 
                         if len(sample_variant_dict[sample_cds].pos_list) != 0:
 
