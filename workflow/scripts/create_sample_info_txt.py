@@ -1,6 +1,6 @@
 ###########################################
 ## author: @fatmakhv                     ##
-## date: 23/08/2021                      ##
+## date: 15/09/2021                      ##
 ## aim: create info file for the sample  ##
 ###########################################
 
@@ -456,11 +456,11 @@ def quality_check(seq: str, ref_seq: str) -> bool:
 
         allele_id = "Q" # It passed quality checks.
     
-    elif len(seq) < ( len(ref_seq) * 0.8 ):
+    if len(seq) < ( len(ref_seq) * 0.8 ):
 
         allele_id = "ASM"
 
-    elif len(seq) > ( len(ref_seq) * 1.2 ):
+    if len(seq) > ( len(ref_seq) * 1.2 ):
 
         allele_id = "ALM"
 
@@ -485,18 +485,18 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
     is_novel : @todo
     """
 
-    is_novel = True
-    allele_id = 'not_known'
-
     # cds length check
     diff_len = len("".join(sample_cds_info.ref_list)) - len("".join(sample_cds_info.alt_list)) - "".join(sample_cds_info.alt_list).count('.')
 
     if diff_len % 3 != 0:
 
-        allele_id = 'NQ'
         is_novel = False
+        allele_id = 'NQ'
 
     else:
+
+        is_novel = True
+        allele_id = 'Q'
 
         # both reference and sample alleles contain only snps
         # so direct comparison is possible
@@ -508,8 +508,8 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
                 # get allele ID from the chewbbaca results
                 if Counter(sample_cds_info.ref_list) == Counter(ref_info.ref_list) and Counter(sample_cds_info.alt_list) == Counter(ref_info.alt_list):
 
-                    allele_id = cds_id
                     is_novel = False # allele is found among the reference alleles
+                    allele_id = cds_id
                     
                     # allele is found on the reference
                     break
@@ -518,10 +518,17 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
 
                 cds_reference = cds_seq_dict[f'{cds}_1']
                 
-                if quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference) == 'Q':
+                allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
 
-                    allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+                if allele_id == 'Q':
+
                     is_novel = True
+                    allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+
+                else:
+
+                    print(allele_id)
+
 
     return [ allele_id, is_novel ]
 
@@ -564,6 +571,8 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
             else:
 
+                is_novel = False
+
                 if sample_cds not in reference_allele_variant_dict.keys(): # a novel allele for the reference
                     
                     if len(sample_variant_dict[sample_cds].pos_list) != 0:
@@ -579,7 +588,9 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             
                             cds_reference = cds_seq_dict[f'{sample_cds}_1']
 
-                            if quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference) == 'Q':
+                            sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
+
+                            if sample_allele_dict == 'Q':
 
                                 is_novel = True
                                 sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
