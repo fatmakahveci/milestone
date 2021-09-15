@@ -1,6 +1,6 @@
 ###########################################
 ## author: @fatmakhv                     ##
-## date: 15/09/2021                      ##
+## date: 23/08/2021                      ##
 ## aim: create info file for the sample  ##
 ###########################################
 
@@ -455,16 +455,27 @@ def quality_check(seq: str, ref_seq: str) -> bool:
     if seq[-3:] in ['TAG', 'TAA', 'TGA'] and seq[:3] in ['ATG', 'CTG', 'GTG', 'TTG']:
 
         allele_id = "Q" # It passed quality checks.
-    
+
+        for i in range(0, len(seq)-3, 3):
+
+            if seq[i:i+3] in ['TAG', 'TAA', 'TGA']:
+
+                allele_id = "NQ"
+                
+                if i < ( len(ref_seq) * 0.8 ):
+
+                    allele_id = "ASM"
+
+                break
+
     if len(seq) < ( len(ref_seq) * 0.8 ):
 
         allele_id = "ASM"
 
-    if len(seq) > ( len(ref_seq) * 1.2 ):
+    elif len(seq) > len(ref_seq) * 1.2:
 
         allele_id = "ALM"
 
-    
     return allele_id
 
 
@@ -587,7 +598,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                         else:
                             
                             cds_reference = cds_seq_dict[f'{sample_cds}_1']
-
+                            print(sample_cds)
                             sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
 
                             if sample_allele_dict == 'Q':
@@ -619,7 +630,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                         else: # sample has variations for the CDS
 
                             sample_allele_dict[cds] = str( max( list( map(int, reference_allele_variant_dict[sample_cds].keys()) ) ) + 1 )
-                            
+
                             write_variations_to_reference_vcf_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds]) 
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds])
 
