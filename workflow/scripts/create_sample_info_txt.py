@@ -536,11 +536,6 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
                     is_novel = True
                     allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
 
-                else:
-
-                    print(allele_id)
-
-
     return [ allele_id, is_novel ]
 
 
@@ -598,7 +593,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                         else:
                             
                             cds_reference = cds_seq_dict[f'{sample_cds}_1']
-                            print(sample_cds)
+
                             sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
 
                             if sample_allele_dict == 'Q':
