@@ -6,10 +6,6 @@
 
 import argparse
 
-from Bio import Align
-from Bio.Seq import Seq
-from collections import Counter
-
 
 class Coverage:
 
@@ -104,6 +100,9 @@ class Vcf:
 
 def compare_different_sized_variations(seq1: str, seq2: str) -> list:
 
+    from Bio import Align
+    from Bio.Seq import Seq
+
     aligner = Align.PairwiseAligner()
     alignments = aligner.align(Seq(seq1), Seq(seq2))
 
@@ -176,11 +175,9 @@ def compare_different_sized_variations(seq1: str, seq2: str) -> list:
 def reduce_redundant_bases(pos: int, ref: str, alt: str, qual: float) -> [ list, list, list, list ]:
     """
     Reduces redundant bases
-
     i.e.
     Input: 2333 AGAAAAAAACGAAAAAAACGAAAAAAACT AGAAAAAAACGAAAAAAACT
     Output: [2352] ['G'] ['T']
-
     Parameter
     ---------
     pos : int
@@ -227,11 +224,9 @@ def reduce_redundant_bases(pos: int, ref: str, alt: str, qual: float) -> [ list,
 def get_cds_name_from_allele_name(allele_name: str) -> str:
     """
     Get <cds-name> from <cds-name_allele-id>
-
     Parameters
     ----------
     allele_name : <cds-name_allele-id>
-
     Returns
     -------
     cds_name : <cds-name>
@@ -245,11 +240,9 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 def get_allele_id_from_allele_name(allele_name: str) -> str:
     """
     Get <allele-id> from <cds-name_allele-id>
-
     Parameters
     ----------
     allele_name : <cds-name_allele-id>
-
     Returns
     -------
     allele_id : <allele-id>
@@ -263,7 +256,6 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
 def create_sample_variant_dict() -> dict:
     """
     @todo
-
     Return
     ------
     sample_variant_dict : @todo
@@ -310,11 +302,9 @@ def create_sample_variant_dict() -> dict:
 def read_reference_info_txt(info_file: str) -> dict:
     """
     @todo
-
     Parameter
     ---------
     info_file : @todo
-
     Return
     ------
     reference_allele_variant_dict : @todo
@@ -348,7 +338,6 @@ def get_cds_coverage_info() -> dict:
     """
     Gets the output of `samtools depth` and creates cds dictionary
     for its results
-
     Return
     ------
     cds_depth_dict : {cds_1: coverage_info_for_cds_1, ...}
@@ -374,7 +363,6 @@ def get_cds_coverage_info() -> dict:
 def get_reference_cds_seq_dict() -> dict:
     """
     Reads <reference.fasta> and returns cds_seq_dict
-
     Returns
     -------
     cds_seq_dict : { cds1: seq1, cds2: seq2, ... }
@@ -394,14 +382,12 @@ def insert_variants_into_sequence(cds_reference: str, pos_list: list, ref_list: 
     """
     Takes reference sequence of CDS and inserts variants
     to create sequence with variants for CDS
-
     Parameters
     ----------
     cds_reference : reference sequence for given CDS
     pos_list : list of variant positions for given CDS
     ref_list : reference bases of variants in pos_list for given CDS
     alt_list : alternate bases of variants in pos_list for given CDS
-
     Returns
     -------
     cds_reference : CDS sequence with variants
@@ -434,16 +420,18 @@ def quality_check(seq: str, ref_seq: str) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
-
     Parameter
     ---------
     seq : FASTA sequence
     ref_seq : FASTA sequence for the reference of seq
-
     Return
     ------
     is_passed : Returns True if all is valid
     """
+
+    if seq == ref_seq:
+
+        allele_id = "EQ"
 
     # It couldn't pass quality checks.
     allele_id = "NQ"
@@ -460,7 +448,7 @@ def quality_check(seq: str, ref_seq: str) -> bool:
 
             if seq[i:i+3] in ['TAG', 'TAA', 'TGA']:
 
-                allele_id = "NQ"
+                allele_id = "IF" # in-frame stop codon
                 
                 if i < ( len(ref_seq) * 0.8 ):
 
@@ -482,19 +470,19 @@ def quality_check(seq: str, ref_seq: str) -> bool:
 def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
     """
     @todo
-
     Parameter
     ---------
     cds : @todo
     cds_seq_dict : @todo
     reference_info : @todo
     sample_cds_info : @todo
-
     Return
     ------
     allele_id : @todo
     is_novel : @todo
     """
+
+    from collections import Counter
 
     # cds length check
     diff_len = len("".join(sample_cds_info.ref_list)) - len("".join(sample_cds_info.alt_list)) - "".join(sample_cds_info.alt_list).count('.')
@@ -502,36 +490,44 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
     if diff_len % 3 != 0:
 
         is_novel = False
-        allele_id = 'NQ'
+        allele_id = 'IL' # incorrect length
 
     else:
 
         is_novel = True
-        allele_id = 'Q'
 
-        # both reference and sample alleles contain only snps
-        # so direct comparison is possible
-        for cds_id, ref_info in reference_info.items():
+        cds_reference = cds_seq_dict[f'{cds}_1']
+        allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
+        
+        if allele_id == "EQ":
 
-            # if positions are not equal there is nothing to compare
-            if Counter(sample_cds_info.pos_list) == Counter(ref_info.pos_list):
+            is_novel = False
+            allele_id = '1'
 
-                # get allele ID from the chewbbaca results
-                if Counter(sample_cds_info.ref_list) == Counter(ref_info.ref_list) and Counter(sample_cds_info.alt_list) == Counter(ref_info.alt_list):
+        elif allele_id == 'Q':
 
-                    is_novel = False # allele is found among the reference alleles
-                    allele_id = cds_id
+            # both reference and sample alleles contain only snps
+            # so direct comparison is possible
+            for cds_id, ref_info in reference_info.items():
+
+                # if positions are not equal there is nothing to compare
+                if Counter(sample_cds_info.pos_list) == Counter(ref_info.pos_list):
+
+                    # get allele ID from the chewbbaca results
+                    if Counter(sample_cds_info.ref_list) == Counter(ref_info.ref_list) and Counter(sample_cds_info.alt_list) == Counter(ref_info.alt_list):
+
+                        is_novel = False # allele is found among the reference alleles
+                        allele_id = cds_id
                     
-                    # allele is found on the reference
-                    break
-
-            else:
-
-                cds_reference = cds_seq_dict[f'{cds}_1']
+                        # allele is found on the reference
+                        break
                 
-                allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
+                    else:
 
-                if allele_id == 'Q':
+                        is_novel = True
+                        allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+
+                else:
 
                     is_novel = True
                     allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
@@ -542,11 +538,9 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
 def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     """
     @todo
-
     Return
     ------
     sample_allele_dict : { cds_1 : allele_ID_1, ... }
-    novel_allele_variant_dict : @todo
     """
     
     sample_variant_dict = create_sample_variant_dict()
@@ -554,8 +548,6 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     reference_allele_variant_dict = read_reference_info_txt(info_file=args.reference_info)
 
     cds_seq_dict = get_reference_cds_seq_dict()
-
-    novel_allele_variant_dict = {}
 
     sample_allele_dict = {}
 
@@ -582,12 +574,25 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                 if sample_cds not in reference_allele_variant_dict.keys(): # a novel allele for the reference
                     
                     if len(sample_variant_dict[sample_cds].pos_list) != 0:
+
                         # cds length check
-                        diff_len = len("".join(sample_variant_dict[sample_cds].ref_list)) - len("".join(sample_variant_dict[sample_cds].alt_list)) - "".join(sample_variant_dict[sample_cds].alt_list).count('.')
+                        diff_len = 0
+
+                        for ref, alt in zip(sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list):
+
+                            if alt == '.':
+
+                                diff_len += len(ref)
+
+                            else:
+
+                                diff_len += len(ref) - len(alt)
 
                         if diff_len % 3 != 0:
 
-                            sample_allele_dict[cds] = 'NQ'
+                            sample_variant_dict[sample_cds]
+                            sample_allele_dict[cds] = 'IL' # incorrect length
+
                             is_novel = False
 
                         else:
@@ -596,7 +601,12 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                             sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
 
-                            if sample_allele_dict == 'Q':
+                            if sample_allele_dict[cds] == "EQ": # sample equals to the reference
+
+                                is_novel = False
+                                sample_allele_dict[cds] = '1'
+
+                            if sample_allele_dict[cds] == 'Q': # it passed 3n, start, stop, in-frame stop
 
                                 is_novel = True
                                 sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
@@ -635,7 +645,6 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_variant: Info) -> None:
     """
     @todo
-
     Parameter
     ---------
     cds : @todo
@@ -664,7 +673,6 @@ def write_variations_to_reference_vcf_file(cds: str, allele_id: str, cds_variant
     """
     Take the variations from sample variation list
     Write from sample.vcf to reference.vcf
-
     Parameter
     ---------
     cds : @todo
