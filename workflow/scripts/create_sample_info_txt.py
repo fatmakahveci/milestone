@@ -485,7 +485,17 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
     from collections import Counter
 
     # cds length check
-    diff_len = len("".join(sample_cds_info.ref_list)) - len("".join(sample_cds_info.alt_list)) - "".join(sample_cds_info.alt_list).count('.')
+    diff_len = 0
+
+    for ref, alt in zip(sample_cds_info.ref_list, sample_cds_info.alt_list):
+
+        if alt == '.':
+
+            diff_len += len(ref)
+
+        else:
+
+            diff_len += len(ref) - len(alt)
 
     if diff_len % 3 != 0:
 
@@ -590,7 +600,6 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                         if diff_len % 3 != 0:
 
-                            sample_variant_dict[sample_cds]
                             sample_allele_dict[cds] = 'IL' # incorrect length
 
                             is_novel = False
@@ -651,7 +660,7 @@ def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_varian
     allele_id : @todo
     cds_variant : @todo
     """
-
+    
     with open(args.reference_info, 'a') as file:
 
         line = []
@@ -663,11 +672,12 @@ def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_varian
             if type(alt) is list:
                 alt = ";".join(alt)
 
-            line.append(f'{pos}*{ref[0]}>{alt}-{qual}')
+            line.append(f'{pos}*{ref}>{alt}-{qual}')
 
         file.write(f'{cds}_{allele_id}\t{",".join(line)}\n')
 
         file.close()
+
 
 def write_variations_to_reference_vcf_file(cds: str, allele_id: str, cds_variant: Info) -> None:
     """
