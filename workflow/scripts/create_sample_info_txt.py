@@ -406,7 +406,7 @@ def insert_variants_into_sequence(cds_reference: str, pos_list: list, ref_list: 
         elif len(ref) == 1 and len(alt) == 1:
 
             cds_ref_list = list(cds_reference)
-            cds_ref_list[ pos ] = alt
+            cds_ref_list[ pos - 1] = alt
             cds_reference = "".join(cds_ref_list)
 
         else:
@@ -416,7 +416,7 @@ def insert_variants_into_sequence(cds_reference: str, pos_list: list, ref_list: 
     return cds_reference
 
 
-def quality_check(seq: str, ref_seq: str) -> bool:
+def quality_check(cds, seq: str, ref_seq: str) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
@@ -444,17 +444,11 @@ def quality_check(seq: str, ref_seq: str) -> bool:
 
         allele_id = "Q" # It passed quality checks.
 
-        for i in range(0, len(seq)-3, 3):
+    for i in range(0, len(seq)-3, 3):
 
-            if seq[i:i+3] in ['TAG', 'TAA', 'TGA']:
+        if seq[i:i+3] == 'TAG' or seq[i:i+3] == 'TAA' or seq[i:i+3] == 'TGA':
 
-                allele_id = "IF" # in-frame stop codon
-                
-                if i < ( len(ref_seq) * 0.8 ):
-
-                    allele_id = "ASM"
-
-                break
+            allele_id = "IF" # in-frame stop codon
 
     if len(seq) < ( len(ref_seq) * 0.8 ):
 
@@ -507,7 +501,8 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
         is_novel = True
 
         cds_reference = cds_seq_dict[f'{cds}_1']
-        allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
+        
+        allele_id = quality_check(cds,insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
         
         if allele_id == "EQ":
 
@@ -541,6 +536,10 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
 
                     is_novel = True
                     allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+
+        else:
+
+            is_novel = False
 
     return [ allele_id, is_novel ]
 
@@ -608,7 +607,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             
                             cds_reference = cds_seq_dict[f'{sample_cds}_1']
 
-                            sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
+                            sample_allele_dict[cds] = quality_check(sample_cds,insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
 
                             if sample_allele_dict[cds] == "EQ": # sample equals to the reference
 
@@ -620,6 +619,9 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                                 is_novel = True
                                 sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
 
+                            if sample_allele_dict[cds] == 'ASM' or sample_allele_dict[cds] == 'ALM' or sample_allele_dict[cds] == 'IF':
+
+                                is_novel = False
                     else:
 
                         sample_allele_dict[cds] = '1'
