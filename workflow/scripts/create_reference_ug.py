@@ -162,7 +162,7 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 	return cds_name
 
 
-def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str, threads: str) -> dict:
+def create_allele_dict_for_a_cds(write_dir: str, ref_allele_id: str, allele_name: str, cds_dir: str, cds_name: str, threads: str) -> dict:
 	"""
 	Creates allele dictionary for given CDS
 
@@ -180,7 +180,7 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	"""
 
 	sample = f"{write_dir}/{allele_name}"
-	reference = f"{cds_dir}/references/{cds_name}_1"
+	reference = f"{cds_dir}/references/{cds_name}_{ref_allele_id}"
 	allele_id = get_allele_id_from_allele_name(allele_name)
 
 	# create <sample_allele.vcf>
@@ -220,35 +220,55 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 	cds_to_merge_list : all CDSs for reference vcf
 	"""
 
-	write_dir = f"{cds_dir}/references"
-
 	cds_dict = {}
 
 	try:
 
 		for sequence in list(SeqIO.parse(StringIO(open(f"{cds_dir}/{cds_fasta}", 'r').read()), 'fasta')):
 
+			allele_seq_list = []
+		
+			for seq_record in SeqIO.parse(f"{args.genome_dir}/{cds}", "fasta"):
+
+				allele_seq_list.append([seq_record.id, str(seq_record.seq), len(seq_record)])
+
+			allele_seq_list.sort(key=lambda x: x[2])
+
+			ref_allele_id = allele_seq_list[-1][0].split("_")[-1]
+			ref_allele_cds_name = allele_seq_list[-1][0].split("_")[0]
+			ref_allele_name = f'{ref_allele_cds_name}_{ref_allele_id}'
+
+			out_file = open(f"{args.genome_dir}/references/{ref_allele_name}.fasta", 'w')
+
+			# allele_id
+			out_file.write(f'>{ref_allele_name}\n')
+			# allele sequence
+			out_file.write(f'{allele_seq_list[-1][1]}\n')
+
+			out_file.close()
+
 			cds_name = get_cds_name_from_allele_name(sequence.id)
 			allele_id = get_allele_id_from_allele_name(sequence.id)
 
 			allele_name = f"{cds_name}_{allele_id}"
 
-			if allele_id == '1':
+			if allele_id == ref_allele_id:
 
 				Path(f"{cds_dir}/alleles/{cds_name}").mkdir(exist_ok=True)
 
 			else:
+
 				write_dir = f"{cds_dir}/alleles/{cds_name}"
 
-			with open(f"{write_dir}/{allele_name}.fasta", "w") as out_file:
-				out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
-				out_file.close()
+				with open(f"{write_dir}/{allele_name}.fasta", "w") as out_file:
 
-			if allele_id != '1':
+					out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
+					out_file.close()
 
-				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cds_dir, cds_name, threads)
+				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, ref_allele_id, allele_name, cds_dir, cds_name, threads)
 
 	except FileNotFoundError:
+
 		pass # {cds_fasta} file does not exist.
 
 	try:
@@ -279,6 +299,7 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
 
 	except FileNotFoundError:
+
 		pass # There is no vcf file to merge.
 
 	return cds_to_merge_list
@@ -309,12 +330,15 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 				line = line.strip('\n')
 
 				if line.startswith("##contig"):
+
 					contig_info_set.add(line)
 
 				elif line.startswith("##INFO"):
+
 					contig_info_set.add(line)
 
 				elif not line.startswith("#"):
+
 					fields = (line.split('\t'))[:8]
 					fields.append("GT:PL")
 					fields.append("1:60,0")
@@ -331,16 +355,16 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 				'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
 				'##FORMAT=<ID=PL,Number=G,Type=Float,Description="Phred-scaled Genotype Likelihoods">',
 				'##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">',
-    			'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">',
-    			'##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count, with partial observations recorded fractionally">',
-    			'##FORMAT=<ID=GL,Number=3,Type=Float,Description="Likelihoods for RR,RA,AA genotypes (R=ref,A=alt)">',
-    			'##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Reference allele quality sum in phred">',
-    			'##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Alternate allele quality sum in phred">',
-    			'##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">',
-    			'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
-    			'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
-    			'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
-    		]
+				'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">',
+				'##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count, with partial observations recorded fractionally">',
+				'##FORMAT=<ID=GL,Number=3,Type=Float,Description="Likelihoods for RR,RA,AA genotypes (R=ref,A=alt)">',
+				'##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Reference allele quality sum in phred">',
+				'##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Alternate allele quality sum in phred">',
+				'##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">',
+				'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
+				'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
+				'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
+			]
 
 	header.extend(list(contig_info_set))
 
