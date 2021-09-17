@@ -45,21 +45,10 @@ class Info:
                         
             qual = variation[ alt_end_idx + 1 : ] 
             
-            if len(ref) > 1 or len(alt) > 1:
-
-                reduced_pos_list, reduced_ref_list, reduced_alt_list, reduced_qual_list = reduce_redundant_bases(pos, ref, alt, qual)
-
-                pos_list.extend(reduced_pos_list)
-                ref_list.extend(reduced_ref_list)
-                alt_list.extend(reduced_alt_list)
-                qual_list.extend(reduced_qual_list)
-
-            else:
-
-                pos_list.append(pos)
-                ref_list.append(ref)
-                alt_list.append(alt)
-                qual_list.append(qual)
+            pos_list.append(pos)
+            ref_list.append(ref)
+            alt_list.append(alt)
+            qual_list.append(qual)
 
         self.pos_list = pos_list
         self.ref_list = ref_list
@@ -96,129 +85,6 @@ class Vcf:
 
     def __repr__(self):
         return f"chr: {self.chr}\npos: {str(self.pos)}\nid: {self.id}\nref: {self.ref}\nalt: {self.alt}\nqual: {str(self.qual)}\nfilter: {self.filter}\ninfo: {self.info}\nformat: {self.format}\nsample: {self.sample}"
-
-
-def compare_different_sized_variations(seq1: str, seq2: str) -> list:
-
-    from Bio import Align
-    from Bio.Seq import Seq
-
-    aligner = Align.PairwiseAligner()
-    alignments = aligner.align(Seq(seq1), Seq(seq2))
-
-    alignment = alignments[len(alignments)-1] # -1 is not working.
-
-    if str(alignment).startswith('-'):
-
-        for aln in list(alignments)[::-1]:
-
-            ref_str, aln_str, alt_str = str(aln).strip().split('\n')
-
-            if not ref_str.startswith('-') and not alt_str.startswith('-'):
-
-                alignment = aln
-
-                break
-
-    seq1_aln, matching, seq2_aln = str(alignment).strip('\n').split('\n')
-
-    idx_ref_alt_list = list()
-
-    idx = 0
-
-    while idx < len(seq1_aln):
-
-        if matching[idx] != '|': # skip the aligned part
-
-            if matching[idx] == '-': # skip .
-
-                pos = idx - seq1_aln[:idx].count('-')
-
-                if idx < len(seq1_aln) and seq1_aln[idx] != '-' and seq2_aln[idx] == '-':
-
-                    ref = ""
-
-                    while idx < len(seq1_aln) and seq2_aln[idx] == '-':
-
-                        ref += seq1_aln[idx]
-
-                        idx += 1
-
-                    alt = '.'
-
-                    idx_ref_alt_list.append([pos, ref, alt])
-
-
-                if 0 < idx < len(seq1_aln) and seq1_aln[idx] == '-' and idx != 0:
-
-                    ref = seq1_aln[ idx - 1 ]
-                    alt = seq2_aln[ idx - 1 ]
-
-                    pos = idx - 1 - seq1_aln[:idx].count('-')
-
-                    while 0 < idx < len(seq1_aln) and seq1_aln[idx] == '-':
-
-                        alt += seq2_aln[idx]
-                        idx += 1
-
-                    idx_ref_alt_list.append([pos, ref, alt])
-
-        elif matching[idx] == '.':
-
-            idx_ref_alt_list.append([idx, seq1_aln[idx], seq2_aln[idx]])
-
-        idx += 1
-
-    return idx_ref_alt_list
-
-
-def reduce_redundant_bases(pos: int, ref: str, alt: str, qual: float) -> [ list, list, list, list ]:
-    """
-    Reduces redundant bases
-    i.e.
-    Input: 2333 AGAAAAAAACGAAAAAAACGAAAAAAACT AGAAAAAAACGAAAAAAACT
-    Output: [2352] ['G'] ['T']
-    Parameter
-    ---------
-    pos : int
-    ref : str
-    alt : str
-    qual : float
-    
-    Return
-    ------
-    pos_list : list[int]
-    ref_list : list[str]
-    alt_list : list[str]
-    qual_list : list[float]
-    """
-
-    pos_list, ref_list, alt_list, qual_list = [], [], [], []
-
-    if len(ref) == len(alt):
-
-        for idx in range( min(len(ref), len(alt)) ):
-
-            if ref[idx] == alt[idx]:
-
-                continue
-
-            else:
-                pos_list.append(pos+idx)
-                ref_list.append(ref[idx])
-                alt_list.append(alt[idx])
-                qual_list.append(qual)
-
-    else:
-
-        for idx_ref_alt in compare_different_sized_variations(ref, alt):
-
-            pos_list.append(pos+idx_ref_alt[0])
-            ref_list.append(idx_ref_alt[1])
-            alt_list.append(idx_ref_alt[2])
-            qual_list.append(qual)
-
-    return [ pos_list, ref_list, alt_list, qual_list ]
 
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
@@ -280,21 +146,10 @@ def create_sample_variant_dict() -> dict:
 
                 else:
 
-                    if len(vcf_line.ref) > 1 or len(vcf_line.alt) > 1:
-
-                        reduced_pos_list, reduced_ref_list, reduced_alt_list, reduced_qual_list = reduce_redundant_bases(vcf_line.pos, vcf_line.ref, vcf_line.alt, vcf_line.qual)
-
-                        sample_variant_dict[vcf_line.chr].pos_list.extend(reduced_pos_list)
-                        sample_variant_dict[vcf_line.chr].ref_list.extend(reduced_ref_list)
-                        sample_variant_dict[vcf_line.chr].alt_list.extend(reduced_alt_list)
-                        sample_variant_dict[vcf_line.chr].qual_list.extend(reduced_qual_list)
-
-                    else:
-
-                        sample_variant_dict[vcf_line.chr].pos_list.append(vcf_line.pos)
-                        sample_variant_dict[vcf_line.chr].ref_list.append(vcf_line.ref)
-                        sample_variant_dict[vcf_line.chr].alt_list.append(vcf_line.alt)
-                        sample_variant_dict[vcf_line.chr].qual_list.append(vcf_line.qual)
+                    sample_variant_dict[vcf_line.chr].pos_list.append(vcf_line.pos)
+                    sample_variant_dict[vcf_line.chr].ref_list.append(vcf_line.ref)
+                    sample_variant_dict[vcf_line.chr].alt_list.append(vcf_line.alt)
+                    sample_variant_dict[vcf_line.chr].qual_list.append(vcf_line.qual)
 
     return sample_variant_dict
 
@@ -396,27 +251,18 @@ def insert_variants_into_sequence(cds_reference: str, pos_list: list, ref_list: 
     # reverse list to avoid their effect on each other
     for pos, ref, alt in zip(pos_list[::-1], ref_list[::-1], alt_list[::-1]):
 
+        pos -= 1
+
         if type(alt) == list:
+
             alt = alt[0]
 
-        if alt == '.':
-
-            cds_reference = cds_reference[:pos]+cds_reference[pos+len(ref):]
-
-        elif len(ref) == 1 and len(alt) == 1:
-
-            cds_ref_list = list(cds_reference)
-            cds_ref_list[ pos - 1] = alt
-            cds_reference = "".join(cds_ref_list)
-
-        else:
-
-            cds_reference = cds_reference[:pos]+alt+cds_reference[pos+len(ref):]
+        cds_reference = cds_reference[:pos]+alt.replace('.','')+cds_reference[pos+len(ref):]
 
     return cds_reference
 
 
-def quality_check(cds, seq: str, ref_seq: str) -> bool:
+def quality_check(seq: str, ref_seq: str) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
@@ -431,10 +277,21 @@ def quality_check(cds, seq: str, ref_seq: str) -> bool:
 
     if seq == ref_seq:
 
-        allele_id = "EQ"
+        return "EQ"
 
-    # It couldn't pass quality checks.
-    allele_id = "NQ"
+    if len(seq) < len(ref_seq) * 0.8:
+
+        return "ASM"
+
+    if len(seq) > len(ref_seq) * 1.2:
+
+        return "ALM"
+
+    for i in range(0, len(seq)-3, 3):
+
+        if seq[i:i+3] == 'TAG' or seq[i:i+3] == 'TAA' or seq[i:i+3] == 'TGA':
+
+            return "LNF" # in-frame stop codon
 
     # check if cds length is multiple of 3
     # stop codons: seq[-3:] - 49% TAG (likely for high GC),
@@ -442,23 +299,9 @@ def quality_check(cds, seq: str, ref_seq: str) -> bool:
     # start codons: seq[:3] - 90% MET (ATG)
     if seq[-3:] in ['TAG', 'TAA', 'TGA'] and seq[:3] in ['ATG', 'CTG', 'GTG', 'TTG']:
 
-        allele_id = "Q" # It passed quality checks.
+        return "Q" # It passed quality checks.
 
-    for i in range(0, len(seq)-3, 3):
-
-        if seq[i:i+3] == 'TAG' or seq[i:i+3] == 'TAA' or seq[i:i+3] == 'TGA':
-
-            allele_id = "IF" # in-frame stop codon
-
-    if len(seq) < ( len(ref_seq) * 0.8 ):
-
-        allele_id = "ASM"
-
-    elif len(seq) > len(ref_seq) * 1.2:
-
-        allele_id = "ALM"
-
-    return allele_id
+    return "LNF"
 
 
 def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
@@ -494,7 +337,7 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
     if diff_len % 3 != 0:
 
         is_novel = False
-        allele_id = 'IL' # incorrect length
+        allele_id = 'LNF' # incorrect length
 
     else:
 
@@ -502,7 +345,7 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
 
         cds_reference = cds_seq_dict[f'{cds}_1']
         
-        allele_id = quality_check(cds,insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
+        allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
         
         if allele_id == "EQ":
 
@@ -599,7 +442,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                         if diff_len % 3 != 0:
 
-                            sample_allele_dict[cds] = 'IL' # incorrect length
+                            sample_allele_dict[cds] = 'LNF' # incorrect length
 
                             is_novel = False
 
@@ -607,7 +450,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             
                             cds_reference = cds_seq_dict[f'{sample_cds}_1']
 
-                            sample_allele_dict[cds] = quality_check(sample_cds,insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
+                            sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
 
                             if sample_allele_dict[cds] == "EQ": # sample equals to the reference
 
@@ -619,7 +462,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                                 is_novel = True
                                 sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
 
-                            if sample_allele_dict[cds] == 'ASM' or sample_allele_dict[cds] == 'ALM' or sample_allele_dict[cds] == 'IF':
+                            if sample_allele_dict[cds] in [ 'ASM', 'ALM', 'LNF', 'EQ']:
 
                                 is_novel = False
                     else:
@@ -707,27 +550,7 @@ def write_variations_to_reference_vcf_file(cds: str, allele_id: str, cds_variant
                 
                 vcf_line.chr = cds + '_1'
                 vcf_line.info = "."
-
-                if len(vcf_line.ref) > 1 or len(vcf_line.alt) > 1:
-
-                    reduced_pos_list, reduced_ref_list, reduced_alt_list, reduced_qual_list = reduce_redundant_bases(vcf_line.pos, vcf_line.ref, vcf_line.alt, vcf_line.qual)
-
-                    for i in range(len(reduced_ref_list)):
-
-                        new_vcf_line = vcf_line
-
-                        new_vcf_line.info = "."
-
-                        new_vcf_line.pos = reduced_pos_list[i]
-                        new_vcf_line.ref = reduced_ref_list[i]
-                        new_vcf_line.alt = reduced_alt_list[i]
-                        new_vcf_line.qual = reduced_qual_list[i]
-
-                        reference_vcf_file.write(str(new_vcf_line))
-
-                else:
-
-                    reference_vcf_file.write(str(vcf_line))
+                reference_vcf_file.write(str(vcf_line))
                     
         file.close()
 
