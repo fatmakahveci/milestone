@@ -304,7 +304,7 @@ def quality_check(seq: str, ref_seq: str) -> bool:
     return "LNF"
 
 
-def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
+def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
     """
     @todo
     Parameter
@@ -343,14 +343,14 @@ def compare_ref_to_sample_variations(cds: str, cds_seq_dict: dict, reference_inf
 
         is_novel = True
 
-        cds_reference = cds_seq_dict[f'{cds}_1']
-        
+        cds_reference = cds_seq_dict[f'{cds}_{ref_allele_id}']
+
         allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
         
         if allele_id == "EQ":
 
             is_novel = False
-            allele_id = '1'
+            allele_id = ref_allele_id
 
         elif allele_id == 'Q':
 
@@ -408,29 +408,35 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     for cds, coverage in cds_coverage_dict.items():
 
         sample_cds = cds.split('_')[0]
+        ref_allele_id = cds.split('_')[1]
 
         if coverage.coverage <= 0.98:
 
-            sample_allele_dict[cds] = 'LNF' # The CDS is not covered by the reads.
+            # CDS is not covered by the reads.
+            sample_allele_dict[cds] = 'LNF'
 
-        else: # sample reads are mapped to the reference
+        # Sample reads are mapped to the reference.
+        else:
 
             if sample_cds not in sample_variant_dict.keys():
 
-                sample_allele_dict[cds] = '1' # The sample does not have any variation in the CDS so it equals to the reference
+                # Sample does not have any variation in CDS so it equals to the reference.
+                sample_allele_dict[cds] = ref_allele_id
 
             else:
 
                 is_novel = False
 
-                if sample_cds not in reference_allele_variant_dict.keys(): # a novel allele for the reference
+                # It is a novel allele for the reference.
+                if sample_cds not in reference_allele_variant_dict.keys():
                     
-                    if len(sample_variant_dict[sample_cds].pos_list) != 0:
+                    # Sample has variations for this CDS.
+                    if len( sample_variant_dict[sample_cds].pos_list ) != 0:
 
                         # cds length check
                         diff_len = 0
 
-                        for ref, alt in zip(sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list):
+                        for ref, alt in zip( sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list ):
 
                             if alt == '.':
 
@@ -442,55 +448,59 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                         if diff_len % 3 != 0:
 
+                            is_novel = False
                             sample_allele_dict[cds] = 'LNF' # incorrect length
 
-                            is_novel = False
-
                         else:
-                            
-                            cds_reference = cds_seq_dict[f'{sample_cds}_1']
+
+                            cds_reference = cds_seq_dict[f'{sample_cds}_{ref_allele_id}']
 
                             sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
 
                             if sample_allele_dict[cds] == "EQ": # sample equals to the reference
 
                                 is_novel = False
-                                sample_allele_dict[cds] = '1'
+                                sample_allele_dict[cds] = ref_allele_id
 
                             if sample_allele_dict[cds] == 'Q': # it passed 3n, start, stop, in-frame stop
 
                                 is_novel = True
-                                sample_allele_dict[cds] = '2' # The reference doesn't have any variation for the CDS. It is also a novel allele for the reference. The reference has only the reference sequence for the CDS.
+
+                                # The reference doesn't have any variation for the CDS.
+                                # It is also a novel allele for the reference.
+                                # The reference has only the reference sequence for the CDS.
+                                sample_allele_dict[cds] = '0'
 
                             if sample_allele_dict[cds] in [ 'ASM', 'ALM', 'LNF', 'EQ']:
 
                                 is_novel = False
                     else:
 
-                        sample_allele_dict[cds] = '1'
+                        # Reference allele variation set is empty so sample's CDS equals to the reference.
+                        sample_allele_dict[cds] = ref_allele_id
 
                     if args.update_reference == 'True' and is_novel == True:
 
                         if len(sample_variant_dict[sample_cds].pos_list) != 0:
 
-                            write_variations_to_reference_vcf_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds])
+                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variant_dict[sample_cds])
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds])
 
                 else: # both sample and reference has the variations of this allele
 
-                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations(cds = sample_cds, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variant_dict[sample_cds], sample_cds_info = sample_variant_dict[sample_cds])
+                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations(cds = sample_cds, ref_allele_id = ref_allele_id, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variant_dict[sample_cds], sample_cds_info = sample_variant_dict[sample_cds])
 
                     if is_novel == True and args.update_reference == 'True':
 
                         if len(sample_variant_dict[sample_cds].pos_list) == 0:
 
-                            sample_allele_dict[cds] = '1' # sample doesn't have variations for the CDS so it equals to the reference CDS
+                            sample_allele_dict[cds] = ref_allele_id # sample doesn't have variations for the CDS so it equals to the reference CDS
 
                         else: # sample has variations for the CDS
 
                             sample_allele_dict[cds] = str( max( list( map(int, reference_allele_variant_dict[sample_cds].keys()) ) ) + 1 )
 
-                            write_variations_to_reference_vcf_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds]) 
+                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variant_dict[sample_cds]) 
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds])
 
     return sample_allele_dict
@@ -515,6 +525,7 @@ def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_varian
                                         cds_variant.qual_list):
 
             if type(alt) is list:
+
                 alt = ";".join(alt)
 
             line.append(f'{pos}*{ref}>{alt}-{qual}')
@@ -524,7 +535,7 @@ def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_varian
         file.close()
 
 
-def write_variations_to_reference_vcf_file(cds: str, allele_id: str, cds_variant: Info) -> None:
+def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_variant: Info) -> None:
     """
     Take the variations from sample variation list
     Write from sample.vcf to reference.vcf
@@ -548,7 +559,7 @@ def write_variations_to_reference_vcf_file(cds: str, allele_id: str, cds_variant
 
                 vcf_line = Vcf(line)
                 
-                vcf_line.chr = cds + '_1'
+                vcf_line.chr = cds + '_' + ref_allele_id
                 vcf_line.info = "."
                 reference_vcf_file.write(str(vcf_line))
                     
