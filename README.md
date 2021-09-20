@@ -34,26 +34,19 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
   - Your environment will be kept unless you remove it. You can use it again by activating with the line given above.
 
 ## Milestone Workflow
+## 0. Schema creation for the set of core CDSs
 
-## 1. a. Schema creation for the set of user-defined CDSs
+@todo
+
+![milestone workflow](images/milestone_cg_workflow.png)
+
+
+
+## 1. Schema creation for the set of user-defined CDSs
 
 @todo
 
 ![milestone workflow](images/milestone_ug_workflow.png)
-
-
-
----
-
-
-
-## 1. b. Schema creation for the set of core CDSs
-
-@todo
-
-
-
-![milestone workflow](images/milestone_cg_workflow.png)
 
 
 
@@ -64,6 +57,8 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 ![allele to vcf](images/allele_to_vcf_github.png)
 
 @todo
+
+
 
 ---
 
@@ -104,6 +99,8 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 - `-q, --quiet`
 
   Do not output any progress or rule information.
+  
+  
 
 ---
 
@@ -130,6 +127,8 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 - `-mt MLST_TYPE, --mlst_type MLST_TYPE`
 
   Create sample's cgMLST or ugMLST (-mt cg or -mt ug or --mlst_type cg or --mlst_type ug)
+  
+  
 
 ---
 
