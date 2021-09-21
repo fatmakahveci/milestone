@@ -58,9 +58,17 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
 @todo
 
+---
 
+### Reference update after each sample analysis
+
+![reference update](images/update_reference.png)
+
+@todo
 
 ---
+
+
 
 ##### Milestone commands
 
