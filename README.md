@@ -68,7 +68,11 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
 ---
 
+### Graph Representation in Reference Files
 
+![Graph representation in files](images/graph_vcf.png)
+
+---
 
 ##### Milestone commands
 
