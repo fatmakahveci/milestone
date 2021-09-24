@@ -585,6 +585,6 @@ if __name__ == "__main__":
 
         for sample_cds, allele_id in take_allele_id_for_sample_from_chewbbaca_alleles().items():
 
-            file.write(f'{sample_cds}\t{allele_id}\n')
+            file.write(f'{sample_cds.split("_")[0]}\t{allele_id}\n')
 
         file.close()
