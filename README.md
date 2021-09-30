@@ -1,8 +1,28 @@
 <div align="left"> <h1> <img src="images/milestone.png" alt="milestone_logo"> MILESTONE </h1> </div>
 
+Milestone is an end-to-end sample-based MLST profile creation workflow for bacterial species.
+
 ## Table of Contents
 
-Milestone is an end-to-end sample-based MLST profile creation workflow for bacterial species.
+<!-- MarkdownTOC -->
+
+- Tutorial
+- 0. Setting up the analysis
+  - 0.1. Creating conda environment \(optional\)
+  - 0.1.1. Installing conda environment \(optional\)
+- Milestone Workflow
+- 0. Schema creation for the set of core CDSs
+- 1. Schema creation for the set of user-defined CDSs
+  - Creation of reference info
+  - Reference update after each sample analysis
+  - Graph Representation in Reference Files
+    - Milestone commands
+  - Citation
+
+<!-- /MarkdownTOC -->
+
+
+## Tutorial
 
 ## 0. Setting up the analysis
 
@@ -176,10 +196,6 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
   Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after the alignment of the given sample.
 
----
+### Citation
 
-@todo A short example/tutorial
-@todo Citation information
-@todo Information for contributors
-@todo Link to e-mail address at the end
-@todo List all the version of the files along with the major edits you did in each version
+@todo
