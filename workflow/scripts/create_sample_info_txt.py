@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 ###########################################
-## author: @fatmakhv                     ##
-## date: 23/08/2021                      ##
-## aim: create info file for the sample  ##
+## Author: @fatmakhv                     ##
+## The latest update: 01/10/2021         ##
+## Aim: create info file for the sample  ##
 ###########################################
 
 import argparse

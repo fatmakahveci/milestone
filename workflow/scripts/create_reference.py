@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-"""
------------------------------------------------
-Aim: Reference FASTA VCF and INFO file creation
------------------------------------------------
-Authors: @fatmakhv
-The latest update: June 14, 2021
------------------------------------------------
-"""
+#####################################################
+## Author: @fatmakhv                               ##
+## The latest update: 01/10/2021                   ##
+## Aim: Reference FASTA VCF and INFO file creation ##
+#####################################################
+
 
 import argparse, glob, os, shutil, subprocess
 from Bio import SeqIO
@@ -43,7 +41,6 @@ class vcf:
 def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
 	"""
 	Writes the variants of alleles that are not equal to the reference CDS
-
 	Parameters
 	----------
 	cds_name : name of cds of which allele will be written
@@ -79,13 +76,11 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 	"""
 	Reads {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
-
 	Parameters
 	----------
 	vcf_file : {sample}.vcf contains {allele_id}'s variants for {cds_name}
 	cds_name : name of CDS of which positions will be taken
 	allele_id : ID of allele of CDS of which positions will be taken
-
 	Returns
 	-------
 	pos_dict : Dictionary of variant positions for allele
@@ -121,6 +116,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 		file.close()
 
 	if has_variant:
+
 		write_allele_defining_variant_list_to_file(cds_name, allele_id, pos_dict)
 
 	return pos_dict
@@ -129,11 +125,9 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 def get_allele_id_from_allele_name(allele_name: str) -> str:
 	"""
 	Gets {cds_name}_{allele_id} and returns {allele_id}
-
 	Parameters
 	----------
 	allele_name : {cds_name}_{allele_id}
-
 	Returns
 	-------
 	allele_id : allele ID for given allele_name
@@ -147,11 +141,9 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
 def get_cds_name_from_allele_name(allele_name: str) -> str:
 	"""
 	Gets {cds_name}_{allele_id} and returns {cds_name}
-
 	Parameters
 	----------
 	allele_name : {cds_name}_{allele_id}
-
 	Returns
 	-------
 	cds_name : name of CDS for given allele_name
@@ -162,25 +154,23 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 	return cds_name
 
 
-def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, cds_name: str, threads: str) -> dict:
+def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str, threads: str) -> dict:
 	"""
 	Creates allele dictionary for given CDS
-
 	Parameters
 	----------
 	write_dir : core genome directory
 	allele_name : {cds_name}_{allele_id}
-	cg_dir : schema_seed directory that contains sequences of alleles
+	cds_dir : alleles' directory that contains sequences of alleles
 	cds_name : CDS name to create its allele dictionary
 	threads : number of threads to run minimap2
-
 	Returns
 	-------
 	allele_dict : position dictionary for allele
 	"""
 
 	sample = f"{write_dir}/{allele_name}"
-	reference = f"{cg_dir}/references/{cds_name}_1"
+	reference = f"{cds_dir}/references/{cds_name}_1"
 	allele_id = get_allele_id_from_allele_name(allele_name)
 
 	# create <sample_allele.vcf>
@@ -204,58 +194,84 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cg_dir: str, 
 	return allele_dict
 
 
-def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
+def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
 	"""
 	Creates CDS list
-
 	Parameters
 	----------
-	cg_dir : schema_seed directory that contains sequences of alleles
+	cds_dir : alleles' directory that contains sequences of alleles
 	cds_fasta : FASTA file for CDS
 	cds_to_merge_list : all CDSs for reference vcf
 	threads : number of threads to run minimap2
-
 	Returns
 	-------
 	cds_to_merge_list : all CDSs for reference vcf
 	"""
 
-	write_dir = f"{cg_dir}/references"
-
 	cds_dict = {}
 
 	try:
 
-		for sequence in list(SeqIO.parse(StringIO(open(f"{cg_dir}/{cds_fasta}", 'r').read()), 'fasta')):
+		for sequence in list(SeqIO.parse(StringIO(open(f"{cds_dir}/{cds_fasta}", 'r').read()), 'fasta')):
+
+			allele_seq_list = []
+		
+			for seq_record in SeqIO.parse(f"{args.schema_dir}/{cds}", "fasta"):
+
+				ref_allele_cds, ref_allele_id = str(seq_record.id).split('_')[0], str(seq_record.id).split('_')[-1]
+				ref_allele_name = f'{ref_allele_cds}_{ref_allele_id}'
+
+				if ref_allele_id == '1':
+			
+					out_file = open(f"{args.schema_dir}/references/{ref_allele_name}.fasta", 'w')
+
+					# allele_id
+					out_file.write(f'>{ref_allele_name}\n')
+
+					# allele sequence
+					out_file.write(f'{str(seq_record.seq)}\n')
+
+					out_file.close()
+
+					Path(f"{cds_dir}/alleles/{ref_allele_cds}").mkdir(exist_ok=True)
 
 			cds_name = get_cds_name_from_allele_name(sequence.id)
 			allele_id = get_allele_id_from_allele_name(sequence.id)
 
 			allele_name = f"{cds_name}_{allele_id}"
 
-			if allele_id == '1':
-
-				Path(f"{cg_dir}/alleles/{cds_name}").mkdir(exist_ok=True)
-
-			else:
-				write_dir = f"{cg_dir}/alleles/{cds_name}"
-
-			with open(f"{write_dir}/{allele_name}.fasta", "w") as out_file:
-				out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
-				out_file.close()
-
 			if allele_id != '1':
 
-				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cg_dir, cds_name, threads)
+				write_dir = f"{cds_dir}/alleles/{cds_name}"
+
+				with open(f"{write_dir}/{allele_name}.fasta", "w") as out_file:
+
+					out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
+					out_file.close()
+
+				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cds_dir, cds_name, threads)
 
 	except FileNotFoundError:
+
 		pass # {cds_fasta} file does not exist.
 
 	try:
 
-		cds_name = str(cds_fasta.strip('.fasta')) # remove fasta extension
+		cds_name = cds_fasta
 
-		wd = f"{cg_dir}/alleles/{cds_name}" # directory of allele's vcf files
+		if cds_fasta.endswith('.fasta'):
+			cds_name = cds_fasta[:-6]
+
+			if cds_name.endswith('_short'):
+				cds_name = cds_name[:-6]
+
+		elif cds_fasta.endswith('.fa'):
+			cds_name = cds_fasta[:-3]
+
+			if cds_name.endswith('_short'):
+				cds_name = cds_name[:-6]
+
+		wd = f"{cds_dir}/alleles/{cds_name}" # directory of allele's vcf files
 
 		command_list = []
 
@@ -267,18 +283,23 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, thread
 		elif no_alleles_of_cds == 1:
 
 			cds_to_merge_list.append(cds_name)
-			command_list.append(f"gunzip {wd}/{cds_name}_2.vcf.gz")
-			command_list.append(f"mv {wd}/{cds_name}_2.vcf {wd}/{cds_name}.vcf")
+
+			# remove .vcf.gz get the allele_id ..._'allele_id'
+			unzip_allele_id = glob.glob(f'{wd}/*_*.vcf.gz')[0][:-7].split('_')[-1]
+			command_list.append(f"gunzip {wd}/{cds_name}_{unzip_allele_id}.vcf.gz")
+			command_list.append(f"mv {wd}/{cds_name}_{unzip_allele_id}.vcf {wd}/{cds_name}.vcf")
 
 		else:
 
 			cds_to_merge_list.append(cds_name)
+
 			command_list.append(f"bcftools merge {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O v -o {wd}/{cds_name}.vcf")
 
 		for command in command_list:
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
 
 	except FileNotFoundError:
+
 		pass # There is no vcf file to merge.
 
 	return cds_to_merge_list
@@ -287,7 +308,6 @@ def create_cds_list(cg_dir: str, cds_fasta: str, cds_to_merge_list: list, thread
 def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	"""
 	Creates FASTA file for reference 
-
 	Parameters
 	----------
 	wd : working directory
@@ -309,12 +329,15 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 				line = line.strip('\n')
 
 				if line.startswith("##contig"):
+
 					contig_info_set.add(line)
 
 				elif line.startswith("##INFO"):
+
 					contig_info_set.add(line)
 
 				elif not line.startswith("#"):
+
 					fields = (line.split('\t'))[:8]
 					fields.append("GT:PL")
 					fields.append("1:60,0")
@@ -331,17 +354,16 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 				'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
 				'##FORMAT=<ID=PL,Number=G,Type=Float,Description="Phred-scaled Genotype Likelihoods">',
 				'##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">',
-    			'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">',
-    			'##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count, with partial observations recorded fractionally">',
-    			'##FORMAT=<ID=GL,Number=3,Type=Float,Description="Likelihoods for RR,RA,AA genotypes (R=ref,A=alt)">',
-    			'##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Reference allele quality sum in phred">',
-    			'##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Alternate allele quality sum in phred">',
-    			'##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">',
-    			'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
-    			'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
-    			'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
-    		]
-
+				'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">',
+				'##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count, with partial observations recorded fractionally">',
+				'##FORMAT=<ID=GL,Number=3,Type=Float,Description="Likelihoods for RR,RA,AA genotypes (R=ref,A=alt)">',
+				'##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Reference allele quality sum in phred">',
+				'##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Alternate allele quality sum in phred">',
+				'##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">',
+				'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
+				'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
+				'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
+			]
 
 	header.extend(list(contig_info_set))
 
@@ -358,44 +380,39 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	os.system(f"rm {args.reference_vcf}.temp; rm {wd}/alleles/header.txt;")
 
 	# merge all CDS fasta files to create reference FASTA
-	os.system(f"cat {wd}/references/*.fasta > {args.reference_fasta}")
 
+	with open(args.reference_fasta, 'a') as f:
+		for file in glob.glob(f'{wd}/references/*.fasta'):
+			with open(file) as infile:
+				f.write(infile.read().strip('\n')+'\n')
 
-def get_cg_list(cg_schema_file: str) -> list:
+		f.close()
+	
+
+def get_cds_list() -> list:
 	"""
-	Returns names of core genes as list
-
-	Parameters
-	----------
-	cg_schema_file : file that is created by chewBBACA and contains core genes
-
+	Returns names of CDSs as list
 	Returns
 	-------
-	cg_list : List of core genes
+	cds_list : List of CDS names
 	"""
 
-	cg_list = []
+	cds_list = []
 
-	with open(cg_schema_file, 'r') as file:
+	for file_name in os.listdir(args.schema_dir):
 
-		for line in file.readlines():
+		if file_name.endswith('.fasta'):
+			cds_list.append(file_name)
 
-			cds = line.strip()
-			cg_list.append(f"{cds}")
-
-		file.close()
-
-	return cg_list
+	return cds_list
 
 
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser(add_help = True)
 
-	parser.add_argument('--cgmlst_dir', required=True,
-						help='cgMLST directory')
-	parser.add_argument('--schema_seed_dir', required=True,
-						help='schema seed directory')
+	parser.add_argument('--schema_dir', required=True,
+						help='sequence of alleles\' directory')
 	parser.add_argument('--reference_vcf', required=True,
 						help='VCF file of reference genome')
 	parser.add_argument('--reference_fasta', required=True,
@@ -407,29 +424,28 @@ if __name__ == "__main__":
 
 	args = parser.parse_args()
 
-	cg_list = get_cg_list(f'{args.cgmlst_dir}/cgMLSTschema.txt')
+	cds_list = get_cds_list()
 
 	try:
 
 		# create reference FASTA directory for each core gene
-		Path(f"{args.schema_seed_dir}/references").mkdir(exist_ok=True)
+		Path(f"{args.schema_dir}/references").mkdir(exist_ok=True)
 
 		# create FASTA directory for each core gene's alleles
-		Path(f"{args.schema_seed_dir}/alleles").mkdir(exist_ok=True)
+		Path(f"{args.schema_dir}/alleles").mkdir(exist_ok=True)
 
 	except OSError:
 
-		print(f"Creation of the directories {args.schema_seed_dir}/references "
-							f"and {args.schema_seed_dir}/alleles are failed.")
+		print(f"Creation of the directories {args.schema_dir}/references "
+							f"and {args.schema_dir}/alleles are failed.")
 
 	cds_to_merge_list = [] # to merge all CDSs for reference vcf
 
-	# create reference vcf
-	for cds in cg_list:
+	for cds in cds_list:
 
-		create_cds_list(f"{args.schema_seed_dir}", cds, cds_to_merge_list, {args.threads})
+		create_cds_list(args.schema_dir, cds, cds_to_merge_list, args.threads)
 
-	create_reference_vcf_fasta(f"{args.schema_seed_dir}", cds_to_merge_list)
+	create_reference_vcf_fasta(args.schema_dir, cds_to_merge_list)
 
-	# @todo redundant files will be removed.
-	# os.system(f"rm -rf {args.schema_seed_dir}")
+	reference_info_txt_file = Path(args.reference_info)
+	reference_info_txt_file.touch(exist_ok=True)

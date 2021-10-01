@@ -1,13 +1,14 @@
-#####################################
-# author: @fatmakhv                ##
-# the latest update: June 14, 2021 ##
-#####################################
+###################################
+## Author: @fatmakhv             ##
+## The latest update: 01/10/2021 ##
+## Aim: Schema creation          ##
+###################################
 
 ruleorder: create_reference_vcf_fasta > compress_vcf
 
 rule create_reference_vcf_fasta:
     input:
-        genome_dir = config["genome_dir"],
+        schema_dir = config["schema_dir"],
         code_dir = config["working_dir"]
     output:
         reference_vcf = config["reference_vcf"],
@@ -20,11 +21,11 @@ rule create_reference_vcf_fasta:
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "create_reference.py is running on{input.genome_dir}." | tee -a {params.log_file}
+        echo "create_reference.py is running on{input.schema_dir}." | tee -a {params.log_file}
         echo "Output files '{output.reference_vcf}', and '{output.reference_fasta}' are created. " | tee -a {params.log_file}
         pwd
         echo "---------------------------------------" | tee -a {params.log_file}
-        python {input.code_dir}/scripts/create_reference_ug.py --genome_dir {input.genome_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {params.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
+        python {input.code_dir}/scripts/create_reference.py --schema_dir {input.schema_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {params.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         '''

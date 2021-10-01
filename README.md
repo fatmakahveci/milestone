@@ -84,20 +84,8 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
 - `-r REFERENCE` is the raw name of the reference file without any extensions, such as `.vcf`, `.fasta`, and `_info.txt`.
 
-- `-mt cg` runs an additional step to identify core genes via chewBBACA.
 
-  - It directly uses assemblies belonging to the species.
-
-  - Then, it continues with STEP1 as for `-mt ug`. It creates `reference.fasta`, `reference.vcf`, and `reference_info.txt` for the core genome.
-
-![milestone workflow](images/milestone_cg_workflow.png)
-
-- `-mt ug` creates the reference files for the user-defined genes.
-  - It uses user-provided CDS sequences and their allele sequences, and creates reference files accordingly.
-- `-g GENOME_DIR`
-  - In `GENOME_DIR`, assembled genome or user-provided gene directory name to create schema depending on the `-mt` mode chosen:
-    - `-mt ug`: user-provided gene directory
-    - `-mt cg`: assembled genome directory
+- It uses user-provided CDS sequences and their allele sequences, and creates reference files accordingly.
 - `-o OUTPUT`
   - It is the directory to be created for the output `reference.vcf`, `reference.fasta`, and `reference_info.txt` files.
 - Milestone creates reference-related files:
@@ -192,13 +180,10 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
   Directory to be created for the output files
 
-- `-g GENOME_DIR, --genome_dir GENOME_DIR`
+- `-sn SCHEMA_NAME_WITH_ITS_DIRECTORY, --schema_name vSCHEMA_NAME_WITH_ITS_DIRECTORY`
 
-  Assembled genome or user-provided gene directory name to create schema
+  User-provided gene directory name to create schema
 
-- `-mt MLST_TYPE, --mlst_type MLST_TYPE`
-
-  Create sample's cgMLST or ugMLST (-mt cg or -mt ug or --mlst_type cg or --mlst_type ug)
 
 #### 3. Allele Calling
 
