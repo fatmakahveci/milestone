@@ -59,8 +59,10 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 			alt_list = []
 
 			for alt, qual in alt_dict.items():
+
 				if type(alt) is list:
 					alt = ';'.join(alt)
+
 				alt_list.append("-".join([alt, qual]))
 
 			pos_list.append('>'.join([pos, "/".join(alt_list)]))
