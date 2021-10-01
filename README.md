@@ -2,39 +2,54 @@
 
 Milestone is an end-to-end sample-based MLST profile creation workflow for bacterial species.
 
+---
+
 ## Table of Contents
 
 <!-- MarkdownTOC -->
 
 - Tutorial
-- 0. Setting up the analysis
-  - 0.1. Creating conda environment \(optional\)
-  - 0.1.1. Installing conda environment \(optional\)
+- Setting up the analysis
+  - Creating conda environment \(optional\)
+    - Installing conda environment \(optional\)
 - Milestone Workflow
-- 0. Schema creation for the set of core CDSs
-- 1. Schema creation for the set of user-defined CDSs
+  - Schema Creation
+  - Allele Calling
+  - Parameters
+    - 1. Snakemake \(common for both schema_creation and allele_calling\)
+    - 2. Schema Creation
+    - 3. Allele Calling
+- The Workflow Description of Milestone
+  - Schema creation for the set of core CDSs \(Core Genome Option\)
+  - Schema creation for the set of user-defined CDSs \(User-defined Genome Option\)
   - Creation of reference info
   - Reference update after each sample analysis
   - Graph Representation in Reference Files
-    - Milestone commands
-  - Citation
+- Citation
 
 <!-- /MarkdownTOC -->
 
+---
 
 ## Tutorial
 
-## 0. Setting up the analysis
+- Milestone works on raw reads. It doesn't require any assembly steps.
+
+- This part will be extended.
+
+---
+
+## Setting up the analysis
 
 - **Downloading data from NCBI (optional):** `bash download_species_reference_fasta.sh -s <species_name>`
 
-### 0.1. Creating conda environment (optional)
+### Creating conda environment (optional)
 
 - **pip installation:** `sudo apt install python-pip`
 - **dependencies:** _requirements.txt_, python 3.8.10
 - **conda installation:** `pip install conda`
 
-### 0.1.1. Installing conda environment (optional)
+#### Installing conda environment (optional)
 
 ```bash
 conda config --add channels defaults
@@ -53,52 +68,83 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
   - `conda deactivate`
   - Your environment will be kept unless you remove it. You can use it again by activating with the line given above.
 
+---
+
 ## Milestone Workflow
-## 0. Schema creation for the set of core CDSs
 
-@todo
-
-![milestone workflow](images/milestone_cg_workflow.png)
-
-
-
-## 1. Schema creation for the set of user-defined CDSs
-
-@todo
+- Milestone has a fully-automated workflow.
 
 ![milestone workflow](images/milestone_ug_workflow.png)
 
+### Schema Creation
 
+`$ >> python milestone.py schema_creation [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT -g GENOME_DIR [-mt MLST_TYPE]`
 
----
+- It creates its own `Snakefile`. There is no need to create it. After creating the required environment for milestone, you can directly use the commands without any installations.
 
-### Creation of reference info
+- `-r REFERENCE` is the raw name of the reference file without any extensions, such as `.vcf`, `.fasta`, and `_info.txt`.
 
-![allele to vcf](images/allele_to_vcf_github.png)
+- `-mt cg` runs an additional step to identify core genes via chewBBACA.
 
-@todo
+  - It directly uses assemblies belonging to the species.
 
----
+  - Then, it continues with STEP1 as for `-mt ug`. It creates `reference.fasta`, `reference.vcf`, and `reference_info.txt` for the core genome.
 
-### Reference update after each sample analysis
+![milestone workflow](images/milestone_cg_workflow.png)
 
-![reference update](images/update_reference.png)
-
-@todo
-
----
-
-### Graph Representation in Reference Files
+- `-mt ug` creates the reference files for the user-defined genes.
+  - It uses user-provided CDS sequences and their allele sequences, and creates reference files accordingly.
+- `-g GENOME_DIR`
+  - In `GENOME_DIR`, assembled genome or user-provided gene directory name to create schema depending on the `-mt` mode chosen:
+    - `-mt ug`: user-provided gene directory
+    - `-mt cg`: assembled genome directory
+- `-o OUTPUT`
+  - It is the directory to be created for the output `reference.vcf`, `reference.fasta`, and `reference_info.txt` files.
+- Milestone creates reference-related files:
 
 ![Graph representation in files](images/graph_vcf.png)
 
----
+- `reference.fasta` contains the reference sequences of each coding sequences (CDSs).
+  - It is created at the beginning of the analysis using user-defined set of alleles and CDSs.
+  - It doesn't require any update after sample analysis because it has already contains the reference CDS of the sample's identified allele.
+- `reference.vcf` contains all variations found on each alleles. 
+  - It is created at the beginning of the analysis using user-defined set of alleles and CDSs.
+  - For each allele, the variations are detected by aligning the alleles to its reference CDS.
+  - Optionally, `reference.vcf` can be updated in `allele_calling` for the further analysis to involve variations in sample's novel alleles.
+- `reference_info.txt` contains all variations on each allele of each CDS. 
+- ![allele to vcf](images/allele_to_vcf_github.png)
+  - Position (POS), reference (REF), alternate (ALT), and quality (QUAL) information of each variation are separated by specific characters in each line, where each variation of each allele is separated by comma(`,`) given in the same line (`cdsName_alleleId`).
+    - i.e. `cdsName_alleleId POS*REF>ALT-QUAL,POS*REF>ALT-QUAL`
+      - Each comma-separated part `POS*REF>ALT-QUAL` represents a variation of an allele.
+      - Each variation set on a line, `POS*REF>ALT-QUAL,POS*REF>ALT-QUAL` , represents an allele.
+      - Each line represents a single allele of a single CDS.
+  - Optionally, `reference_info.txt` can be updated via `--update_reference` parameter of `allele_calling` after each sample analysis to involve newly identified alleles of the analyzed sample for the further analysis.
 
-##### Milestone commands
+### Allele Calling
 
----
+`$ >> milestone.py allele_calling [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT [--aligner ALIGNER] -e READ1 -E READ2 [--ur]`
 
-**1. Snakemake parameters for both schema_creation and allele_calling`**
+- Milestone assigns the allele ID for sample's sequence aligned to the CDS based on the following criteria:
+  - **<ID_from_the_reference>** If there is a complete match between the variations of sample's aligned sequence to the CDS and the allele-defining variation set given in TEXT-formatted reference file, it assigns the allele ID equal to the matching allele ID in the reference file.
+  - **LNF** If the depth of coverage of the sample's CDS is lower than the expected, it assigns LNF (Locus Not Found) as allele ID to the sample's allele.
+  - **1** If the depth of coverage of the sample's aligned sequence is equal to and more than the expected value and the sample does not have any variations for the CDS locus, it assigns the allele ID equal to the reference's, which is the longest allele of the reference CDS.
+  - If there is no match between the variations of sample's aligned sequence and the allele-defining variation set given in TEXT-formatted reference file, it checks the validity of the sample's aligned sequence to the CDS before declaring the sequence as a novel allele of the CDS.
+    - **LNF** If the length of the sequence is not a multiplier of 3 and/or the aligned sequence to the CDS contains in-frame stop codon, invalid start codon, and invalid stop codon, it assigns allele ID as LNF because bacterial genomes do not contain exons and it is not a valid coding sequence.
+    - **ASM** If the sequence passes the validation steps, but its length is smaller than 20\% of the length of locus allele length mode, it assigns ASM (Alleles Smaller than Mode) to the sample's allele.
+    - **ALM** If the sequence passes the validation steps, but its length is larger than 20\% of the length of locus allele length more, it assigns ALM (Alleles Larger than Mode) to the sample's allele.
+- It creates its own `Snakefile`. There is no need to create it. After creating the required environment for milestone, you can directly use the commands without any installations.
+- It uses the same output directory with `schema_creation`. It takes the reference files from the directory given with `-o OUTPUT` parameter.
+- `-r REFERENCE` is the raw name of the reference file without any extensions, such as `.vcf`, `.fasta`, and `_info.txt`.
+- `-e READ1` is the complete name of the read with its directory.
+- `-E READ2` is the complete name of the read with its directory.
+- If `--ur` (`--update_reference`) parameter is used to update the reference files for the further analysis, both `reference_info.txt` and `reference.vcf` will be updated to represent the novel alleles belonging to the analyzed sample.
+- Reference update is described below:
+
+![reference update](images/update_reference.png)
+
+### Parameters
+
+#### 1. Snakemake (common for both schema_creation and allele_calling)
 
 -  `-n, --dryrun, --dry-run`
 
@@ -131,14 +177,8 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 - `-q, --quiet`
 
   Do not output any progress or rule information.
-  
-  
 
----
-
-**2. schema_creation parameters**
-
-`python milestone.py schema_creation [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT -g GENOME_DIR [-mt MLST_TYPE]`
+#### 2. Schema Creation
 
 - `-h, --help`
 
@@ -154,19 +194,13 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
 - `-g GENOME_DIR, --genome_dir GENOME_DIR`
 
-  Assembled genome directory name to create schema
+  Assembled genome or user-provided gene directory name to create schema
 
 - `-mt MLST_TYPE, --mlst_type MLST_TYPE`
 
   Create sample's cgMLST or ugMLST (-mt cg or -mt ug or --mlst_type cg or --mlst_type ug)
-  
-  
 
----
-
-**3. allele_calling parameters**
-
-`milestone.py allele_calling [-h] [-n] [-p] [-s SNAKEFILE] [-t THREADS] [-F] [--ri] [--unlock] [-q] -r REFERENCE -o OUTPUT [--aligner ALIGNER] -e READ1 -E READ2 [--ur]`
+#### 3. Allele Calling
 
 - `-h, --help`
 
@@ -196,6 +230,8 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 
   Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after the alignment of the given sample.
 
-### Citation
+---
+
+## Citation
 
 @todo
