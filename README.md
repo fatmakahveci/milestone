@@ -19,12 +19,6 @@ Milestone is an end-to-end sample-based MLST profile creation workflow for bacte
     - 1. Snakemake \(common for both schema_creation and allele_calling\)
     - 2. Schema Creation
     - 3. Allele Calling
-- The Workflow Description of Milestone
-  - Schema creation for the set of core CDSs \(Core Genome Option\)
-  - Schema creation for the set of user-defined CDSs \(User-defined Genome Option\)
-  - Creation of reference info
-  - Reference update after each sample analysis
-  - Graph Representation in Reference Files
 - Citation
 
 <!-- /MarkdownTOC -->
