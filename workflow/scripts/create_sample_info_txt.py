@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
+#################################################################################
+## author: @fatmakhv                                                           ##
+## date: 04/10/2021                                                            ##
+## aim: create info file for the sample and write novel alleles to schema seed ##
+#################################################################################
 
-###########################################
-## Author: @fatmakhv                     ##
-## The latest update: 01/10/2021         ##
-## Aim: create info file for the sample  ##
-###########################################
-
-import argparse
+import argparse, glob, os
 
 
 class Coverage:
@@ -92,9 +90,11 @@ class Vcf:
 def get_cds_name_from_allele_name(allele_name: str) -> str:
     """
     Get <cds-name> from <cds-name_allele-id>
+
     Parameters
     ----------
     allele_name : <cds-name_allele-id>
+
     Returns
     -------
     cds_name : <cds-name>
@@ -108,9 +108,11 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 def get_allele_id_from_allele_name(allele_name: str) -> str:
     """
     Get <allele-id> from <cds-name_allele-id>
+
     Parameters
     ----------
     allele_name : <cds-name_allele-id>
+
     Returns
     -------
     allele_id : <allele-id>
@@ -121,15 +123,16 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     return allele_id
 
 
-def create_sample_variant_dict() -> dict:
+def create_sample_variation_dict() -> dict:
     """
-    @todo
+    Creates variation dictionary
+
     Return
     ------
-    sample_variant_dict : @todo
+    sample_variation_dict : variations of sample dictionary for alleles
     """
 
-    sample_variant_dict = {}
+    sample_variation_dict = {}
 
     with open(args.sample_vcf, 'r') as file:
 
@@ -141,33 +144,36 @@ def create_sample_variant_dict() -> dict:
 
                 info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt}-{vcf_line.qual}'
 
-                if vcf_line.chr not in sample_variant_dict.keys():
+                if vcf_line.chr not in sample_variation_dict.keys():
 
                     # allele_field # s := sample
-                    sample_variant_dict[vcf_line.chr] = Info(info_line)
+                    sample_variation_dict[vcf_line.chr] = Info(info_line)
 
                 else:
 
-                    sample_variant_dict[vcf_line.chr].pos_list.append(vcf_line.pos)
-                    sample_variant_dict[vcf_line.chr].ref_list.append(vcf_line.ref)
-                    sample_variant_dict[vcf_line.chr].alt_list.append(vcf_line.alt)
-                    sample_variant_dict[vcf_line.chr].qual_list.append(vcf_line.qual)
+                    sample_variation_dict[vcf_line.chr].pos_list.append(vcf_line.pos)
+                    sample_variation_dict[vcf_line.chr].ref_list.append(vcf_line.ref)
+                    sample_variation_dict[vcf_line.chr].alt_list.append(vcf_line.alt)
+                    sample_variation_dict[vcf_line.chr].qual_list.append(vcf_line.qual)
 
-    return sample_variant_dict
+    return sample_variation_dict
 
 
 def read_reference_info_txt(info_file: str) -> dict:
     """
-    @todo
+    Read reference_info.txt
+    Create dictionary for allele of variations in CDS
+
     Parameter
     ---------
-    info_file : @todo
+    info_file : Name of reference_info.txt to write
+
     Return
     ------
-    reference_allele_variant_dict : @todo
+    reference_allele_variation_dict : allele of variations in CDS
     """
 
-    reference_allele_variant_dict = {}
+    reference_allele_variation_dict = {}
 
     with open(info_file, 'r') as file:
 
@@ -180,21 +186,22 @@ def read_reference_info_txt(info_file: str) -> dict:
                 cds = get_cds_name_from_allele_name(fields[0])
                 allele_id = get_allele_id_from_allele_name(fields[0])
             
-                if cds not in reference_allele_variant_dict.keys():
+                if cds not in reference_allele_variation_dict.keys():
 
-                    reference_allele_variant_dict[cds] = {}
+                    reference_allele_variation_dict[cds] = {}
             
-                reference_allele_variant_dict[cds][allele_id] = Info(fields[1])
+                reference_allele_variation_dict[cds][allele_id] = Info(fields[1])
 
         file.close()
 
-    return reference_allele_variant_dict
+    return reference_allele_variation_dict
 
 
 def get_cds_coverage_info() -> dict:
     """
     Gets the output of `samtools depth` and creates cds dictionary
     for its results
+
     Return
     ------
     cds_depth_dict : {cds_1: coverage_info_for_cds_1, ...}
@@ -202,7 +209,7 @@ def get_cds_coverage_info() -> dict:
 
     cds_depth_dict = {}
 
-    # @todo sum all the mapped reads to each cds region
+
     with open(args.sample_depth, 'r') as file:
 
         for line in file.readlines():
@@ -220,6 +227,7 @@ def get_cds_coverage_info() -> dict:
 def get_reference_cds_seq_dict() -> dict:
     """
     Reads <reference.fasta> and returns cds_seq_dict
+
     Returns
     -------
     cds_seq_dict : { cds1: seq1, cds2: seq2, ... }
@@ -235,19 +243,21 @@ def get_reference_cds_seq_dict() -> dict:
     return cds_seq_dict
 
 
-def insert_variants_into_sequence(cds_reference: str, pos_list: list, ref_list: list, alt_list: list) -> str:
+def insert_variations_into_sequence(cds_reference: str, pos_list: list, ref_list: list, alt_list: list) -> str:
     """
-    Takes reference sequence of CDS and inserts variants
-    to create sequence with variants for CDS
+    Takes reference sequence of CDS and inserts variations
+    to create sequence with variations for CDS
+
     Parameters
     ----------
     cds_reference : reference sequence for given CDS
-    pos_list : list of variant positions for given CDS
-    ref_list : reference bases of variants in pos_list for given CDS
-    alt_list : alternate bases of variants in pos_list for given CDS
+    pos_list : list of variation positions for given CDS
+    ref_list : reference bases of variations in pos_list for given CDS
+    alt_list : alternate bases of variations in pos_list for given CDS
+
     Returns
     -------
-    cds_reference : CDS sequence with variants
+    cds_reference : CDS sequence with variations
     """
     
     # reverse list to avoid their effect on each other
@@ -268,10 +278,12 @@ def quality_check(seq: str, ref_seq: str) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
+
     Parameter
     ---------
     seq : FASTA sequence
     ref_seq : FASTA sequence for the reference of seq
+
     Return
     ------
     is_passed : Returns True if all is valid
@@ -308,17 +320,19 @@ def quality_check(seq: str, ref_seq: str) -> bool:
 
 def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
     """
-    @todo
+    Compare reference variations to sample variations
+
     Parameter
     ---------
-    cds : @todo
-    cds_seq_dict : @todo
-    reference_info : @todo
-    sample_cds_info : @todo
+    cds : Name of CDS
+    cds_seq_dict : Reference sequence dict of CDSs
+    reference_info : reference variations
+    sample_cds_info : sample_cds variations
+
     Return
     ------
-    allele_id : @todo
-    is_novel : @todo
+    allele_id : allele ID after comparison
+    is_novel : check if allele is novel or not
     """
 
     from collections import Counter
@@ -347,7 +361,7 @@ def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict:
 
         cds_reference = cds_seq_dict[f'{cds}_{ref_allele_id}']
 
-        allele_id = quality_check(insert_variants_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
+        allele_id = quality_check(insert_variations_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
         
         if allele_id == "EQ":
 
@@ -375,12 +389,12 @@ def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict:
                     else:
 
                         is_novel = True
-                        allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+                        allele_id = str(novel_allele_id_of_cds_dict[cds])
 
                 else:
 
                     is_novel = True
-                    allele_id = str( max( list( map(int, reference_info.keys()) ) ) + 1 )
+                    allele_id = str(novel_allele_id_of_cds_dict[cds])
 
         else:
 
@@ -391,15 +405,16 @@ def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict:
 
 def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     """
-    @todo
+    Returns allele ID for samples coding sequences
+
     Return
     ------
     sample_allele_dict : { cds_1 : allele_ID_1, ... }
     """
     
-    sample_variant_dict = create_sample_variant_dict()
+    sample_variation_dict = create_sample_variation_dict()
 
-    reference_allele_variant_dict = read_reference_info_txt(info_file=args.reference_info)
+    reference_allele_variation_dict = read_reference_info_txt(info_file=args.reference_info)
 
     cds_seq_dict = get_reference_cds_seq_dict()
 
@@ -410,7 +425,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     for cds, coverage in cds_coverage_dict.items():
 
         sample_cds = cds.split('_')[0]
-        ref_allele_id = cds.split('_')[1]
+        ref_allele_id = '1' # cds.split('_')[1]
 
         if coverage.coverage <= 0.98:
 
@@ -420,7 +435,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
         # Sample reads are mapped to the reference.
         else:
 
-            if sample_cds not in sample_variant_dict.keys():
+            if sample_cds not in sample_variation_dict.keys():
 
                 # Sample does not have any variation in CDS so it equals to the reference.
                 sample_allele_dict[cds] = ref_allele_id
@@ -430,15 +445,15 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                 is_novel = False
 
                 # It is a novel allele for the reference.
-                if sample_cds not in reference_allele_variant_dict.keys():
+                if sample_cds not in reference_allele_variation_dict.keys():
                     
                     # Sample has variations for this CDS.
-                    if len( sample_variant_dict[sample_cds].pos_list ) != 0:
+                    if len( sample_variation_dict[sample_cds].pos_list ) != 0:
 
                         # cds length check
                         diff_len = 0
 
-                        for ref, alt in zip( sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list ):
+                        for ref, alt in zip( sample_variation_dict[sample_cds].ref_list, sample_variation_dict[sample_cds].alt_list ):
 
                             if alt == '.':
 
@@ -457,7 +472,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                             cds_reference = cds_seq_dict[f'{sample_cds}_{ref_allele_id}']
 
-                            sample_allele_dict[cds] = quality_check(insert_variants_into_sequence(cds_reference, sample_variant_dict[sample_cds].pos_list, sample_variant_dict[sample_cds].ref_list, sample_variant_dict[sample_cds].alt_list), cds_reference)
+                            sample_allele_dict[cds] = quality_check(insert_variations_into_sequence(cds_reference, sample_variation_dict[sample_cds].pos_list, sample_variation_dict[sample_cds].ref_list, sample_variation_dict[sample_cds].alt_list), cds_reference)
 
                             if sample_allele_dict[cds] == "EQ": # sample equals to the reference
 
@@ -471,7 +486,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                                 # The reference doesn't have any variation for the CDS.
                                 # It is also a novel allele for the reference.
                                 # The reference has only the reference sequence for the CDS.
-                                sample_allele_dict[cds] = '0'
+                                sample_allele_dict[cds] = '2'
 
                             if sample_allele_dict[cds] in [ 'ASM', 'ALM', 'LNF', 'EQ']:
 
@@ -483,48 +498,75 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                     if args.update_reference == 'True' and is_novel == True:
 
-                        if len(sample_variant_dict[sample_cds].pos_list) != 0:
+                        if len(sample_variation_dict[sample_cds].pos_list) != 0:
 
-                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variant_dict[sample_cds])
-                            write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds])
+                            write_allele_sequence_to_schema_seed(sample_cds, ref_allele_id, cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
+                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variation_dict[sample_cds])
+                            write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
                 else: # both sample and reference has the variations of this allele
 
-                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations(cds = sample_cds, ref_allele_id = ref_allele_id, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variant_dict[sample_cds], sample_cds_info = sample_variant_dict[sample_cds])
+                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations(cds = sample_cds, ref_allele_id = ref_allele_id, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variation_dict[sample_cds], sample_cds_info = sample_variation_dict[sample_cds])
 
                     if is_novel == True and args.update_reference == 'True':
 
-                        if len(sample_variant_dict[sample_cds].pos_list) == 0:
+                        if len(sample_variation_dict[sample_cds].pos_list) == 0:
 
                             sample_allele_dict[cds] = ref_allele_id # sample doesn't have variations for the CDS so it equals to the reference CDS
 
                         else: # sample has variations for the CDS
 
-                            sample_allele_dict[cds] = str( max( list( map(int, reference_allele_variant_dict[sample_cds].keys()) ) ) + 1 )
+                            sample_allele_dict[cds] = novel_allele_id_of_cds_dict[sample_cds]
 
-                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variant_dict[sample_cds]) 
-                            write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variant_dict[sample_cds])
+                            write_allele_sequence_to_schema_seed(sample_cds, sample_allele_dict[cds], cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
+                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variation_dict[sample_cds]) 
+                            write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
     return sample_allele_dict
 
 
-def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_variant: Info) -> None:
+def write_allele_sequence_to_schema_seed(sample_cds: str, cds_allele_id: str, sample_ref_seq: str, sample_cds_variation: Info) -> None:
     """
-    @todo
+    Write variations to the reference_info.txt file.
+
     Parameter
     ---------
-    cds : @todo
-    allele_id : @todo
-    cds_variant : @todo
+    sample_cds : Name of CDS
+    cds_allele_id : Allele ID of CDS
+    sample_ref_seq : Sequence of CDS reference
+    sample_cds_variation : Variant list of allele ID from CDS dict
+    """
+
+    cds_allele_seq_with_variation = insert_variations_into_sequence(sample_ref_seq, sample_cds_variation.pos_list, sample_cds_variation.ref_list, sample_cds_variation.alt_list)
+
+    file_name_to_write_novel_allele_seq = str(glob.glob(f'{args.schema_dir}{sample_cds}*.fasta')[0])
+    
+    with open(file_name_to_write_novel_allele_seq, 'a') as file:
+
+        file.write(f'>{sample_cds}_{cds_allele_id}\n')
+        file.write(f'{cds_allele_seq_with_variation}\n')
+
+        file.close()
+
+
+def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_variation: Info) -> None:
+    """
+    Write variations to the reference_info.txt file.
+
+    Parameter
+    ---------
+    cds : Name of CDS
+    allele_id : Allele ID of CDS
+    cds_variation : Variant list of allele ID from CDS dict
     """
     
     with open(args.reference_info, 'a') as file:
 
         line = []
-        for pos, ref, alt, qual in zip(cds_variant.pos_list,
-                                        cds_variant.ref_list,
-                                        cds_variant.alt_list,
-                                        cds_variant.qual_list):
+        for pos, ref, alt, qual in zip(cds_variation.pos_list,
+                                        cds_variation.ref_list,
+                                        cds_variation.alt_list,
+                                        cds_variation.qual_list):
 
             if type(alt) is list:
 
@@ -537,14 +579,16 @@ def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_varian
         file.close()
 
 
-def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_variant: Info) -> None:
+def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_variation: Info) -> None:
     """
     Take the variations from sample variation list
     Write from sample.vcf to reference.vcf
+
     Parameter
     ---------
-    cds : @todo
-    cds_variant : @todo
+    cds : CDS name
+    ref_allele_id : Allele ID of reference sequence of CDS
+    cds_variation : list of variations in allele of CDS
     """
 
     cds_vcf_line_list = []
@@ -570,6 +614,25 @@ def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_var
     reference_vcf_file.close()
 
 
+def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
+    """
+    Reads reference_info.txt and returns allele ID dictionary
+    for each CDS in reference_info.txt
+
+    Returns
+    -------
+    novel_allele_id_of_cds_dict: {CDS: {allele_id: allele_info} ...}
+    """
+
+    novel_allele_id_of_cds_dict = {}
+
+    for cds, alleles in read_reference_info_txt(args.reference_info).items():
+
+        novel_allele_id_of_cds_dict[cds] = max(map(int, alleles.keys())) + 1
+
+    return novel_allele_id_of_cds_dict
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(add_help=True)
@@ -580,9 +643,12 @@ if __name__ == "__main__":
     parser.add_argument('--sample_depth',     type=str, required=True,  help='Sample\'s depth file name with its directory')
     parser.add_argument('--sample_vcf',       type=str, required=True,  help='Sample\'s vcf file name with its directory')
     parser.add_argument('--update_reference', type=str, required=False, help='Update reference\'s vcf and info file for the further analysis.')
+    parser.add_argument('--schema_dir',      type=str, required=True,  help='Directory of schema\'s to write novel alleles')
 
     args = parser.parse_args()
 
+    novel_allele_id_of_cds_dict = get_allele_ids_of_cds_in_reference_info_txt()
+    
     with open(f'{args.sample_vcf[:-4]}_mlst.tsv', 'w') as file:
 
         for sample_cds, allele_id in take_allele_id_for_sample_from_chewbbaca_alleles().items():
