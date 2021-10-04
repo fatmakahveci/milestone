@@ -159,7 +159,7 @@ rule vcf_to_sample_allele_info:
         echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         gunzip -fk {input.reference_vcf_gz}
-        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --sample_dir {input.schema_dir}
+        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir}
         awk '$1 ~ /^#/ {{print $0;next}} {{print $0 | "LC_ALL=C sort -k1,1 -k2,2n"}}' {params.reference}.vcf > {params.reference}.sorted.vcf
         uniq {params.reference}.sorted.vcf > {params.reference}.vcf
         bcftools reheader -f {params.reference}.fasta.fai {params.reference}.vcf > {params.reference}.sorted.vcf

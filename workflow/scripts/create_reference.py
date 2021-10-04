@@ -409,6 +409,45 @@ def get_cds_list() -> list:
 	return cds_list
 
 
+def create_dirs_to_split_sequences_to_use_in_minimap2() -> None:
+	"""
+	delete references and alleles directory including its content,
+	which is created by milestone.py create_schema
+	"""
+	
+	try:
+
+		# create reference FASTA directory for each core gene
+		Path(f"{args.schema_dir}/references").mkdir(exist_ok=True)
+
+		# create FASTA directory for each core gene's alleles
+		Path(f"{args.schema_dir}/alleles").mkdir(exist_ok=True)
+
+	except OSError:
+
+		print(f"Creation of the directories {args.schema_dir}/references "
+							f"and {args.schema_dir}/alleles are failed.")
+
+
+def delete_sequences_created_by_milestone() -> None:
+	"""
+	delete references and alleles directory including its content,
+	which is created by milestone.py create_schema
+	"""
+	
+	try:
+		ref_dir = f"{args.schema_dir}/references"
+		shutil.rmtree(ref_dir)
+	except OSError as e:
+		print(f"Error: {ref_dir} : {e.strerror}")
+
+	try:
+		allele_dir = f"{args.schema_dir}/alleles"
+		shutil.rmtree(allele_dir)
+	except OSError as e:
+		print(f"Error: {allele_dir} : {e.strerror}")
+
+
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser(add_help = True)
@@ -428,18 +467,7 @@ if __name__ == "__main__":
 
 	cds_list = get_cds_list()
 
-	try:
-
-		# create reference FASTA directory for each core gene
-		Path(f"{args.schema_dir}/references").mkdir(exist_ok=True)
-
-		# create FASTA directory for each core gene's alleles
-		Path(f"{args.schema_dir}/alleles").mkdir(exist_ok=True)
-
-	except OSError:
-
-		print(f"Creation of the directories {args.schema_dir}/references "
-							f"and {args.schema_dir}/alleles are failed.")
+	create_dirs_to_split_sequences_to_use_in_minimap2()
 
 	cds_to_merge_list = [] # to merge all CDSs for reference vcf
 
@@ -449,5 +477,11 @@ if __name__ == "__main__":
 
 	create_reference_vcf_fasta(args.schema_dir, cds_to_merge_list)
 
+	# it creates reference_info.txt file in case that
+	# cds sequences are provided as only references
+	# which have no alleles. This step is for the further analysis.
 	reference_info_txt_file = Path(args.reference_info)
 	reference_info_txt_file.touch(exist_ok=True)
+
+	delete_sequences_created_by_milestone()
+	
