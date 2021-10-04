@@ -37,7 +37,7 @@ def create_config():
     if args.command == 'schema_creation':
 
         ## alleles directory
-        output_file.write(f'schema_dir: {args.schema_name.rstrip('/')+'/'}\n')
+        output_file.write(f'schema_dir: {args.schema_name.rstrip("/")+"/"}\n')
 
         ## schema_creation log file
         output_file.write(f'schema_creation_log_file: "{schema_creation_log_file}"\n')
@@ -49,7 +49,7 @@ def create_config():
     elif args.command == 'allele_calling':
 
         ## alleles directory
-        output_file.write(f'schema_dir: {args.schema_name.rstrip('/')+'/'}\n')
+        output_file.write(f'schema_dir: {args.schema_name.rstrip("/")+"/"}\n')
 
         output_file.write(f'sample: "{args.read1.split("/")[-1].split("_1")[0]}"\n')
 
