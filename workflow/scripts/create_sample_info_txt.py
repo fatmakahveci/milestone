@@ -575,9 +575,7 @@ def write_allele_sequence_to_schema_seed(sample_cds: str, cds_allele_id: str, sa
 
     cds_allele_seq_with_variation = insert_variations_into_sequence(sample_ref_seq, sample_cds_variation.pos_list, sample_cds_variation.ref_list, sample_cds_variation.alt_list)
 
-    file_name_to_write_novel_allele_seq = str(glob.glob(f'{args.schema_dir}{sample_cds}*.fasta')[0])
-    
-    with open(file_name_to_write_novel_allele_seq, 'a') as file:
+    with open(os.path.join(args.schema_dir, sample_cds+'.fasta'), 'a') as file:
 
         file.write(f'>{sample_cds}_{cds_allele_id}\n')
         file.write(f'{cds_allele_seq_with_variation}\n')
@@ -640,10 +638,12 @@ def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_var
             if f'{cds}_1' in line and not line.startswith('#'):
 
                 vcf_line = Vcf(line)
+
+                if vcf_line.pos in cds_variation.pos_list:
                 
-                vcf_line.chr = cds + '_' + ref_allele_id
-                vcf_line.info = "."
-                reference_vcf_file.write(str(vcf_line))
+                    vcf_line.chr = cds + '_' + ref_allele_id
+                    vcf_line.info = "."
+                    reference_vcf_file.write(str(vcf_line))
                     
         file.close()
 
