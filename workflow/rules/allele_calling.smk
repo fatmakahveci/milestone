@@ -145,10 +145,10 @@ rule bam_to_sam:
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "samtools view is running on {input.sample_sam}" | tee -a {params.log_file}
-        echo "Output file is {output.sample_bam}." | tee -a {params.log_file}
+        echo "samtools view is running on {input.sample_bam}" | tee -a {params.log_file}
+        echo "Output file is {output.sample_sam}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        samtools view -h {input.sample_bam} > {input.sample_sam}
+        samtools view -h {input.sample_bam} > {output.sample_sam}
         '''
 
 rule vcf_to_sample_allele_info:
