@@ -4,7 +4,7 @@
 ## aim: create info file for the sample and write novel alleles to schema seed ##
 #################################################################################
 
-import argparse, glob, os
+import argparse, glob, os, pysam
 
 
 class Coverage:
@@ -61,6 +61,37 @@ class Info:
                 f'refs: {" ".join(self.ref_list)}\n' \
                 f'alts: {" ".join(self.alt_list)}\n' \
                 f'quals: {" ".join(list(map(str, self.qual_list)))}\n'
+
+
+class Sam:
+
+    def __init__(self, sam_line):
+        fields = sam_line.strip('\n').split('\t')
+
+        self.query_name = fields[0]
+        self.read_info = fields[1]
+        self.target_sequence_name = fields[2]
+        self.position = int(fields[3])
+        self.mapping_quality = fields[4]
+        self.cigar = fields[5]
+        self.rnext = fields[6]
+        self.pnext = fields[7]
+        self.tlen = fields[8]
+        self.sequence = fields[9]
+        self.read_quality = fields[10]
+
+    def __repr__(self):
+        return f'QNAME: {self.query_name}\t' \
+               f'FLAG: {self.read_info}\t' \
+               f'RNAME: {self.target_sequence_name}\t' \
+               f'POS: {self.position}\t' \
+               f'MAPQ: {self.mapping_quality}\t' \
+               f'CIGAR: {self.cigar}\t' \
+               f'RNEXT: {self.rnext}\t' \
+               f'PNEXT: {self.pnext}\t' \
+               f'TLEN: {self.tlen}\t' \
+               f'SEQ: {self.sequence}\t' \
+               f'QUAL: {self.read_quality}'
 
 
 class Vcf:
@@ -123,7 +154,7 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     return allele_id
 
 
-def create_sample_variation_dict() -> dict:
+def create_sample_variation_dict(ref_allele_id: str) -> dict:
     """
     Creates variation dictionary
 
@@ -141,6 +172,10 @@ def create_sample_variation_dict() -> dict:
             if not line.startswith("#"):
 
                 vcf_line = Vcf(line)
+
+                # dominant_base := base_ratio_check(vcf_line.pos, f'{vcf_line.chr}_{ref_allele_id}')
+                if vcf_line.ref[0] == base_ratio_check(vcf_line.pos, f'{vcf_line.chr}_{ref_allele_id}'):
+                    continue
 
                 info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt}-{vcf_line.qual}'
 
@@ -412,7 +447,9 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     sample_allele_dict : { cds_1 : allele_ID_1, ... }
     """
     
-    sample_variation_dict = create_sample_variation_dict()
+    ref_allele_id = '1' # cds.split('_')[1]
+    
+    sample_variation_dict = create_sample_variation_dict(ref_allele_id)
 
     reference_allele_variation_dict = read_reference_info_txt(info_file=args.reference_info)
 
@@ -425,7 +462,6 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     for cds, coverage in cds_coverage_dict.items():
 
         sample_cds = cds.split('_')[0]
-        ref_allele_id = '1' # cds.split('_')[1]
 
         if coverage.coverage <= 0.98:
 
@@ -633,6 +669,122 @@ def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
     return novel_allele_id_of_cds_dict
 
 
+def base_dict_for_sam( base_dict: dict, pos_seq_cigar: list, variation_pos: int) -> dict:
+    """
+    Returns number of bases aligned to given position in sam file's line
+
+    Parameters
+    ----------
+    base_dict : dictionary of bases to count
+    pos_seq_cigar : position, sequence, and cigar sequence in sample sam file's line
+    variation_pos: variation position on CDS sequence
+
+    Returns
+    -------
+    base_dict : dictionary of bases to count 
+    """
+
+    import re
+
+    pos, seq, cigar = pos_seq_cigar[0], pos_seq_cigar[1], pos_seq_cigar[2]
+
+    match_pos_list = []
+    current_position = 0
+    pos_in_ref = variation_pos - 1
+    sam_start_pos = pos - 1
+
+    # match/mismatch loci in sam sequence
+    for case, number_of_case in zip(re.findall("[A-Z]", cigar),
+                                    map(int, re.findall("[0-9]+", cigar))):
+
+        if case == 'M':
+
+            match_start = current_position
+            current_position += number_of_case
+            match_end = current_position - 1
+            match_pos_list.append([match_start, match_end])
+
+        elif case == 'D':
+
+            current_position -= number_of_case
+
+        else:
+
+            current_position += number_of_case
+
+    for start, end in match_pos_list:
+        
+        pos_in_sam = pos_in_ref - sam_start_pos + start
+
+        if start >= 0 and start <= pos_in_sam < end:
+
+            base_dict[seq[pos_in_sam]] += 1
+
+    return base_dict
+
+
+def base_ratio_check(variation_pos: int, cds_name: str) -> str:
+    """
+    Get the dominant base for the locus on CDS
+    
+    Parameters
+    ----------
+    variation_pos: variation position on CDS sequence
+    cds_name: CDS sequence name to be investigated
+
+    Returns
+    -------
+    dominant_base : base name with max count
+    """
+
+    # avoid redundant operations after cds is found
+    is_cds_found = False
+
+    base_dict = { 'A': 0, 'C': 0, 'G': 0, 'T': 0 }
+
+    for pos_seq_cigar in sample_sam_dict[cds_name]:
+
+        base_dict_for_sam( base_dict, pos_seq_cigar, variation_pos )
+
+    dominant_base = max( base_dict, key=base_dict.get )
+
+    return dominant_base
+
+
+def get_sample_sam_dict() -> dict:
+    """
+    Read Sample's SAM file and returns sequence, cigar, and position info
+
+    Returns
+    -------
+    sample_sam_dict : { CDS: [pos, seq, cigar], [pos, seq, cigar], ..., CDS: ...}
+    """
+
+    sample_sam_dict = dict()
+
+    with open(args.sample_sam, 'r') as file:
+
+        for line in file.readlines():
+
+            # skip header
+            if not line.startswith('@'):
+
+                sam = Sam(line)
+
+                if sam.target_sequence_name not in sample_sam_dict.keys():
+
+                    sample_sam_dict[sam.target_sequence_name] = []
+                    sample_sam_dict[sam.target_sequence_name].append([ sam.position, sam.sequence, sam.cigar ])
+
+                else:
+
+                    sample_sam_dict[sam.target_sequence_name].append([ sam.position, sam.sequence, sam.cigar ])
+
+        file.close()
+
+    return sample_sam_dict
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(add_help=True)
@@ -643,12 +795,15 @@ if __name__ == "__main__":
     parser.add_argument('--sample_depth',     type=str, required=True,  help='Sample\'s depth file name with its directory')
     parser.add_argument('--sample_vcf',       type=str, required=True,  help='Sample\'s vcf file name with its directory')
     parser.add_argument('--update_reference', type=str, required=False, help='Update reference\'s vcf and info file for the further analysis.')
-    parser.add_argument('--schema_dir',      type=str, required=True,  help='Directory of schema\'s to write novel alleles')
-
+    parser.add_argument('--schema_dir',       type=str, required=True,  help='Directory of schema\'s to write novel alleles')
+    parser.add_argument('--sample_sam',       type=str, required=True,  help='Sample\'s sam file name with its directory')
+    
     args = parser.parse_args()
 
     novel_allele_id_of_cds_dict = get_allele_ids_of_cds_in_reference_info_txt()
     
+    sample_sam_dict = get_sample_sam_dict()
+
     with open(f'{args.sample_vcf[:-4]}_mlst.tsv', 'w') as file:
 
         for sample_cds, allele_id in take_allele_id_for_sample_from_chewbbaca_alleles().items():

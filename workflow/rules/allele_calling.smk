@@ -135,6 +135,22 @@ rule bam_to_vcf:
         freebayes -f {input.reference_fasta} {input.sample_bam} | vcffilter -f "QUAL > 24" > {output.sample_vcf}
         '''
 
+rule bam_to_sam:
+    input:
+        sample_bam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.bam'
+    output:
+        sample_sam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sam'
+    message: "Sample bam is being converted into sample sam"
+    params: log_file = f'{config["allele_calling_log_file"]}'
+    shell:
+        '''
+        echo "---------------------------------------" | tee -a {params.log_file}
+        echo "samtools view is running on {input.sample_sam}" | tee -a {params.log_file}
+        echo "Output file is {output.sample_bam}." | tee -a {params.log_file}
+        echo "---------------------------------------" | tee -a {params.log_file}
+        samtools view -h {input.sample_bam} > {input.sample_sam}
+        '''
+
 rule vcf_to_sample_allele_info:
     input:
         reference_fasta = config["reference_fasta"],
@@ -142,7 +158,8 @@ rule vcf_to_sample_allele_info:
         reference_vcf_gz = f'{config["reference_vcf_gz"]}',
         schema_dir = config["schema_dir"],
         sample_depth = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.depth',
-        sample_vcf = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',        
+        sample_vcf = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',
+        sample_sam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sam',
         code_dir = config["working_dir"]
     output:
         sample_mlst = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
@@ -154,12 +171,12 @@ rule vcf_to_sample_allele_info:
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "create_sample_info_txt.py is running on {input.reference_fasta}, {input.reference_info_txt}, {input.reference_vcf_gz}, {input.sample_depth}, {input.schema_dir}, and {input.sample_vcf}." | tee -a {params.log_file}
+        echo "create_sample_info_txt.py is running on {input.reference_fasta}, {input.reference_info_txt}, {input.reference_vcf_gz}, {input.sample_depth}, {input.sample_sam}, {input.schema_dir}, and {input.sample_vcf}." | tee -a {params.log_file}
         echo "Reference info and vcf is being updated: {params.update_reference}." | tee -a {params.log_file}
         echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         gunzip -fk {input.reference_vcf_gz}
-        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir}
+        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir} --sample_sam {input.sample_sam}
         awk '$1 ~ /^#/ {{print $0;next}} {{print $0 | "LC_ALL=C sort -k1,1 -k2,2n"}}' {params.reference}.vcf > {params.reference}.sorted.vcf
         uniq {params.reference}.sorted.vcf > {params.reference}.vcf
         bcftools reheader -f {params.reference}.fasta.fai {params.reference}.vcf > {params.reference}.sorted.vcf
