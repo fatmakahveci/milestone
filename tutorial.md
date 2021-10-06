@@ -4,6 +4,47 @@ This tutorial aims to create multilocus sequence typing (MLST) from the user-def
 
 ---
 
+## Table of Contents
+
+<!-- MarkdownTOC -->
+
+- 1. Setup
+	- 1.1. Setting up the data for the tutorial
+	- 1.2. Setting up the environment for the tutorial
+		- Linux
+			- i. Install pip \(Pip Installs Packages\) using APT \(Advanced Packaging Tool\)
+			- ii. Install conda
+			- iii. Create the conda environment
+		- macOS
+			- i. Install homebrew \(The Missing Package Manager\)
+			- ii. Install pip \(Pip Installs Packages\) using homebrew
+			- iii. Install conda
+			- iv. Create the conda environment
+	- 2.1. `milestone.py schema_creation`
+		- a. From genome assemblies of species
+		- b. From coding sequences
+			- b.1. Only coding sequences are available in the initial set.
+			- b.2. Coding sequences and their alleles are available in the initial set.
+		- 2.1.1. Input files
+		- 2.1.2. Parameters
+			- 2.1.2.a. Milestone parameters
+			- 2.1.2.b. Snakemake parameters \(*optional\)
+		- 2.1.3. Output files
+	- 2.2. `milestone.py allele_calling`
+		- 2.2.1. Input files
+		- 2.2.2. Parameters
+			- 2.2.2.a. Milestone parameters
+				- 2.2.2.a.1. VG
+				- 2.2.2.a.2. SBG
+			- 2.2.2.b. Snakemake parameters \(*optional\)
+		- 2.2.3. Output files
+			- 2.2.3.1. VG
+			- 2.2.3.1. SBG
+
+<!-- /MarkdownTOC -->
+
+---
+
 ## 1. Setup
 
 ### 1.1. Setting up the data for the tutorial
