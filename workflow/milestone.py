@@ -7,7 +7,7 @@
 ####################################################
 
 
-import argparse, glob, os, subprocess, sys
+import argparse, os, subprocess, sys
 
 
 def create_config():
@@ -111,7 +111,7 @@ def create_snakefile():
 
         output_file.write(f'include: "{rules_dir}/schema_creation.smk"\n\n')
         output_file.write('rule all:\n\tinput:\n')
-        output_file.write(f'\t\treference_vcf_gz = "{args.output}/{args.reference}.vcf.gz"')
+        output_file.write(f'\t\treference_vcf_gz = "{os.path.join(args.output, args.reference)}.vcf.gz"')
 
     elif args.command == 'allele_calling':
 
