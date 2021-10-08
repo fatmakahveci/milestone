@@ -295,7 +295,7 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 
 			cds_to_merge_list.append(cds_name)
 
-			command_list.append(f"bcftools merge {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O v -o {wd}/{cds_name}.vcf")
+			command_list.append(f"bcftools concat {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} --threads {args.threads} -O v - | bcftools norm -d all -o {wd}/{cds_name}.vcf")
 
 		for command in command_list:
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)

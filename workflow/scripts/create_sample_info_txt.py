@@ -4,7 +4,7 @@
 ## aim: create info file for the sample and write novel alleles to schema seed ##
 #################################################################################
 
-import argparse, glob, os, pysam
+import argparse, glob, os, pysam, shutil
 
 
 class Coverage:
@@ -446,7 +446,13 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     ------
     sample_allele_dict : { cds_1 : allele_ID_1, ... }
     """
-    
+
+    temp_sample_vcf_dir = f'{args.sample_vcf}_dir'
+
+    if not os.path.isdir(temp_sample_vcf_dir):
+
+        os.mkdir(temp_sample_vcf_dir)
+
     ref_allele_id = '1' # cds.split('_')[1]
     
     sample_variation_dict = create_sample_variation_dict(ref_allele_id)
@@ -537,7 +543,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                         if len(sample_variation_dict[sample_cds].pos_list) != 0:
 
                             write_allele_sequence_to_schema_seed(sample_cds, ref_allele_id, cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
-                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variation_dict[sample_cds])
+                            write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds])
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
                 else: # both sample and reference has the variations of this allele
@@ -555,8 +561,18 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             sample_allele_dict[cds] = novel_allele_id_of_cds_dict[sample_cds]
 
                             write_allele_sequence_to_schema_seed(sample_cds, sample_allele_dict[cds], cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
-                            write_variations_to_reference_vcf_file(sample_cds, ref_allele_id, sample_variation_dict[sample_cds]) 
+                            write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds]) 
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
+
+    if args.update_reference == 'True':
+
+        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Ov -o {args.sample_vcf}")
+
+    try:
+        shutil.rmtree(temp_sample_vcf_dir)
+
+    except OSError as e:
+        print("Error: %s - %s." % (e.filename, e.strerror))
 
     return sample_allele_dict
 
@@ -613,7 +629,7 @@ def write_variations_to_reference_info_file(cds: str, allele_id: str, cds_variat
         file.close()
 
 
-def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_variation: Info) -> None:
+def write_variations_to_reference_vcf_file(cds: str, temp_sample_vcf_dir: str, ref_allele_id: str, cds_variation: Info) -> None:
     """
     Take the variations from sample variation list
     Write from sample.vcf to reference.vcf
@@ -627,7 +643,9 @@ def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_var
 
     cds_vcf_line_list = []
 
-    reference_vcf_file = open(args.reference_vcf, 'a')
+    temp_sample_vcf_file_name = os.path.join(temp_sample_vcf_dir, f'{cds}.vcf')
+
+    temp_sample_vcf_file = open(temp_sample_vcf_file_name , 'w')
 
     info_line_list = []
 
@@ -635,19 +653,27 @@ def write_variations_to_reference_vcf_file(cds: str, ref_allele_id: str, cds_var
 
         for line in file.readlines():
 
-            if f'{cds}_1' in line and not line.startswith('#'):
+            if line.startswith('#'):
 
-                vcf_line = Vcf(line)
+                temp_sample_vcf_file.write(line)
 
-                if vcf_line.pos in cds_variation.pos_list:
+            else:
+
+                if f'{cds}_1' in line:
+
+                    vcf_line = Vcf(line)
+
+                    if vcf_line.pos in cds_variation.pos_list:
                 
-                    vcf_line.chr = cds + '_' + ref_allele_id
-                    vcf_line.info = "."
-                    reference_vcf_file.write(str(vcf_line))
+                        vcf_line.chr = cds + '_' + ref_allele_id
+                        vcf_line.info = "."
+                        temp_sample_vcf_file.write(str(vcf_line))
                     
         file.close()
 
-    reference_vcf_file.close()
+    temp_sample_vcf_file.close()
+
+    os.system(f'bgzip -f {temp_sample_vcf_file_name} && tabix -p vcf {temp_sample_vcf_file_name}.gz')
 
 
 def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
@@ -797,7 +823,7 @@ if __name__ == "__main__":
     parser.add_argument('--update_reference', type=str, required=False, help='Update reference\'s vcf and info file for the further analysis.')
     parser.add_argument('--schema_dir',       type=str, required=True,  help='Directory of schema\'s to write novel alleles')
     parser.add_argument('--sample_sam',       type=str, required=True,  help='Sample\'s sam file name with its directory')
-    
+    parser.add_argument('--threads', required=True, help='Number of threads')
     args = parser.parse_args()
 
     novel_allele_id_of_cds_dict = get_allele_ids_of_cds_in_reference_info_txt()
