@@ -155,7 +155,6 @@ rule vcf_to_sample_allele_info:
     input:
         reference_fasta = config["reference_fasta"],
         reference_info_txt = config["reference_info_txt"],
-        reference_vcf_gz = f'{config["reference_vcf_gz"]}',
         schema_dir = config["schema_dir"],
         sample_depth = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.depth',
         sample_vcf = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.vcf',
@@ -164,6 +163,7 @@ rule vcf_to_sample_allele_info:
     output:
         sample_mlst = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
     message: "File for allele defining variants for each CDS is being created."
+    threads: config["parameters"]["threads"]
     params:
         log_file = f'{config["allele_calling_log_file"]}',
         reference = config["reference"],
@@ -171,17 +171,10 @@ rule vcf_to_sample_allele_info:
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
-        echo "create_sample_info_txt.py is running on {input.reference_fasta}, {input.reference_info_txt}, {input.reference_vcf_gz}, {input.sample_depth}, {input.sample_sam}, {input.schema_dir}, and {input.sample_vcf}." | tee -a {params.log_file}
+        echo "create_sample_info_txt.py is running on {input.reference_fasta}, {input.reference_info_txt}, {params.reference}.vcf, {input.sample_depth}, {input.sample_sam}, {input.schema_dir}, and {input.sample_vcf}." | tee -a {params.log_file}
         echo "Reference info and vcf is being updated: {params.update_reference}." | tee -a {params.log_file}
         echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        gunzip -fk {input.reference_vcf_gz}
-        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir} --sample_sam {input.sample_sam}
-        awk '$1 ~ /^#/ {{print $0;next}} {{print $0 | "LC_ALL=C sort -k1,1 -k2,2n"}}' {params.reference}.vcf > {params.reference}.sorted.vcf
-        uniq {params.reference}.sorted.vcf > {params.reference}.vcf
-        bcftools reheader -f {params.reference}.fasta.fai {params.reference}.vcf > {params.reference}.sorted.vcf
-        bcftools norm --rm-dup none {params.reference}.sorted.vcf > {params.reference}.vcf
-        rm {params.reference}.sorted.vcf
-        bgzip -f {params.reference}.vcf && tabix -p vcf {params.reference}.vcf.gz
+        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir} --sample_sam {input.sample_sam} --threads {threads}
         '''
 

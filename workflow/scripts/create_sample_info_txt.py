@@ -566,12 +566,19 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
     if args.update_reference == 'True':
 
-        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Ov -o {args.sample_vcf}")
+        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
+        os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
+        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
+        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
+        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
+        os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
 
     try:
+
         shutil.rmtree(temp_sample_vcf_dir)
 
     except OSError as e:
+
         print("Error: %s - %s." % (e.filename, e.strerror))
 
     return sample_allele_dict
@@ -655,7 +662,13 @@ def write_variations_to_reference_vcf_file(cds: str, temp_sample_vcf_dir: str, r
 
             if line.startswith('#'):
 
-                temp_sample_vcf_file.write(line)
+                if line.startswith('#CHROM'):
+
+                    temp_sample_vcf_file.write("\t".join(line.rstrip('\n').split('\t')[:-1])+"\tREFERENCE\n")
+
+                else:
+
+                    temp_sample_vcf_file.write(line)
 
             else:
 
@@ -667,6 +680,9 @@ def write_variations_to_reference_vcf_file(cds: str, temp_sample_vcf_dir: str, r
                 
                         vcf_line.chr = cds + '_' + ref_allele_id
                         vcf_line.info = "."
+                        vcf_line.format = "GT"
+                        vcf_line.sample = '1'
+
                         temp_sample_vcf_file.write(str(vcf_line))
                     
         file.close()
