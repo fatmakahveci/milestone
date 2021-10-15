@@ -540,8 +540,6 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
         for line in file.readlines():
 
-            is_variation_to_be_added = False
-
             if not line.startswith("#"):
 
                 vcf_line = Vcf(line)
@@ -551,34 +549,31 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 # multiple type of variations
                 if var_type == 'complex':
-
+                    # if vcf_line.chr == 'ERR1625068-protein492':
+                    #     print(vcf_line)
                     cigar, cigar_len = get_cigar(vcf_line.info)
 
-                    if len(vcf_line.ref) != cigar_len:
+                    # if len(vcf_line.ref) != cigar_len:
 
-                        is_variation_to_be_added = True
-
-                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
+                    variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
 
                     # its type was expected as mnp but it is classified as complex 
-                    else:
+                    # else:
 
-                        if len(vcf_line.ref) == len(vcf_line.alt) and len(vcf_line.ref) == 2:
+                        # if len(vcf_line.ref) == len(vcf_line.alt) and len(vcf_line.ref) == 2:
 
-                            variation_pos_list.append(vcf_line.pos)
-                            variation_ref_list.append(vcf_line.ref[0])
-                            variation_alt_list.append(vcf_line.alt[0])
-                            variation_qual_list.append(vcf_line.qual)
+                        #     variation_pos_list.append(vcf_line.pos)
+                        #     variation_ref_list.append(vcf_line.ref[0])
+                        #     variation_alt_list.append(vcf_line.alt[0])
+                        #     variation_qual_list.append(vcf_line.qual)
 
-                            variation_pos_list.append(vcf_line.pos+1)
-                            variation_ref_list.append(vcf_line.ref[1])
-                            variation_alt_list.append(vcf_line.alt[1])
-                            variation_qual_list.append(vcf_line.qual)
+                        #     variation_pos_list.append(vcf_line.pos+1)
+                        #     variation_ref_list.append(vcf_line.ref[1])
+                        #     variation_alt_list.append(vcf_line.alt[1])
+                        #     variation_qual_list.append(vcf_line.qual)
 
                 # mnp : multiple consecutive snps, del : deletion, ins : insertion
                 elif var_type in [ 'mnp', 'del', 'ins' ]:
-
-                    is_variation_to_be_added = True
 
                     cigar, cigar_len = get_cigar(vcf_line.info)
 
@@ -606,8 +601,6 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                         variation_qual_list.append(vcf_line.qual)
 
-                        info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[alt_idx]}-{vcf_line.qual}'
-
                 if vcf_line.chr not in sample_variation_dict.keys():
 
                     if var_type == 'snp':
@@ -619,7 +612,6 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                         info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[alt_idx]}-{vcf_line.qual}'
 
-                        # allele_field # s := sample
                         sample_variation_dict[vcf_line.chr] = Info(info_line)
 
                     else:
@@ -628,6 +620,11 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                         for i in range(len(variation_pos_list)):
 
+                            variation_pos_list.append(vcf_line.pos)
+                            variation_ref_list.append(vcf_line.ref)
+                            variation_alt_list.append(vcf_line.alt.split(',')[alt_idx])
+                            variation_qual_list.append(vcf_line.qual)
+                            
                             first_info_fields_list.append(f'{variation_pos_list[i]}*{variation_ref_list[i]}>{variation_alt_list[i]}-{variation_qual_list[i]}')
 
                         if len(first_info_fields_list) != 0:
@@ -637,26 +634,17 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 else:
 
-                    if is_variation_to_be_added:
+                    for i in range(len(variation_pos_list)):
 
-                        for i in range(len(variation_pos_list)):
-
-                            sample_variation_dict[vcf_line.chr].pos_list.append(variation_pos_list[i])
-                            sample_variation_dict[vcf_line.chr].ref_list.append(variation_ref_list[i])
-                            sample_variation_dict[vcf_line.chr].alt_list.append(variation_alt_list[i])
-                            sample_variation_dict[vcf_line.chr].qual_list.append(variation_qual_list[i])
-
-                    else:
-
-                        sample_variation_dict[vcf_line.chr].pos_list.append(vcf_line.pos)
-                        sample_variation_dict[vcf_line.chr].ref_list.append(vcf_line.ref)
-                        sample_variation_dict[vcf_line.chr].alt_list.append(vcf_line.alt)
-                        sample_variation_dict[vcf_line.chr].qual_list.append(vcf_line.qual)
+                        sample_variation_dict[vcf_line.chr].pos_list.append(variation_pos_list[i])
+                        sample_variation_dict[vcf_line.chr].ref_list.append(variation_ref_list[i])
+                        sample_variation_dict[vcf_line.chr].alt_list.append(variation_alt_list[i])
+                        sample_variation_dict[vcf_line.chr].qual_list.append(variation_qual_list[i])
 
     for sample_cds, variations in sample_variation_dict.items():
 
         sample_variation_dict[sample_cds] = merge_variations(sample_variation_dict[sample_cds])
-
+    # print(sample_variation_dict["ERR1625068-protein492"])
     return sample_variation_dict
 
 
