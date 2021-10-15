@@ -32,6 +32,7 @@ rule vg_index:
         echo "---------------------------------------" | tee -a {params.log_file}
         gunzip {input.reference_vcf_gz}; awk '$1 ~ /^#/ {{print $0;next}} {{print $0 | "LC_ALL=C sort -k1,1 -k2,2n"}}' {params.reference}.vcf > {params.reference}.sorted.vcf
         bcftools norm --rm-dup all {params.reference}.sorted.vcf > {params.reference}.vcf
+        rm {params.reference}.sorted.vcf
         bgzip -f {params.reference}.vcf && tabix -p vcf {params.reference}.vcf.gz
         vg autoindex --ref-fasta {input.reference_fasta} --vcf {input.reference_vcf_gz} -t {threads} --workflow map --prefix {params.aligner_reference}
         vg autoindex --ref-fasta {input.reference_fasta} --vcf {input.reference_vcf_gz} -t {threads} --workflow giraffe --prefix {params.aligner_reference}
@@ -133,6 +134,10 @@ rule bam_to_vcf:
         echo "Output file is {output.sample_vcf}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         freebayes -f {input.reference_fasta} {input.sample_bam} | vcffilter -f "QUAL > 24" > {output.sample_vcf}
+        echo "REFERENCE" > REFERENCE
+        bcftools reheader -s REFERENCE -o {output.sample_vcf}. {output.sample_vcf}
+        mv {output.sample_vcf}. {output.sample_vcf}
+        rm REFERENCE
         '''
 
 rule bam_to_sam:
