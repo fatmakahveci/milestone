@@ -374,11 +374,15 @@ def get_var_type(info: str) -> str:
 
         start = info.index("TYPE=") + 5
 
-        if not info.strip('/n').endswith(';'):
+        if not info.strip('/n').endswith(';') and ";" not in info[start:-1]:
+
             return info[start:]
 
         else:
-            return info[start:info.index( ";", start )]
+
+            end = info.index(';', start)
+
+            return info[start:end]
 
     except ValueError:
         return ""
