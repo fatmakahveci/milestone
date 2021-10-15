@@ -1,6 +1,6 @@
 #################################################################################
 ## author: @fatmakhv                                                           ##
-## date: 14/10/2021                                                            ##
+## date: 15/10/2021                                                            ##
 ## aim: create info file for the sample and write novel alleles to schema seed ##
 #################################################################################
 
@@ -445,12 +445,14 @@ def resolve_cigar(vcf_line: str, cigar: str) -> None:
     cigar : cigar sequence in vcf_line 
     """
 
+    import re
+
     pos_list = []
     ref_list = []
     alt_list = []
     qual_list = []
-
-    cigar_list = list(zip([int(s) for s in cigar if s.isdigit()], [s for s in cigar if not s.isdigit()]))
+    
+    cigar_list = list(zip(list(map(int,re.findall('[0-9]+', cigar))), [s for s in cigar if not s.isdigit()]))
 
     i, j = 0, 0 # i := index in ref and  j := index in alt
 
@@ -544,7 +546,11 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 vcf_line = Vcf(line)
 
-                if get_var_type(vcf_line.info) == 'complex':
+                var_type = get_var_type(vcf_line.info)
+                variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = [], [], [], []
+
+                # multiple type of variations
+                if var_type == 'complex':
 
                     cigar, cigar_len = get_cigar(vcf_line.info)
 
@@ -569,7 +575,8 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
                             variation_alt_list.append(vcf_line.alt[1])
                             variation_qual_list.append(vcf_line.qual)
 
-                elif get_var_type(vcf_line.info) == 'mnp':
+                # mnp : multiple consecutive snps, del : deletion, ins : insertion
+                elif var_type in [ 'mnp', 'del', 'ins' ]:
 
                     is_variation_to_be_added = True
 
@@ -577,22 +584,56 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                     variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
 
-                elif vcf_line.sample.startswith('0'):
+                # snp
+                elif var_type == 'snp':
 
-                    continue
+                    # it equals to the reference    
+                    if vcf_line.sample.startswith('0'):
 
-                elif vcf_line.sample.startswith('1'):
+                        continue
 
-                    info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt}-{vcf_line.qual}'
+                    # it equals to the alternate len = 1
+                    else:
 
-                else:
+                        variation_pos_list.append(vcf_line.pos)
+                        variation_ref_list.append(vcf_line.ref)
 
-                    info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[vcf_line.sample[0]]}-{vcf_line.qual}'
+                        if len(vcf_line.alt) == 1:
+                            alt_idx = 0
+                        else:
+                            alt_idx = int(vcf_line.sample[0])
+                        variation_alt_list.append(vcf_line.alt.split(",")[alt_idx])
+
+                        variation_qual_list.append(vcf_line.qual)
+
+                        info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[alt_idx]}-{vcf_line.qual}'
 
                 if vcf_line.chr not in sample_variation_dict.keys():
 
-                    # allele_field # s := sample
-                    sample_variation_dict[vcf_line.chr] = Info(info_line)
+                    if var_type == 'snp':
+
+                        if len(vcf_line.alt) == 1:
+                            alt_idx = 0
+                        else:
+                            alt_idx = int(vcf_line.sample[0])
+
+                        info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[alt_idx]}-{vcf_line.qual}'
+
+                        # allele_field # s := sample
+                        sample_variation_dict[vcf_line.chr] = Info(info_line)
+
+                    else:
+
+                        first_info_fields_list = []
+
+                        for i in range(len(variation_pos_list)):
+
+                            first_info_fields_list.append(f'{variation_pos_list[i]}*{variation_ref_list[i]}>{variation_alt_list[i]}-{variation_qual_list[i]}')
+
+                        if len(first_info_fields_list) != 0:
+
+                            # allele_field # s := sample
+                            sample_variation_dict[vcf_line.chr] = Info(",".join(first_info_fields_list))
 
                 else:
 
@@ -752,14 +793,6 @@ def quality_check(seq: str, ref_seq: str) -> bool:
 
         return "EQ"
 
-    if len(seq) <= len(ref_seq) * 0.8:
-
-        return "ASM"
-
-    if len(seq) >= len(ref_seq) * 1.2:
-
-        return "ALM"
-
     for i in range(0, len(seq)-3, 3):
 
         if seq[i:i+3] == 'TAG' or seq[i:i+3] == 'TAA' or seq[i:i+3] == 'TGA':
@@ -900,7 +933,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
             sample_allele_dict[cds] = 'LNF'
             is_novel = False
 
-        elif 60 < coverage.coverage <= 80:
+        elif 60 < coverage.coverage < 80:
 
             # CDS is not covered by the reads.
             sample_allele_dict[cds] = 'ASM'
@@ -1160,6 +1193,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # to get the number of identified alleles for each CDS
     novel_allele_id_of_cds_dict = get_allele_ids_of_cds_in_reference_info_txt()
     
     with open(f'{args.sample_vcf[:-4]}_mlst.tsv', 'w') as file:
