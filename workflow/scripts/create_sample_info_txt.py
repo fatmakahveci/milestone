@@ -344,22 +344,6 @@ def merge_variations(variations: Info) -> Info:
 
     for i in range(number_of_variations):
 
-        # if i < number_of_variations - 1: # 0 1 2
-
-            # if pos_list[i] + len(ref_list[i]) == pos_list[i+1]:
-
-            #     merged_variations_list.append(f"{pos_list[i]}*{ref_list[i]+ref_list[i+1]}>{alt_list[i]+alt_list[i+1]}-{min(qual_list[i],qual_list[i+1])}")
-
-            #     if i == number_of_variations - 2: # added item in the last position to the last-1^th position
-
-            #         is_the_last_variation_added = True
-
-            # else:
-
-    #             merged_variations_list.append(f"{pos_list[i]}*{ref_list[i]}>{alt_list[i]}-{qual_list[i]}")
-
-    # if not is_the_last_variation_added:
-
         merged_variations_list.append(f"{pos_list[i]}*{ref_list[i]}>{alt_list[i]}-{qual_list[i]}")
 
     merged_list = []
@@ -373,7 +357,7 @@ def merge_variations(variations: Info) -> Info:
     return Info(",".join(merged_list))
 
 
-def get_from_info(info: str, subinfo: str) -> str:
+def get_var_type(info: str) -> str:
     """
     Return ...;<subinfo_name>="<subinfo>";... from INFO field in VCF file
 
@@ -388,7 +372,34 @@ def get_from_info(info: str, subinfo: str) -> str:
 
     try:
 
-        start = info.index(subinfo) + len(subinfo)
+        start = info.index("TYPE=") + 5
+
+        if not info.strip('/n').endswith(';'):
+            return info[start:]
+
+        else:
+            return info[start:info.index( ";", start )]
+
+    except ValueError:
+        return ""
+
+
+def get_cigar(info: str) -> str:
+    """
+    Return ...;<subinfo_name>="<subinfo>";... from INFO field in VCF file
+
+    Parameters
+    ----------
+    info : INFO field in VCF file
+    
+    Returns
+    -------
+    <subinfo> : subinfo in INFO field
+    """
+
+    try:
+
+        start = info.index("CIGAR=") + 6
         end = info.index( ";", start )
 
         return info[start:end]
@@ -396,7 +407,8 @@ def get_from_info(info: str, subinfo: str) -> str:
     except ValueError:
         return ""
 
-def get_cigar(info: str) -> str:
+
+def get_cigar_info(info: str) -> str:
     """
     Return ...;<CIGAR>="<cigar>";... from INFO field in VCF file
 
@@ -410,29 +422,13 @@ def get_cigar(info: str) -> str:
     """
 
     # in case that multiple cigar take the first
-    cigar = get_from_info(info, "CIGAR=").split(',')[0]
+    cigar = get_cigar(info).split(',')[0]
     
     for sep in [ 'M', 'D', 'I', 'S', 'H', '=', 'X']:
         cigar = cigar.replace(sep, '.')
 
     # return cigar, len(cigar)
-    return get_from_info(info, "CIGAR="), sum(list(map(int, cigar.rstrip('.').split('.'))))
-
-
-def get_var_type(info: str) -> str:
-    """
-    Return ...;<TYPE=>="<type>";... from TYPE field in VCF file
-
-    Parameters
-    ----------
-    info : INFO field in VCF file
-    
-    Returns
-    -------
-    <type> : TYPE in INFO field
-    """
-
-    return get_from_info(info, "TYPE=")
+    return get_cigar(info), sum(list(map(int, cigar.rstrip('.').split('.'))))
 
 
 def resolve_cigar(vcf_line: str, cigar: str) -> None:
@@ -549,33 +545,15 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 # multiple type of variations
                 if var_type == 'complex':
-                    # if vcf_line.chr == 'ERR1625068-protein492':
-                    #     print(vcf_line)
-                    cigar, cigar_len = get_cigar(vcf_line.info)
 
-                    # if len(vcf_line.ref) != cigar_len:
+                    cigar, cigar_len = get_cigar_info(vcf_line.info)
 
                     variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
-
-                    # its type was expected as mnp but it is classified as complex 
-                    # else:
-
-                        # if len(vcf_line.ref) == len(vcf_line.alt) and len(vcf_line.ref) == 2:
-
-                        #     variation_pos_list.append(vcf_line.pos)
-                        #     variation_ref_list.append(vcf_line.ref[0])
-                        #     variation_alt_list.append(vcf_line.alt[0])
-                        #     variation_qual_list.append(vcf_line.qual)
-
-                        #     variation_pos_list.append(vcf_line.pos+1)
-                        #     variation_ref_list.append(vcf_line.ref[1])
-                        #     variation_alt_list.append(vcf_line.alt[1])
-                        #     variation_qual_list.append(vcf_line.qual)
 
                 # mnp : multiple consecutive snps, del : deletion, ins : insertion
                 elif var_type in [ 'mnp', 'del', 'ins' ]:
 
-                    cigar, cigar_len = get_cigar(vcf_line.info)
+                    cigar, cigar_len = get_cigar_info(vcf_line.info)
 
                     variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
 
@@ -590,16 +568,27 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
                     # it equals to the alternate len = 1
                     else:
 
-                        variation_pos_list.append(vcf_line.pos)
-                        variation_ref_list.append(vcf_line.ref)
+                        if len (vcf_line.alt) > 1 and len(vcf_line.alt) == len(vcf_line.ref):
 
-                        if len(vcf_line.alt) == 1:
-                            alt_idx = 0
+                            for sb in range(len(vcf_line.alt)):
+
+                                variation_pos_list.append(vcf_line.pos+sb)
+                                variation_ref_list.append(vcf_line.ref[sb])
+                                variation_alt_list.append(vcf_line.alt[sb])
+                                variation_qual_list.append(vcf_line.qual)
+
                         else:
-                            alt_idx = int(vcf_line.sample[0])
-                        variation_alt_list.append(vcf_line.alt.split(",")[alt_idx])
+                            variation_pos_list.append(vcf_line.pos)
+                            variation_ref_list.append(vcf_line.ref)
 
-                        variation_qual_list.append(vcf_line.qual)
+                            if len(vcf_line.alt) == 1:
+                                alt_idx = 0
+                            else:
+                                alt_idx = int(vcf_line.sample[0])
+
+                            variation_alt_list.append(vcf_line.alt.split(",")[alt_idx])
+
+                            variation_qual_list.append(vcf_line.qual)
 
                 if vcf_line.chr not in sample_variation_dict.keys():
 
@@ -644,7 +633,7 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
     for sample_cds, variations in sample_variation_dict.items():
 
         sample_variation_dict[sample_cds] = merge_variations(sample_variation_dict[sample_cds])
-    # print(sample_variation_dict["ERR1625068-protein492"])
+
     return sample_variation_dict
 
 
@@ -1018,14 +1007,14 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds]) 
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
-    # if args.update_reference == 'True':
+    if args.update_reference == 'True':
 
-    #     os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
-    #     os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
-    #     os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
-    #     os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
-    #     os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
-    #     os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
+        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
+        os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
+        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
+        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
+        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
+        os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
 
     try:
 
