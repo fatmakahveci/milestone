@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 #####################################################
-## Author: @fatmakhv                               ##
-## The latest update: 01/10/2021                   ##
+## Author: @fatmakhv							   ##
+## The latest update: 17/10/2021				   ##
 ## Aim: Reference FASTA VCF and INFO file creation ##
 #####################################################
 
@@ -27,20 +27,21 @@ class vcf:
 		self.qual = fields[5]
 		self.filter = fields[6]
 		self.info = fields[7]
-		self.format = fields[8]
+		self.sample_format = fields[8]
 		self.sample = fields[9]
 
 	def __repr__(self):
 
 		return f"chr: {self.chr}\tpos: {self.pos}\tid: {self.id}\tref: " \
 				f"{self.ref}\talt: {self.alt}\tqual: {self.qual}\tfilter: " \
-				f"{self.filter}\tinfo: {self.info}\tformat: {self.format}\t" \
+				f"{self.filter}\tinfo: {self.info}\tformat: {self.sample_format}\t" \
 				f"sample: {self.sample}"
 
 
 def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
 	"""
 	Writes the variants of alleles that are not equal to the reference CDS
+
 	Parameters
 	----------
 	cds_name : name of cds of which allele will be written
@@ -78,11 +79,13 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 	"""
 	Reads {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
+
 	Parameters
 	----------
 	vcf_file : {sample}.vcf contains {allele_id}'s variants for {cds_name}
 	cds_name : name of CDS of which positions will be taken
 	allele_id : ID of allele of CDS of which positions will be taken
+
 	Returns
 	-------
 	pos_dict : Dictionary of variant positions for allele
@@ -98,22 +101,24 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 			if not line.startswith("#"):
 
-				has_variant = True
-
 				vcf_line = vcf(line)
 
-				pos_ref = f'{vcf_line.pos}*{vcf_line.ref}'
+				if float(vcf_line.qual) > 24.0:
 
-				if not pos_ref in pos_dict.keys():
+					has_variant = True
+	
+					pos_ref = f'{vcf_line.pos}*{vcf_line.ref}'
 
-					pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
+					if not pos_ref in pos_dict.keys():
 
-				else:	# if there is a proof for a high quality variant take
-						# with the highest
+						pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
 
-					if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
+					else:	# if there is a proof for a high quality variant take
+							# with the highest
 
-						pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
+						if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
+
+							pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
 
 		file.close()
 
@@ -127,9 +132,11 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 def get_allele_id_from_allele_name(allele_name: str) -> str:
 	"""
 	Gets {cds_name}_{allele_id} and returns {allele_id}
+
 	Parameters
 	----------
 	allele_name : {cds_name}_{allele_id}
+
 	Returns
 	-------
 	allele_id : allele ID for given allele_name
@@ -159,6 +166,7 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str, threads: str) -> dict:
 	"""
 	Creates allele dictionary for given CDS
+
 	Parameters
 	----------
 	write_dir : core genome directory
@@ -166,6 +174,7 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	cds_dir : alleles' directory that contains sequences of alleles
 	cds_name : CDS name to create its allele dictionary
 	threads : number of threads to run minimap2
+
 	Returns
 	-------
 	allele_dict : position dictionary for allele
@@ -191,6 +200,7 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	#					f"{sample}.sorted.bam.bai; rm {sample}.vcf;")
 
 	for command in command_list:
+
 		subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
 
 	return allele_dict
@@ -199,12 +209,14 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
 	"""
 	Creates CDS list
+
 	Parameters
 	----------
 	cds_dir : alleles' directory that contains sequences of alleles
 	cds_fasta : FASTA file for CDS
 	cds_to_merge_list : all CDSs for reference vcf
 	threads : number of threads to run minimap2
+
 	Returns
 	-------
 	cds_to_merge_list : all CDSs for reference vcf
@@ -262,15 +274,19 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 		cds_name = cds_fasta
 
 		if cds_fasta.endswith('.fasta'):
+
 			cds_name = cds_fasta[:-6]
 
 			if cds_name.endswith('_short'):
+
 				cds_name = cds_name[:-6]
 
 		elif cds_fasta.endswith('.fa'):
+
 			cds_name = cds_fasta[:-3]
 
 			if cds_name.endswith('_short'):
+
 				cds_name = cds_name[:-6]
 
 		wd = f"{cds_dir}/alleles/{cds_name}" # directory of allele's vcf files
@@ -310,6 +326,7 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	"""
 	Creates FASTA file for reference 
+
 	Parameters
 	----------
 	wd : working directory
@@ -343,7 +360,9 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 					fields = (line.split('\t'))[:8]
 					fields.append("GT")
 					fields.append("1")
+
 					line = '\t'.join(fields)
+
 					reference_file.write(f"{line}\n")
 
 			cds_file.close()
@@ -384,8 +403,11 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	# merge all CDS fasta files to create reference FASTA
 
 	with open(args.reference_fasta, 'a') as f:
+
 		for file in glob.glob(f'{wd}/references/*.fasta'):
+
 			with open(file) as infile:
+
 				f.write(infile.read().strip('\n')+'\n')
 
 		f.close()
@@ -394,6 +416,7 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 def get_cds_list() -> list:
 	"""
 	Returns names of CDSs as list
+
 	Returns
 	-------
 	cds_list : List of CDS names
@@ -436,15 +459,21 @@ def delete_sequences_created_by_milestone() -> None:
 	"""
 	
 	try:
+
 		ref_dir = f"{args.schema_dir}/references"
 		shutil.rmtree(ref_dir)
+
 	except OSError as e:
+
 		print(f"Error: {ref_dir} : {e.strerror}")
 
 	try:
+
 		allele_dir = f"{args.schema_dir}/alleles"
 		shutil.rmtree(allele_dir)
+
 	except OSError as e:
+
 		print(f"Error: {allele_dir} : {e.strerror}")
 
 
