@@ -161,3 +161,17 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	print_results()
+
+#######################
+# Commands to compare #
+#######################
+
+# awk '{ print $1"\t"$2 }' ERR1624739.tsv > ERR1624739.tsv.;
+# sort ERR1624739.tsv. > ERR1624739_chewbbaca.tsv
+
+# sort ERR1624739_mlst.tsv > ERR1624739_sbg.tsv.;
+# mv ERR1624739_sbg.tsv. ERR1624739_sbg.tsv;
+
+# join -1 1 -2 1 ERR1624739_chewbbaca.tsv ERR1624739_sbg.tsv > ERR1624739_chewbbaca_sbg.tsv;
+
+# python compare_results.py -f ERR1624739_chewbbaca_sbg.tsv -a sbg;
