@@ -1,6 +1,6 @@
 #################################################################################
 ## author: @fatmakhv                                                           ##
-## date: 15/10/2021                                                            ##
+## date: 17/10/2021                                                            ##
 ## aim: create info file for the sample and write novel alleles to schema seed ##
 #################################################################################
 
@@ -108,14 +108,14 @@ class Vcf:
         self.qual = float(fields[5])
         self.filter = fields[6]
         self.info = fields[7]
-        self.format = fields[8]
+        self.sample_format = fields[8]
         self.sample = fields[9]
 
     def __str__(self):
-        return f"{self.chr}\t{self.pos}\t{self.id}\t{self.ref}\t{self.alt}\t{self.qual}\t{self.filter}\t{self.info}\t{self.format}\t{self.sample}\n"
+        return f"{self.chr}\t{self.pos}\t{self.id}\t{self.ref}\t{self.alt}\t{self.qual}\t{self.filter}\t{self.info}\t{self.sample_format}\t{self.sample}\n"
 
     def __repr__(self):
-        return f"chr: {self.chr}\npos: {str(self.pos)}\nid: {self.id}\nref: {self.ref}\nalt: {self.alt}\nqual: {str(self.qual)}\nfilter: {self.filter}\ninfo: {self.info}\nformat: {self.format}\nsample: {self.sample}"
+        return f"chr: {self.chr}\npos: {str(self.pos)}\nid: {self.id}\nref: {self.ref}\nalt: {self.alt}\nqual: {str(self.qual)}\nfilter: {self.filter}\ninfo: {self.info}\nformat: {self.sample_format}\nsample: {self.sample}"
 
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
@@ -357,9 +357,37 @@ def merge_variations(variations: Info) -> Info:
     return Info(",".join(merged_list))
 
 
+def get_normalized_quality(qual: float, sample_format: str, sample: str) -> float:
+    """
+    Takes the line in VCF file and from SAMPLE field
+    calculates normalized quality using the following formula, QUAL/AD
+    https://gatk.broadinstitute.org/hc/en-us/articles/360056968272-QualByDepth
+
+    Parameters
+    ----------
+    qual : QUAL field in VCF file
+    sample_format : FORMAT field in VCF file
+    sample : SAMPLE field in VCF file
+
+    Returns
+    -------
+    normalized_quality : QUAL/AD := VCF[5]/SAMPLE[AD], where the index is 0-based.
+    """
+
+    ad_idx = 0
+    for i, f in enumerate(sample_format.split(':')):
+        if f == 'AD':
+            ad_idx = i
+
+    # get idx from FORMAT field for AD, which is equal to the value in the same index of SAMPLE field
+    sample_ad = float(sample.split(':')[ad_idx].split(',')[-1])
+
+    return qual / sample_ad
+
+
 def get_var_type(info: str) -> str:
     """
-    Return ...;<subinfo_name>="<subinfo>";... from INFO field in VCF file
+    Return ...;TYPE="<type>";... from INFO field in VCF file
 
     Parameters
     ----------
@@ -367,49 +395,38 @@ def get_var_type(info: str) -> str:
     
     Returns
     -------
-    <subinfo> : subinfo in INFO field
+    <type> : TYPE in INFO field
     """
 
-    try:
+    start = info.index("TYPE=") + 5
 
-        start = info.index("TYPE=") + 5
+    if not info.strip('/n').endswith(';') and ";" not in info[start:-1]:
 
-        if not info.strip('/n').endswith(';') and ";" not in info[start:-1]:
+        return info[start:]
 
-            return info[start:]
+    else:
 
-        else:
-
-            end = info.index(';', start)
-
-            return info[start:end]
-
-    except ValueError:
-        return ""
-
-
-def get_cigar(info: str) -> str:
-    """
-    Return ...;<subinfo_name>="<subinfo>";... from INFO field in VCF file
-
-    Parameters
-    ----------
-    info : INFO field in VCF file
-    
-    Returns
-    -------
-    <subinfo> : subinfo in INFO field
-    """
-
-    try:
-
-        start = info.index("CIGAR=") + 6
-        end = info.index( ";", start )
+        end = info.index(';', start)
 
         return info[start:end]
 
-    except ValueError:
-        return ""
+def get_cigar(info: str) -> str:
+    """
+    Return ...;CIGAR="<cigar>";... from INFO field in VCF file
+
+    Parameters
+    ----------
+    info : INFO field in VCF file
+    
+    Returns
+    -------
+    <cigar> : CIGAR in INFO field
+    """
+
+    start = info.index("CIGAR=") + 6
+    end = info.index( ";", start )
+
+    return info[start:end]
 
 
 def get_cigar_info(info: str) -> str:
@@ -545,94 +562,102 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
                 vcf_line = Vcf(line)
 
                 var_type = get_var_type(vcf_line.info)
+
                 variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = [], [], [], []
 
-                # multiple type of variations
-                if var_type == 'complex':
+                normalized_quality = get_normalized_quality(vcf_line.qual, vcf_line.sample_format, vcf_line.sample)
 
-                    cigar, cigar_len = get_cigar_info(vcf_line.info)
+                if normalized_quality <= 24.0: # TODO arrange the value
 
-                    variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
+                    print(vcf_line)
 
-                # mnp : multiple consecutive snps, del : deletion, ins : insertion
-                elif var_type in [ 'mnp', 'del', 'ins' ]:
+                else:
+                    # multiple type of variations
+                    if var_type == 'complex':
 
-                    cigar, cigar_len = get_cigar_info(vcf_line.info)
+                        cigar, cigar_len = get_cigar_info(vcf_line.info)
 
-                    variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
+                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
 
-                # snp
-                elif var_type == 'snp':
+                    # mnp : multiple consecutive snps, del : deletion, ins : insertion
+                    elif var_type in [ 'mnp', 'del', 'ins' ]:
 
-                    # it equals to the reference    
-                    if vcf_line.sample.startswith('0'):
+                        cigar, cigar_len = get_cigar_info(vcf_line.info)
 
-                        continue
+                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
 
-                    # it equals to the alternate len = 1
-                    else:
+                    # snp
+                    elif var_type == 'snp':
 
-                        if len (vcf_line.alt) > 1 and len(vcf_line.alt) == len(vcf_line.ref):
+                        # it equals to the reference    
+                        if vcf_line.sample.startswith('0'):
 
-                            for sb in range(len(vcf_line.alt)):
+                            continue
 
-                                variation_pos_list.append(vcf_line.pos+sb)
-                                variation_ref_list.append(vcf_line.ref[sb])
-                                variation_alt_list.append(vcf_line.alt[sb])
+                        # it equals to the alternate len = 1
+                        else:
+
+                            if len (vcf_line.alt) > 1 and len(vcf_line.alt) == len(vcf_line.ref):
+
+                                for sb in range(len(vcf_line.alt)):
+
+                                    variation_pos_list.append(vcf_line.pos+sb)
+                                    variation_ref_list.append(vcf_line.ref[sb])
+                                    variation_alt_list.append(vcf_line.alt[sb])
+                                    variation_qual_list.append(vcf_line.qual)
+
+                            else:
+                                variation_pos_list.append(vcf_line.pos)
+                                variation_ref_list.append(vcf_line.ref)
+
+                                if len(vcf_line.alt) == 1:
+                                    alt_idx = 0
+                                else:
+                                    alt_idx = int(vcf_line.sample[0])
+
+                                variation_alt_list.append(vcf_line.alt.split(",")[alt_idx])
+
                                 variation_qual_list.append(vcf_line.qual)
 
-                        else:
-                            variation_pos_list.append(vcf_line.pos)
-                            variation_ref_list.append(vcf_line.ref)
+                    if vcf_line.chr not in sample_variation_dict.keys():
+
+                        if var_type == 'snp':
 
                             if len(vcf_line.alt) == 1:
                                 alt_idx = 0
                             else:
                                 alt_idx = int(vcf_line.sample[0])
 
-                            variation_alt_list.append(vcf_line.alt.split(",")[alt_idx])
+                            info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[alt_idx]}-{vcf_line.qual}'
 
-                            variation_qual_list.append(vcf_line.qual)
+                            sample_variation_dict[vcf_line.chr] = Info(info_line)
 
-                if vcf_line.chr not in sample_variation_dict.keys():
-
-                    if var_type == 'snp':
-
-                        if len(vcf_line.alt) == 1:
-                            alt_idx = 0
                         else:
-                            alt_idx = int(vcf_line.sample[0])
 
-                        info_line = f'{vcf_line.pos}*{vcf_line.ref}>{vcf_line.alt.split(",")[alt_idx]}-{vcf_line.qual}'
+                            first_info_fields_list = []
 
-                        sample_variation_dict[vcf_line.chr] = Info(info_line)
+                            for i in range(len(variation_pos_list)):
+
+                                variation_pos_list.append(vcf_line.pos)
+                                variation_ref_list.append(vcf_line.ref)
+                                variation_alt_list.append(vcf_line.alt.split(',')[alt_idx])
+                                variation_qual_list.append(vcf_line.qual)
+                                
+                                first_info_fields_list.append(f'{variation_pos_list[i]}*{variation_ref_list[i]}>{variation_alt_list[i]}-{variation_qual_list[i]}')
+
+                            if len(first_info_fields_list) != 0:
+
+                                # allele_field # s := sample
+                                sample_variation_dict[vcf_line.chr] = Info(",".join(first_info_fields_list))
 
                     else:
 
-                        first_info_fields_list = []
-
                         for i in range(len(variation_pos_list)):
 
-                            variation_pos_list.append(vcf_line.pos)
-                            variation_ref_list.append(vcf_line.ref)
-                            variation_alt_list.append(vcf_line.alt.split(',')[alt_idx])
-                            variation_qual_list.append(vcf_line.qual)
-                            
-                            first_info_fields_list.append(f'{variation_pos_list[i]}*{variation_ref_list[i]}>{variation_alt_list[i]}-{variation_qual_list[i]}')
-
-                        if len(first_info_fields_list) != 0:
-
-                            # allele_field # s := sample
-                            sample_variation_dict[vcf_line.chr] = Info(",".join(first_info_fields_list))
-
-                else:
-
-                    for i in range(len(variation_pos_list)):
-
-                        sample_variation_dict[vcf_line.chr].pos_list.append(variation_pos_list[i])
-                        sample_variation_dict[vcf_line.chr].ref_list.append(variation_ref_list[i])
-                        sample_variation_dict[vcf_line.chr].alt_list.append(variation_alt_list[i])
-                        sample_variation_dict[vcf_line.chr].qual_list.append(variation_qual_list[i])
+                            sample_variation_dict[vcf_line.chr].pos_list.append(variation_pos_list[i])
+                            sample_variation_dict[vcf_line.chr].ref_list.append(variation_ref_list[i])
+                            sample_variation_dict[vcf_line.chr].alt_list.append(variation_alt_list[i])
+                            sample_variation_dict[vcf_line.chr].qual_list.append(variation_qual_list[i])
 
     for sample_cds, variations in sample_variation_dict.items():
 
@@ -1011,14 +1036,14 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds]) 
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
-    if args.update_reference == 'True':
+    # if args.update_reference == 'True':
 
-        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
-        os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
-        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
-        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
-        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
-        os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
+    #     os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
+    #     os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
+    #     os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
+    #     os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
+    #     os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
+    #     os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
 
     try:
 
@@ -1127,7 +1152,7 @@ def write_variations_to_reference_vcf_file(cds: str, temp_sample_vcf_dir: str, r
                 
                         vcf_line.chr = cds + '_' + ref_allele_id
                         vcf_line.info = "."
-                        vcf_line.format = "GT"
+                        vcf_line.sample_format = "GT"
                         vcf_line.sample = '1'
 
                         temp_sample_vcf_file.write(str(vcf_line))
