@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
+
 #################################################################################
 ## author: @fatmakhv                                                           ##
 ## date: 17/10/2021                                                            ##
 ## aim: create info file for the sample and write novel alleles to schema seed ##
 #################################################################################
+
 
 import argparse, os
 
@@ -921,6 +924,10 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     ref_allele_id = '1' # cds.split('_')[1]
     
     sample_variation_dict = create_sample_variation_dict(ref_allele_id)
+    
+    ref_gc_content_dict = get_GC_content_of_each_sequence_in_a_fasta_file(args.reference_fasta)
+    
+    print(ref_gc_content_dict)
 
     reference_allele_variation_dict = read_reference_info_txt(info_file=args.reference_info)
 
@@ -1181,6 +1188,47 @@ def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
         novel_allele_id_of_cds_dict[cds] = max(map(int, alleles.keys())) + 1
 
     return novel_allele_id_of_cds_dict
+
+
+def calculate_GC_content_of_sequence(seq: str) -> float:
+    """
+    Takes sequence and calculates its GC-content
+
+    Parameter
+    ---------
+    seq : FASTA sequence
+
+    Return
+    ------
+    gc_value : Total number of G and C bases / The length of seq
+    """
+
+    return float("{:.2f}".format(float(seq.count('G')+seq.count('C')) / float(len(seq))))
+
+
+def get_GC_content_of_each_sequence_in_a_fasta_file(file_name: str) -> dict:
+    """
+    Reads FASTA file and returns the GC-content for each sequence inside it.
+
+    Parameter
+    ---------
+    file_name : Name of FASTA-formatted file to be read
+
+    Return
+    ------
+    seq_dict : { <seq1_id> : GC(seq1_seq), ...}
+    """
+
+    from Bio import SeqIO
+
+    seq_dict = dict()
+    for seq_record in SeqIO.parse(file_name, "fasta"):
+
+        seq = str(seq_record.seq)
+
+        seq_dict[seq_record.id] = calculate_GC_content_of_sequence(seq)
+
+    return seq_dict
 
 
 if __name__ == "__main__":

@@ -93,8 +93,7 @@ rule sort_filter_zip_index_vcf:
         echo "Output compressed file is {output.reference_vcf_gz}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         bcftools sort {input.reference_vcf} -Ov -o {params.temp_reference_vcf}
-        vcffilter -f "QUAL > 24" {params.temp_reference_vcf} > {input.reference_vcf}
-        rm {params.temp_reference_vcf}
+        mv {params.temp_reference_vcf} {input.reference_vcf}
         bgzip {input.reference_vcf} && tabix -p vcf {output.reference_vcf_gz}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}

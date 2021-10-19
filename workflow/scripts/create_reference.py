@@ -103,22 +103,20 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 				vcf_line = vcf(line)
 
-				if float(vcf_line.qual) > 24.0:
-
-					has_variant = True
+				has_variant = True
 	
-					pos_ref = f'{vcf_line.pos}*{vcf_line.ref}'
+				pos_ref = f'{vcf_line.pos}*{vcf_line.ref}'
 
-					if not pos_ref in pos_dict.keys():
+				if not pos_ref in pos_dict.keys():
 
-						pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
+					pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
 
-					else:	# if there is a proof for a high quality variant take
+				else:	# if there is a proof for a high quality variant take
 							# with the highest
 
-						if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
+					if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
 
-							pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
+						pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
 
 		file.close()
 

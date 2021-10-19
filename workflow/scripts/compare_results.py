@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+#################################################################################
+## author: @fatmakhv                                                           ##
+## date: 18/10/2021                                                            ##
+## aim: compare allele IDs assigned by chewBBACA, and milestone (VG) and (SBG) ##
+#################################################################################
+
+
 import argparse
 
 
@@ -154,10 +161,11 @@ def print_results():
 
 if __name__ == "__main__":
 
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(add_help=True)
 
 	parser.add_argument('-f', '--file', type=str, required=True, help='Name of the file. field1=<cds_name>, field2=<first_tsv>, field3=<second_tsv>')
 	parser.add_argument('-a', '--aligner', type=str, required=True, help='The aligner to create the outputs. one of them [ sbg, args.aligner ]')
+
 	args = parser.parse_args()
 
 	print_results()
@@ -166,12 +174,4 @@ if __name__ == "__main__":
 # Commands to compare #
 #######################
 
-# awk '{ print $1"\t"$2 }' ERR1624739.tsv > ERR1624739.tsv.;
-# sort ERR1624739.tsv. > ERR1624739_chewbbaca.tsv
-
-# sort ERR1624739_mlst.tsv > ERR1624739_sbg.tsv.;
-# mv ERR1624739_sbg.tsv. ERR1624739_sbg.tsv;
-
-# join -1 1 -2 1 ERR1624739_chewbbaca.tsv ERR1624739_sbg.tsv > ERR1624739_chewbbaca_sbg.tsv;
-
-# python compare_results.py -f ERR1624739_chewbbaca_sbg.tsv -a sbg;
+# bash merge_chew_and_mile_allele_results.sh ERR1624739
