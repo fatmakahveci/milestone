@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# author: fatmakhv
+# author: @fatmakhv
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
