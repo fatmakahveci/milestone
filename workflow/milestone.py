@@ -42,6 +42,9 @@ def create_config():
         ## schema_creation log file
         output_file.write(f'schema_creation_log_file: "{schema_creation_log_file}"\n')
 
+        ## name of aligner vg or sbg
+        # output_file.write(f'aligner: "{args.aligner}"\n')
+        
         output_file.write(f'output_dir: {args.output.rstrip("/")}\n')
 
     ## Run to create <sample.mlst> or
@@ -58,6 +61,7 @@ def create_config():
 
         ## name of aligner vg or sbg
         output_file.write(f'aligner: "{args.aligner}"\n')
+        
         output_file.write(f'output_dir: {args.output.rstrip("/")}\n')
         output_file.write(f'aligner_reference: {os.path.join(args.output, f"{args.aligner}/{args.reference}")}\n')
 
@@ -130,101 +134,107 @@ def create_snakefile():
 
 def parse_arguments():
 
-    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser = argparse.ArgumentParser(add_help = False)
 
     ########################################
     # SNAKEMAKE PARAMETERS
     parent_parser.add_argument('-n', '--dryrun', '--dry-run',
-        help="Snakemake - Do not execute anything, and display what would be\
+        help = "Snakemake - Do not execute anything, and display what would be\
              done. If you have a very large workflow, use --dry-run --quiet to\
              just print a summary of the DAG of jobs. (default: False)",
-        default=False,
+        default = False,
         action='store_true', 
-        required=False)
+        required = False)
 
     parent_parser.add_argument('-p', '--printshellcmds',
-        help='Snakemake - Print out the shell commands that will be executed. (default: False)',
-        default=False,
+        help = 'Snakemake - Print out the shell commands that will be executed. (default: False)',
+        default = False,
         action='store_true',
-        required=False)
+        required = False)
 
     parent_parser.add_argument('-s', '--snakefile',
-        help="Snakemake - The workflow definition in form of a snakefile.\
+        help = "Snakemake - The workflow definition in form of a snakefile.\
              Usually, you should not need to specify this. By default,\
              Snakemake will search for 'Snakefile','snakefile',\
              'workflow/Snakefile', 'workflow/snakefile' beneath the current\
              working directory, in this order. Only if you definitely want a\
              different layout, you need to use this parameter. (default: Snakefile)",
-        default='Snakefile',
-        required=False)
+        default = 'Snakefile',
+        required = False)
 
     parent_parser.add_argument('-t', '--threads', '--set-threads',
-        help='Snakemake - Overwrite thread usage of rules. This allows to\
+        help = 'Snakemake - Overwrite thread usage of rules. This allows to\
              fine-tune workflow parallelization. In particular, this is\
              helpful to target certain cluster nodes by e.g. shifting a rule\
              to use more, or less threads than defined in the workflow.\
              Thereby, THREADS has to be a positive integer, and RULE has to be\
              the name of the rule. (default: 1)',
-        required=False,
-        type=int,
-        default=1)
+        required = False,
+        type = int,
+        default = 1)
 
     parent_parser.add_argument('-F', '--forceall',
-        help='Snakemake - Force the execution of the selected (or the first)\
+        help = 'Snakemake - Force the execution of the selected (or the first)\
              rule and all rules it is dependent on regardless of already\
              created output. (default: False)',
-        default=False,
+        default = False,
         action='store_true',
-        required=False)
+        required = False)
 
     parent_parser.add_argument('--ri', '--rerun-incomplete',
-        help='Snakemake - Re-run all jobs the output of which is recognized\
+        help = 'Snakemake - Re-run all jobs the output of which is recognized\
              as incomplete. (default: False)',
-        default=False,
+        default = False,
         action='store_true',
-        required=False)
+        required = False)
 
     parent_parser.add_argument('--unlock',
-        help='Snakemake - Remove a lock on the working directory. (default: False)',
-        default=False,
+        help = 'Snakemake - Remove a lock on the working directory. (default: False)',
+        default = False,
         action='store_true',
-        required=False)
+        required = False)
 
     parent_parser.add_argument('-q', '--quiet',
-        help='Snakemake - Do not output any progress or rule information. (default: False)',
-        default=False,
+        help = 'Snakemake - Do not output any progress or rule information. (default: False)',
+        default = False,
         action='store_true',
-        required=False)
+        required = False)
 
     # REFERENCE FILES PARAMETER
     parent_parser.add_argument('-r', '--reference',
-        help='Name of reference file to be given without extension and directory.\
+        help = 'Name of reference file to be given without extension and directory.\
              (Both VCF and FASTA file name of the reference.) (required)',
-        required=True)
+        required = True)
     
     ########################################
 
-    parser = argparse.ArgumentParser(add_help=True)
+    parser = argparse.ArgumentParser(add_help = True)
 
     subparsers = parser.add_subparsers(title='commands',
-        dest='command')
+        dest = 'command')
 
     ########################################
     # milestone.py schema_creation mode PARAMETERS
     schema_creation_parser = subparsers.add_parser("schema_creation",
-        parents=[parent_parser],
-        description='schema_creation',
-        help='schema_creation - Run schema_creation workflow to create FASTA and VCF files\
+        parents = [parent_parser],
+        description = 'schema_creation',
+        help = 'schema_creation - Run schema_creation workflow to create FASTA and VCF files\
              for reference genome.')
 
+    # schema_creation_parser.add_argument('-a', '--aligner',
+    #     type = str,
+    #     default = 'vg',
+    #     required = False,
+    #     help = 'Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)')
+
     schema_creation_parser.add_argument('-sn', '--schema_name',
-        type=str,
-        help='Schema name with its directory containing user-provided coding sequences and their alleles. (required)',
-        required=True)
+        type = str,
+        help = 'Schema name with its directory containing user-provided coding sequences and their alleles. (required)',
+        required = True)
 
     schema_creation_parser.add_argument('-o', '--output', 
-        help='Directory to be created for the output files. (required)',
-        required=True)
+        help = 'Directory to be created for the output files. (required)',
+        required = True)
 
     ########################################
 
@@ -232,42 +242,42 @@ def parse_arguments():
     # milestone.py allele_calling mode PARAMETERS
 
     allele_calling_parser = subparsers.add_parser("allele_calling",
-        parents=[parent_parser],
-        description='Allele Calling and Reference Update',
-        help='Allele Calling and Reference Update- Choose VG or SBG GRAF aligners to align reads\
+        parents = [parent_parser],
+        description = 'Allele Calling and Reference Update',
+        help = 'Allele Calling and Reference Update- Choose VG or SBG GRAF aligners to align reads\
              onto the reference genome and Call Alleles. (Optional: --update_reference)')
 
     allele_calling_parser.add_argument('--aligner',
-        help='Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)',
-        default='vg',
-        required=False)
+        help = 'Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)',
+        default = 'vg',
+        required = False)
 
     allele_calling_parser.add_argument('-e', '--read1',
-        type=str,
-        help='Allele Calling and Reference Update - Sample first read including its directory. (required)',
-        required=True)
+        type = str,
+        help = 'Allele Calling and Reference Update - Sample first read including its directory. (required)',
+        required = True)
 
     allele_calling_parser.add_argument('-E', '--read2',
-        type=str,
-        help='Allele Calling and Reference Update - Sample second read including its directory. (required)',
-        required=True)
+        type = str,
+        help = 'Allele Calling and Reference Update - Sample second read including its directory. (required)',
+        required = True)
 
     allele_calling_parser.add_argument('--ur', '--update_reference',
-        help='Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after\
+        help = 'Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after\
              the alignment of the given sample. (default: False)',
-        dest='update_reference',
-        default=False,
+        dest = 'update_reference',
+        default = False,
         action='store_true',
-        required=False)
+        required = False)
 
     allele_calling_parser.add_argument('-sn', '--schema_name',
-        type=str,
-        help='Schema name with its directory containing the user-defined coding sequences and their alleles, and novel allele sequences. (required)',
-        required=True)
+        type = str,
+        help = 'Schema name with its directory containing the user-defined coding sequences and their alleles, and novel allele sequences. (required)',
+        required = True)
 
     allele_calling_parser.add_argument('-o', '--output', 
-        help='Allele Calling and Reference Update - Directory to be created for the output files. (required)',
-        required=True)
+        help = 'Allele Calling and Reference Update - Directory to be created for the output files. (required)',
+        required = True)
 
     ########################################
 

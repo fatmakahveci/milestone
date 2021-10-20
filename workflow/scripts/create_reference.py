@@ -13,7 +13,7 @@ from io import StringIO  # python3
 from pathlib import Path
 
 
-class vcf:
+class Vcf:
 
 	def __init__(self, vcf_line):
 
@@ -40,7 +40,7 @@ class vcf:
 
 def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
 	"""
-	Writes the variants of alleles that are not equal to the reference CDS
+	Write the variants of alleles that are not equal to the reference CDS
 
 	Parameters
 	----------
@@ -77,7 +77,7 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 
 def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
 	"""
-	Reads {sample}.vcf to create dictionary that contains positions
+	Read {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
 
 	Parameters
@@ -101,7 +101,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 			if not line.startswith("#"):
 
-				vcf_line = vcf(line)
+				vcf_line = Vcf(line)
 
 				has_variant = True
 	
@@ -129,7 +129,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 def get_allele_id_from_allele_name(allele_name: str) -> str:
 	"""
-	Gets {cds_name}_{allele_id} and returns {allele_id}
+	Get {cds_name}_{allele_id} and return {allele_id}
 
 	Parameters
 	----------
@@ -147,7 +147,7 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
 	"""
-	Gets {cds_name}_{allele_id} and returns {cds_name}
+	Get {cds_name}_{allele_id} and return {cds_name}
 	Parameters
 	----------
 	allele_name : {cds_name}_{allele_id}
@@ -161,9 +161,40 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 	return cds_name
 
 
-def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str, threads: str) -> dict:
+def call_variants_of_allele( reference: str, sample: str ) -> None:
 	"""
-	Creates allele dictionary for given CDS
+	Align sample sequences onto the reference and create sample.vcf
+
+	Parameter
+	---------
+	reference: <reference> in <reference>.fasta
+	sample: name of sample to be aligned onto the <reference.fasta>
+	"""
+
+	os.system(f"minimap2 -c --cs=long -t {args.threads} {reference}.fasta {sample}.fasta | sort -k6,6 -k8,8n | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - > {sample}.vcf")
+
+
+def zip_and_index_vcf_files(vcf_file: str) -> None:
+	"""
+	Zip and index vcf file
+	
+	Parameter
+	---------
+	vcf_file : Name of vcf file to be zipped and indexed, with its directory
+	"""
+	
+	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -p vcf {vcf_file}.gz")
+
+
+# def remove_redundant_files():
+	# os.system(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam;"
+	#					f" rm {sample}.sorted.bam; rm {sample}.bam.bai; rm "
+	#					f"{sample}.sorted.bam.bai; rm {sample}.vcf;")
+
+
+def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str) -> dict:
+	"""
+	Create allele dictionary for given CDS
 
 	Parameters
 	----------
@@ -171,7 +202,6 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	allele_name : {cds_name}_{allele_id}
 	cds_dir : alleles' directory that contains sequences of alleles
 	cds_name : CDS name to create its allele dictionary
-	threads : number of threads to run minimap2
 
 	Returns
 	-------
@@ -183,28 +213,19 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	allele_id = get_allele_id_from_allele_name(allele_name)
 
 	# create <sample_allele.vcf>
-	command = f"minimap2 -c --cs=long {reference}.fasta {sample}.fasta | sort -k6,6 -k8,8n | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - > {sample}.vcf"
-	subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
+	call_variants_of_allele(reference, sample)
 
 	# {sample}.vcf contains {allele_id}'s variants for {cds_name}
 	allele_dict = get_ref_alt_qual_of_position_s_variant_dict(f'{sample}.vcf', cds_name, allele_id)
 
-	command_list = []
+	zip_and_index_vcf_files(f'{sample}.vcf')
 
-	command_list.append(f"bgzip -f {sample}.vcf > {sample}.vcf.gz")
-	command_list.append(f"tabix -p vcf {sample}.vcf.gz")
-	# command_list.append(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam;"
-	#					f" rm {sample}.sorted.bam; rm {sample}.bam.bai; rm "
-	#					f"{sample}.sorted.bam.bai; rm {sample}.vcf;")
-
-	for command in command_list:
-
-		subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
+	# remove_redundant_files()
 
 	return allele_dict
 
 
-def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threads: str) -> list:
+def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list) -> list:
 	"""
 	Creates CDS list
 
@@ -213,7 +234,6 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 	cds_dir : alleles' directory that contains sequences of alleles
 	cds_fasta : FASTA file for CDS
 	cds_to_merge_list : all CDSs for reference vcf
-	threads : number of threads to run minimap2
 
 	Returns
 	-------
@@ -261,7 +281,7 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list, threa
 					out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
 					out_file.close()
 
-				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cds_dir, cds_name, threads)
+				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cds_dir, cds_name)
 
 	except FileNotFoundError:
 
@@ -430,7 +450,7 @@ def get_cds_list() -> list:
 	return cds_list
 
 
-def create_dirs_to_split_sequences_to_use_in_minimap2() -> None:
+def create_dirs_to_split_sequences_to_call_variants() -> None:
 	"""
 	delete references and alleles directory including its content,
 	which is created by milestone.py create_schema
@@ -479,28 +499,49 @@ if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser(add_help = True)
 
-	parser.add_argument('--schema_dir', required=True,
-						help='sequence of alleles\' directory')
-	parser.add_argument('--reference_vcf', required=True,
-						help='VCF file of reference genome')
-	parser.add_argument('--reference_fasta', required=True,
-						help='FASTA file of reference genome')
-	parser.add_argument('--reference_info', required=True,
+	parser.add_argument('-s', '--schema_dir', 
+						type = str,
+						required = True,
+						help = 'Directory of allele sequences.')
+
+	parser.add_argument('-v', '--reference_vcf',
+						type = str,
+						required = True,
+						help = 'VCF file of reference genome.')
+	
+	parser.add_argument('-f', '--reference_fasta',
+						type = str,
+						required=True,
+						help = 'FASTA file of reference genome.')
+	
+	parser.add_argument('-i', '--reference_info',
+						type = str,
+						required=True,
 						help='Info file of reference genome')
-	parser.add_argument('--threads', required=True,
-						help='Number of threads')
+	
+	parser.add_argument('-t', '--threads',
+						type = str,
+						required = False,
+						default = '1',
+						help='Number of threads [ default: 1 ].')
+	
+	# parser.add_argument('-a', '--aligner',
+	# 					type = str,
+	# 					required = False,
+	# 					default = 'vg',
+	# 					help = 'Aligner: vg or sbg [ default: vg ].')
 
 	args = parser.parse_args()
 
 	cds_list = get_cds_list()
 
-	create_dirs_to_split_sequences_to_use_in_minimap2()
+	create_dirs_to_split_sequences_to_call_variants()
 
 	cds_to_merge_list = [] # to merge all CDSs for reference vcf
 
 	for cds in cds_list:
 
-		create_cds_list(args.schema_dir, cds, cds_to_merge_list, args.threads)
+		create_cds_list(args.schema_dir, cds, cds_to_merge_list)
 
 	create_reference_vcf_fasta(args.schema_dir, cds_to_merge_list)
 

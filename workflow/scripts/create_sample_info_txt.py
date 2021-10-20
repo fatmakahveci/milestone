@@ -570,11 +570,8 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 normalized_quality = get_normalized_quality(vcf_line.qual, vcf_line.sample_format, vcf_line.sample)
 
-                if normalized_quality <= 24.0: # TODO arrange the value
+                if normalized_quality > 24.0:
 
-                    print(vcf_line)
-
-                else:
                     # multiple type of variations
                     if var_type == 'complex':
 
@@ -626,7 +623,7 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                         if var_type == 'snp':
 
-                            if len(vcf_line.alt) == 1:
+                            if len(vcf_line.alt.split(',')) == 1:
                                 alt_idx = 0
                             else:
                                 alt_idx = int(vcf_line.sample[0])
@@ -640,6 +637,12 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
                             first_info_fields_list = []
 
                             for i in range(len(variation_pos_list)):
+
+                                if len(vcf_line.alt.split(',')) == 1:
+                                    alt_idx = 0
+
+                                else:
+                                    alt_idx = int(vcf_line.sample[0])
 
                                 variation_pos_list.append(vcf_line.pos)
                                 variation_ref_list.append(vcf_line.ref)
@@ -925,9 +928,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     
     sample_variation_dict = create_sample_variation_dict(ref_allele_id)
     
-    ref_gc_content_dict = get_GC_content_of_each_sequence_in_a_fasta_file(args.reference_fasta)
-    
-    print(ref_gc_content_dict)
+    # ref_gc_content_dict = get_GC_content_of_each_sequence_in_a_fasta_file(args.reference_fasta)
 
     reference_allele_variation_dict = read_reference_info_txt(info_file=args.reference_info)
 
@@ -937,6 +938,8 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     sample_allele_dict = {}
 
     for cds, coverage in get_cds_coverage_info().items():
+
+        # print(cds, coverage.coverage, ref_gc_content_dict[cds], float(coverage.coverage)/ref_gc_content_dict[cds])
 
         sample_cds = cds.split('_')[0]
 
@@ -1021,7 +1024,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                         if len(sample_variation_dict[sample_cds].pos_list) != 0:
 
-                    #         write_allele_sequence_to_schema_seed(sample_cds, ref_allele_id, cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
+                            # write_allele_sequence_to_schema_seed(sample_cds, ref_allele_id, cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
                             write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds])
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
@@ -1043,14 +1046,14 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                             write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds]) 
                             write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
 
-    # if args.update_reference == 'True':
+    if args.update_reference == 'True':
 
-    #     os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
-    #     os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
-    #     os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
-    #     os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
-    #     os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
-    #     os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
+        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
+        os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
+        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
+        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
+        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
+        os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
 
     try:
 
