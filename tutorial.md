@@ -73,7 +73,7 @@ This tutorial aims to create multilocus sequence typing (MLST) from the user-def
 ```bash
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htslib=1.13 fastp=0.12 freebayes=1.3.2 minimap2=2.17 pysam=0.16.0.1 samtools=1.13 snakemake=5.32.2 vg=1.34
+conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htslib=1.13 fastp=0.12 freebayes=1.3.2 minimap2=2.22 pysam=0.16.0.1 samtools=1.13 snakemake=5.32.2 vg=1.34
 ```
 
 - You can activate the created environment to work in it:
@@ -103,7 +103,7 @@ conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htsli
 ```bash
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htslib=1.13 fastp=0.12 freebayes=1.3.2 minimap2=2.17 pysam=0.16.0.1 samtools=1.13 snakemake=5.32.2 
+conda create --name milestone bcftools=1.13 biopython=1.79 chewbbaca=2.7.0 htslib=1.13 fastp=0.12 freebayes=1.3.2 minimap2=2.22 pysam=0.16.0.1 samtools=1.13 snakemake=5.32.2 
 ```
 
 - VG only have conda installation for Linux so you need to install VG to your local by following the steps in [VG](https://github.com/vgteam/vg#building-on-macos)'s website as an additional step.
