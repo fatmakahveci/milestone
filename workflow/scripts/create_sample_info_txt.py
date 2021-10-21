@@ -125,12 +125,12 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
     """
     Get <cds-name> from <cds-name_allele-id>
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     allele_name : <cds-name_allele-id>
 
-    Return
-    ------
+    Returns
+    -------
     cds_name : <cds-name>
     """
 
@@ -143,12 +143,12 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     """
     Get <allele-id> from <cds-name_allele-id>
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     allele_name : <cds-name_allele-id>
 
-    Return
-    ------
+    Returns
+    -------
     allele_id : <allele-id>
     """
 
@@ -157,17 +157,91 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     return allele_id
 
 
-def remove_common_suffices(var1: str, var2: str) -> [ str, str ]:
+def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
     """
-    Take two variations and remove the common suffices
-
-    Parameter
-    ---------
-    var1 : variation sequence
-    var2 : variation sequence
+    Reads reference_info.txt and returns allele ID dictionary
+    for each CDS in reference_info.txt
 
     Return
     ------
+    novel_allele_id_of_cds_dict: {CDS: {allele_id: allele_info} ...}
+    """
+
+    novel_allele_id_of_cds_dict = {}
+
+    for cds, alleles in read_reference_info_txt(args.reference_info).items():
+
+        novel_allele_id_of_cds_dict[cds] = max( map( int, alleles.keys() ) ) + 1
+
+    return novel_allele_id_of_cds_dict
+
+
+def get_GC_content_of_each_sequence_in_a_fasta_file(file_name: str) -> dict:
+    """
+    Reads FASTA file and returns the GC-content for each sequence inside it.
+
+    Parameter
+    ---------
+    file_name : Name of FASTA-formatted file to be read
+
+    Return
+    ------
+    seq_dict : { <seq1_id> : GC(seq1_seq), ...}
+    """
+
+    from Bio import SeqIO
+
+    seq_dict = dict()
+    for seq_record in SeqIO.parse( file_name, "fasta" ):
+
+        seq = str(seq_record.seq)
+
+        seq_dict[seq_record.id] = calculate_GC_content_of_sequence(seq)
+
+    return seq_dict
+
+
+def compare_sequence_against_all_alleles_of_cds( sample_cds : str, sample_cds_sequence: str ) -> [ str, str ]:
+    """
+    Take the CDS sequence of sample and compare against all allele sequences of CDS in reference database
+
+    Parameter
+    ---------
+    sample_cds : Name of CDS to be evaluated
+    sample_cds_sequence : CDS sequence of sample
+
+    Return
+    ------
+    allele_id : Allele ID -> returns if there is an equal allele, Novel: returns a new allele ID
+    is_novel : If it is a novel allele, returns number of alleles of CDS + 1
+    """
+
+    from Bio import SeqIO
+
+    for seq_record in SeqIO.parse( os.path.join(args.schema_dir, sample_cds+'.fasta'), "fasta" ):
+
+        seq = str(seq_record.seq)
+
+        if seq == sample_cds_sequence:
+            # is_novel = False
+            print(sample_cds, seq_record.id)
+            return False, str(seq_record.id)
+
+    # is_novel = True
+    return True, novel_allele_id_of_cds_dict[sample_cds]
+
+
+def remove_common_suffices(var1: str, var2: str) -> [str, str]:
+    """
+    Take two variations and remove the common suffices
+
+    Parameters
+    ----------
+    var1 : variation sequence
+    var2 : variation sequence
+
+    Returns
+    -------
     var1 : updated variation 1 of which common suffix is deleted
     var2 : updated variation 2 of which common suffix is deleted
     """
@@ -262,12 +336,12 @@ def remove_redundance(variations: Info) -> Info:
     """
     Remove common prefices and suffices from both reference and alternate
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     variations : Info
 
-    Return
-    ------
+    Returns
+    -------
     variations : updated variations with removed suffices and prefices
     """
 
@@ -324,12 +398,12 @@ def merge_variations(variations: Info) -> Info:
     Take the variations for reference_info.txt file
     Merge the variations of which positions are intersected.
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     variations : variations in reference_info.txt file
 
-    Return
-    ------
+    Returns
+    -------
     variations : merged variations for reference_info.txt file
     """
 
@@ -363,18 +437,18 @@ def merge_variations(variations: Info) -> Info:
 
 def get_normalized_quality(qual: float, sample_format: str, sample: str) -> float:
     """
-    Take the line in VCF file and from SAMPLE field
+    Takes the line in VCF file and from SAMPLE field
     calculates normalized quality using the following formula, QUAL/AD
     https://gatk.broadinstitute.org/hc/en-us/articles/360056968272-QualByDepth
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     qual : QUAL field in VCF file
     sample_format : FORMAT field in VCF file
     sample : SAMPLE field in VCF file
 
-    Return
-    ------
+    Returns
+    -------
     normalized_quality : QUAL/AD := VCF[5]/SAMPLE[AD], where the index is 0-based.
     """
 
@@ -393,12 +467,12 @@ def get_var_type(info: str) -> str:
     """
     Return ...;TYPE="<type>";... from INFO field in VCF file
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     info : INFO field in VCF file
     
-    Return
-    ------
+    Returns
+    -------
     <type> : TYPE in INFO field
     """
 
@@ -413,6 +487,7 @@ def get_var_type(info: str) -> str:
         end = info.index(';', start)
 
         return info[start:end]
+
 
 def get_cigar(info: str) -> str:
     """
@@ -721,7 +796,7 @@ def read_reference_info_txt(info_file: str) -> dict:
 
 def get_cds_coverage_info() -> dict:
     """
-    Get the output of `samtools coverage` and creates cds dictionary
+    Gets the output of `samtools depth` and creates cds dictionary
     for its results
 
     Return
@@ -749,8 +824,8 @@ def get_reference_cds_seq_dict() -> dict:
     """
     Reads <reference.fasta> and returns cds_seq_dict
 
-    Return
-    ------
+    Returns
+    -------
     cds_seq_dict : { cds1: seq1, cds2: seq2, ... }
     """
     from Bio import SeqIO
@@ -769,15 +844,15 @@ def insert_variations_into_sequence(cds_reference: str, pos_list: list, ref_list
     Takes reference sequence of CDS and inserts variations
     to create sequence with variations for CDS
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     cds_reference : reference sequence for given CDS
     pos_list : list of variation positions for given CDS
     ref_list : reference bases of variations in pos_list for given CDS
     alt_list : alternate bases of variations in pos_list for given CDS
 
-    Return
-    ------
+    Returns
+    -------
     cds_reference : CDS sequence with variations
     """
     
@@ -831,35 +906,7 @@ def quality_check(seq: str, ref_seq: str) -> bool:
     return "LNF"
 
 
-def compare_sequence_against_all_alleles_of_cds( sample_cds : str, sample_cds_sequence: str ) -> [ str, str ]:
-    """
-    Take the CDS sequence of sample and compare against all allele sequences of CDS in reference database
-
-    Parameter
-    ---------
-    sample_cds : Name of CDS to be evaluated
-    sample_cds_sequence : CDS sequence of sample
-
-    Return
-    ------
-    allele_id : Allele ID -> returns if there is an equal allele, Novel: returns a new allele ID
-    is_novel : If it is a novel allele, returns number of alleles of CDS + 1
-    """
-
-    is_novel = True
-
-    allele_id = 1
-
-    if is_novel:
-    
-        return is_novel, novel_allele_id_of_cds_dict[cds]
-    
-    else:
-    
-        return is_novel, allele_id
-
-
-def compare_ref_to_sample_variations( cds: str, ref_allele_id: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info ) -> int:
+def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
     """
     Compare reference variations to sample variations
 
@@ -881,7 +928,7 @@ def compare_ref_to_sample_variations( cds: str, ref_allele_id: str, cds_seq_dict
     # cds length check
     diff_len = 0
 
-    for ref, alt in zip( sample_cds_info.ref_list, sample_cds_info.alt_list ):
+    for ref, alt in zip(sample_cds_info.ref_list, sample_cds_info.alt_list):
 
         if alt == '.':
 
@@ -902,7 +949,7 @@ def compare_ref_to_sample_variations( cds: str, ref_allele_id: str, cds_seq_dict
 
         cds_reference = cds_seq_dict[f'{cds}_{ref_allele_id}']
 
-        allele_id = quality_check( insert_variations_into_sequence( cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list ), cds_reference )
+        allele_id = quality_check(insert_variations_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
         
         if allele_id == "EQ":
 
@@ -929,13 +976,13 @@ def compare_ref_to_sample_variations( cds: str, ref_allele_id: str, cds_seq_dict
                 
                     else:
 
-                        # checkpoint
-                        is_novel, allele_id = compare_sequence_against_all_alleles_of_cds( cds, cds_seq_dict[f'{cds}_{ref_allele_id}'] )
+                        is_novel = True
+                        allele_id = str(novel_allele_id_of_cds_dict[cds])
 
                 else:
 
-                    # checkpoint
-                    is_novel, allele_id = compare_sequence_against_all_alleles_of_cds( cds, cds_seq_dict[f'{cds}_{ref_allele_id}'] )
+                    is_novel = True
+                    allele_id = str(novel_allele_id_of_cds_dict[cds])
 
         else:
 
@@ -1163,7 +1210,7 @@ def write_variations_to_reference_vcf_file( cds: str, temp_sample_vcf_dir: str, 
     Parameter
     ---------
     cds : CDS name
-    temp_sample_vcf_dir : Temporary directory to put sample vcf files in
+    temp_sample_vcf_dir : Temporary directory to put sample vcf files
     ref_allele_id : Allele ID of reference sequence of CDS
     cds_variation : list of variations in allele of CDS
     """
@@ -1212,25 +1259,6 @@ def write_variations_to_reference_vcf_file( cds: str, temp_sample_vcf_dir: str, 
     os.system(f'bgzip -f {temp_sample_vcf_file_name} && tabix -p vcf {temp_sample_vcf_file_name}.gz')
 
 
-def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
-    """
-    Reads reference_info.txt and returns allele ID dictionary
-    for each CDS in reference_info.txt
-
-    Return
-    ------
-    novel_allele_id_of_cds_dict: {CDS: {allele_id: allele_info} ...}
-    """
-
-    novel_allele_id_of_cds_dict = {}
-
-    for cds, alleles in read_reference_info_txt(args.reference_info).items():
-
-        novel_allele_id_of_cds_dict[cds] = max( map( int, alleles.keys() ) ) + 1
-
-    return novel_allele_id_of_cds_dict
-
-
 def calculate_GC_content_of_sequence(seq: str) -> float:
     """
     Takes sequence and calculates its GC-content
@@ -1245,31 +1273,6 @@ def calculate_GC_content_of_sequence(seq: str) -> float:
     """
 
     return float("{:.2f}".format(float( seq.count('G')+seq.count('C') ) / float(len(seq)) ))
-
-
-def get_GC_content_of_each_sequence_in_a_fasta_file(file_name: str) -> dict:
-    """
-    Reads FASTA file and returns the GC-content for each sequence inside it.
-
-    Parameter
-    ---------
-    file_name : Name of FASTA-formatted file to be read
-
-    Return
-    ------
-    seq_dict : { <seq1_id> : GC(seq1_seq), ...}
-    """
-
-    from Bio import SeqIO
-
-    seq_dict = dict()
-    for seq_record in SeqIO.parse( file_name, "fasta" ):
-
-        seq = str(seq_record.seq)
-
-        seq_dict[seq_record.id] = calculate_GC_content_of_sequence(seq)
-
-    return seq_dict
 
 
 if __name__ == "__main__":
