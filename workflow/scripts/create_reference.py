@@ -1,21 +1,94 @@
 #!/usr/bin/env python3
 
-#####################################################
-## Author: @fatmakhv							   ##
-## The latest update: 17/10/2021				   ##
-## Aim: Reference FASTA VCF and INFO file creation ##
-#####################################################
+######################################################
+## Author: @fatmakhv @rafaelmamede                  ##
+## The latest update: 26/10/2021                    ##
+## Aim: Reference FASTA, VCF and INFO file creation ##
+######################################################
 
 
-import argparse, glob, os, shutil, subprocess
+import argparse, glob, os, shutil, subprocess, sys
+
 from Bio import SeqIO
 from io import StringIO  # python3
 from pathlib import Path
 
 
+class Info:
+
+    def __init__(self, line):
+
+        pos_list, ref_list, alt_list, qual_list = [], [], [], []
+
+        for variation in line.split(','):
+
+            pos_end_idx = variation.index('*')
+            pos = int(variation[ : pos_end_idx ])
+
+            ref_end_idx = variation.index('>')
+            ref = variation[ pos_end_idx +1 : ref_end_idx ]
+
+            alt_end_idx = variation.index('-')
+            alt = variation[ ref_end_idx + 1 : alt_end_idx ]
+                        
+            qual = variation[ alt_end_idx + 1 : ] 
+            
+            pos_list.append(pos)
+            ref_list.append(ref)
+            alt_list.append(alt)
+            qual_list.append(qual)
+
+        self.pos_list = pos_list
+        self.ref_list = ref_list
+        self.alt_list = alt_list
+        self.qual_list = qual_list
+
+    def __repr__(self):
+
+        return f'positions: {" ".join(list(map(str, self.pos_list)))}\n' \
+                f'refs: {" ".join(self.ref_list)}\n' \
+                f'alts: {" ".join(self.alt_list)}\n' \
+                f'quals: {" ".join(list(map(str, self.qual_list)))}\n'
+
+
+class Paf:
+
+	def __init__( self, paf_line ):
+
+		fields = paf_line.strip('\n').split('\t')
+
+		self.qname = fields[0]
+		self.qlen = int(fields[1])
+		self.qstart = int(fields[2])
+		self.qend = int(fields[3])
+		self.strand = fields[4]
+		self.tname = fields[5]
+		self.tlen = int(fields[6])
+		self.tstart = int(fields[7])
+		self.tend = int(fields[8])
+		self.nmatch = int(fields[9])
+		self.alen = int(fields[10])
+		self.mapq = int(fields[11])
+
+	def __repr__(self):
+
+		return f"query sequence name: {self.qname}\t" \
+			   f"query sequence length: {self.qlen}\t" \
+			   f"query start: {self.qstart}\t" \
+			   f"query end: {self.qend}\t" \
+			   f"strand (+ or -): {self.strand}\t" \
+			   f"target sequence name: {self.tname}\t" \
+			   f"target sequence length: {self.tlen}\t" \
+			   f"target start: {self.tstart}\t" \
+			   f"target end: {self.tend}\t" \
+			   f"number of matching bases in the mapping: {self.nmatch}\t" \
+			   f"number of bases including gaps in the mapping: {self.alen}\t" \
+			   f"mapping quality:{self.mapq}\n"
+
+
 class Vcf:
 
-	def __init__(self, vcf_line):
+	def __init__( self, vcf_line ):
 
 		fields = vcf_line.split('\t')
 
@@ -32,13 +105,55 @@ class Vcf:
 
 	def __repr__(self):
 
-		return f"chr: {self.chr}\tpos: {self.pos}\tid: {self.id}\tref: " \
-				f"{self.ref}\talt: {self.alt}\tqual: {self.qual}\tfilter: " \
-				f"{self.filter}\tinfo: {self.info}\tformat: {self.sample_format}\t" \
-				f"sample: {self.sample}"
+		return f"chr: {self.chr}\t" \
+			   f"pos: {self.pos}\t" \
+			   f"id: {self.id}\t" \
+			   f"ref: {self.ref}\t" \
+			   f"alt: {self.alt}\t" \
+			   f"qual: {self.qual}\t" \
+			   f"filter: {self.filter}\t" \
+			   f"info: {self.info}\t" \
+			   f"format: {self.sample_format}\t" \
+			   f"sample: {self.sample}\n"
 
 
-def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, pos_dict: dict) -> None:
+def get_cds_name_from_allele_name(allele_name: str) -> str:
+	"""
+	Get {cds_name}_{allele_id} and return {cds_name}
+
+	Parameters
+	----------
+	allele_name : {cds_name}_{allele_id}
+
+	Returns
+	-------
+	cds_name : name of CDS for given allele_name
+	"""
+
+	cds_name = allele_name.strip("\n").split("_")[0]
+
+	return cds_name
+
+
+def get_allele_id_from_allele_name(allele_name: str) -> str:
+	"""
+	Get {cds_name}_{allele_id} and return {allele_id}
+
+	Parameters
+	----------
+	allele_name : {cds_name}_{allele_id}
+
+	Returns
+	-------
+	allele_id : allele ID for given allele_name
+	"""
+
+	allele_id = allele_name.strip("\n").split("_")[-1]
+
+	return allele_id
+
+
+def write_allele_defining_variant_list_to_file( cds_name: str, sv_at_edges: str, allele_id: str, pos_dict: dict ) -> None:
 	"""
 	Write the variants of alleles that are not equal to the reference CDS
 
@@ -48,6 +163,8 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 	allele_id : ID of allele of which variant will be written
 	pos_dict : positions of variants for the allele
 	"""
+
+	# checkpoint : sv_at_edges unsorted variations
 
 	with open(args.reference_info, 'a') as out_file:
 
@@ -75,7 +192,7 @@ def write_allele_defining_variant_list_to_file(cds_name: str, allele_id: str, po
 		out_file.close()
 
 
-def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, allele_id: str) -> dict:
+def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, sv_at_edges: list, cds_name: str, allele_id: str) -> dict:
 	"""
 	Read {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
@@ -83,6 +200,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 	Parameters
 	----------
 	vcf_file : {sample}.vcf contains {allele_id}'s variants for {cds_name}
+	sv_at_edges : Info-formatted variations consisting of uncovered variations
 	cds_name : name of CDS of which positions will be taken
 	allele_id : ID of allele of CDS of which positions will be taken
 
@@ -111,7 +229,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 					pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
 
-				else:	# if there is a proof for a high quality variant take
+				else:    # if there is a proof for a high quality variant take
 							# with the highest
 
 					if pos_dict[pos_ref][vcf_line.alt] <= vcf_line.qual:
@@ -120,48 +238,177 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, cds_name: str, al
 
 		file.close()
 
+	for variation in sv_at_edges:
+		print(variation)
+
 	if has_variant:
 
-		write_allele_defining_variant_list_to_file(cds_name, allele_id, pos_dict)
+		write_allele_defining_variant_list_to_file( cds_name, sv_at_edges, allele_id, pos_dict )
 
 	return pos_dict
 
 
-def get_allele_id_from_allele_name(allele_name: str) -> str:
+def merge_intervals(intervals: dict) -> list:
 	"""
-	Get {cds_name}_{allele_id} and return {allele_id}
+	Merge intersecting intervals
 
-	Parameters
-	----------
-	allele_name : {cds_name}_{allele_id}
+	Parameter
+	---------
+	intervals: Dictionary with sequence identifiers as keys and a list of
+			   lists as values. Each sublist has a start and stop position
+			   in the sequence and a dictionary with the coverage for
+			   every position in the sequence interval.
 
-	Returns
-	-------
-	allele_id : allele ID for given allele_name
-	"""
-
-	allele_id = allele_name.strip("\n").split("_")[-1]
-
-	return allele_id
-
-
-def get_cds_name_from_allele_name(allele_name: str) -> str:
-	"""
-	Get {cds_name}_{allele_id} and return {cds_name}
-	Parameters
-	----------
-	allele_name : {cds_name}_{allele_id}
-	Returns
-	-------
-	cds_name : name of CDS for given allele_name
+	Return
+	------
+	merged: Dictionary with the result of merging intervals
+			that overlapped (coverage data is updated and
+			incremented for positions in common).
 	"""
 
-	cds_name = allele_name.strip("\n").split("_")[0]
+	from copy import deepcopy
 
-	return cds_name
+	merged = [ deepcopy(intervals[0]) ]
+
+	for current in intervals[1:]:
+
+		previous = merged[-1]
+
+		# current and previous intervals intersect
+		if current[0] <= previous[1]:
+
+			# determine top position
+			previous[1] = max( previous[1], current[1] )
+
+		# current and previous intervals do not intersect
+		else:
+
+			merged.append( deepcopy(current) )
+
+	return merged
 
 
-def call_variants_of_allele( reference: str, sample: str ) -> None:
+def read_paf_file(file_name: str) -> None:
+	"""
+	Return aligned positions in reference and sample
+
+	Parameter
+	---------
+	file_name : Name of Paf file
+	"""
+
+	paf_list = []
+	mapped_reference_regions, mapped_sample_regions = {}, {}
+	with open( file_name, 'r' ) as file:
+
+		for i, line in enumerate(file.readlines()):
+			
+			paf_line = Paf(line)
+			paf_list.append(paf_line)
+
+			if i == 0:
+				cds_len = paf_line.tlen
+
+			mapped_reference_regions.setdefault(paf_line.tname, []).append([paf_line.tstart, paf_line.tend])
+			mapped_sample_regions.setdefault(paf_line.tname, []).append([paf_line.qstart, paf_line.qend])
+
+		file.close()
+
+	merged_reference_intervals = { k: merge_intervals(v) for k, v in mapped_reference_regions.items() }
+	cds_merged_reference_interval_list = merged_reference_intervals[list(merged_reference_intervals.keys())[0]]
+	
+	merged_sample_intervals = { k: merge_intervals(v) for k, v in mapped_sample_regions.items() }
+	cds_merged_sample_interval_list = merged_sample_intervals[list(merged_sample_intervals.keys())[0]]
+
+	return paf_list, get_nonintersecting_intervals( cds_merged_reference_interval_list, paf_line.tlen ), get_nonintersecting_intervals( cds_merged_sample_interval_list, paf_line.qlen ), paf_line.mapq
+
+
+def get_nonintersecting_intervals(interval_list : list, cds_len: int) -> list:
+	"""
+	Take the length of CDS and aligned regions
+	Extract the unaligned regions
+
+	Parameter
+	---------
+	interval_list : List of aligned regions
+	cds_len : Length of CDS to define range
+
+	Return
+	------
+	nonintersecting_interval_list : List of unaligned regions
+	"""
+
+	nonintersecting_interval_list = list()
+	for i, interval in enumerate(interval_list):
+		
+		if i == 0 and interval[0] != 0:
+			nonintersecting_interval_list.append([0, interval[0] - 1])
+
+		if i < len(interval_list) - 1:
+			nonintersecting_interval_list.append([interval[1] + 1, interval_list[i+1][0] - 1])
+
+		if i == len(interval_list) - 1 and interval[1] < cds_len:
+			nonintersecting_interval_list.append([ interval[1] + 1, cds_len])
+
+	return nonintersecting_interval_list
+
+
+def remove_common_suffices(var1: str, var2: str) -> [str, str]:
+    """
+    Take two variations and remove the common suffices
+
+    Parameters
+    ----------
+    var1 : variation sequence
+    var2 : variation sequence
+
+    Returns
+    -------
+    var1 : updated variation 1 of which common suffix is deleted
+    var2 : updated variation 2 of which common suffix is deleted
+    """
+
+    check_len = min(len(var1), len(var2))
+
+    var1 = var1[::-1]
+    var2 = var2[::-1]
+
+    i=0
+    while i < check_len and var1[i] == var2[i]:
+
+        i+=1
+
+    return var1[i:][::-1], var2[i:][::-1]
+
+
+def remove_common_prefices(pos: int, var1: str, var2: str) -> [ int, str, str ]:
+    """
+    Take two variations and remove the common prefices
+
+    Parameter
+    ---------
+    pos : position of the variation which might be affected by the change
+    var1 : variation sequence
+    var2 : variation sequence
+
+    Return
+    ------
+    pos : position of the variation which might be affected by the change
+    var1 : updated variation 1 of which common prefix is deleted
+    var2 : updated variation 2 of which common prefix is deleted
+    """
+
+    check_len = min(len(var1), len(var2))
+
+    i=0
+    while i < check_len and var1[i] == var2[i]:
+
+        i+=1
+
+    return pos+i, var1[i:], var2[i:]
+
+
+def call_variants_of_allele( reference: str, sample: str ) -> str:
 	"""
 	Align sample sequences onto the reference and create sample.vcf
 
@@ -169,9 +416,131 @@ def call_variants_of_allele( reference: str, sample: str ) -> None:
 	---------
 	reference: <reference> in <reference>.fasta
 	sample: name of sample to be aligned onto the <reference.fasta>
+
+	Return
+	------
+	sv_at_edges : info-formatted string to add reference files
 	"""
 
-	os.system(f"minimap2 -c --cs=long -t {args.threads} {reference}.fasta {sample}.fasta | sort -k6,6 -k8,8n | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - > {sample}.vcf")
+	sv_at_edges = []
+
+	# match : 1, mismatch : 4, gap_opening : 6, gap_extend : 1 (Graph aligner's)
+	os.system(f"minimap2 -c --cs=long -t {args.threads} -A 1 -B 4 -O 6 -E 1 {reference}.fasta {sample}.fasta 2>/dev/null > {sample}.paf;")
+	os.system(f"sort -k6,6 -k8,8n {sample}.paf | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - 2>/dev/null > {sample}.vcf;")
+
+	cds_allele = sample.strip('\n').split('/')[-1].split('_')
+	cds, allele_id = cds_allele[0], cds_allele[-1]
+
+	reference_seq = str(list(SeqIO.parse(StringIO(open(f'{reference}.fasta', 'r').read()), 'fasta'))[0].seq)
+
+	sample_seq = str(list(SeqIO.parse(StringIO(open(f'{sample}.fasta', 'r').read()), 'fasta'))[0].seq)
+
+	if os.path.getsize(f'{sample}.paf') != 0:
+
+		paf_list, unaligned_reference_pos_list, unaligned_sample_pos_list, mapq = read_paf_file(f'{sample}.paf')
+
+		if unaligned_reference_pos_list != [] or unaligned_sample_pos_list != []:
+
+			if unaligned_sample_pos_list == []:
+
+				if unaligned_reference_pos_list[0][0] == 0:
+
+					unaligned_sample_pos_list.insert( 0, [ 0, 0 ] )
+
+				elif unaligned_reference_pos_list[-1][1] == paf_list[0].tlen:
+
+					unaligned_sample_pos_list.append( [ paf_list[0].qlen, paf_list[0].qlen ] )
+
+			# missing interval in the reference : i.e. [[479, 618]] [[0, 71], [562, 582]]
+			if len(unaligned_reference_pos_list) < len(unaligned_sample_pos_list):
+
+				# sample[0,...] : i.e.[[479, 618]] [[0, 71], [562, 582]]
+				if unaligned_reference_pos_list[0][0] != 0 and unaligned_sample_pos_list[0][0] == 0:
+
+					unaligned_reference_pos_list.insert( 0, [ 0, 0 ] )
+
+			elif len(unaligned_reference_pos_list) > len(unaligned_sample_pos_list):
+
+				if unaligned_reference_pos_list[0][0] == 0 and unaligned_sample_pos_list[0][0] != 0:
+
+					unaligned_sample_pos_list.insert( 0, [ 0, 0 ] )
+
+			if len(unaligned_reference_pos_list) == len(unaligned_sample_pos_list):
+
+				if unaligned_reference_pos_list[0][1] == paf_list[0].tlen and unaligned_sample_pos_list[0][0] == 0:
+
+					unaligned_reference_pos_list.insert( 0, [ 0, 0 ] )
+					unaligned_sample_pos_list.append( [ paf_list[0].qlen, paf_list[0].qlen ] )
+
+			for pos_ref, pos_alt in zip(unaligned_reference_pos_list, unaligned_sample_pos_list):
+
+				# take the different-sized variations
+				if pos_ref[1] - pos_ref[0] != pos_alt[1] - pos_alt[0]:
+
+					# both at the beginning
+					if pos_ref[0] == 0 and pos_alt[0] == 0:
+
+						# deletion at the beginning
+						if pos_ref[1] != 0 and pos_alt[1] == 0:
+
+							pos = 1
+							ref = reference_seq[ pos_ref[0] : pos_ref[1] + 2 ]
+							alt = sample_seq[ pos_alt[0] : pos_alt[1] + 1 ]
+
+						# insertion at the beginning
+						elif pos_ref[1] == 0 and pos_alt[1] != 0:
+
+							pos = 1
+							ref = reference_seq[0]
+							alt = sample_seq[ pos_alt[0] : pos_alt[1] + 2 ] # 0-based -> 1-based & cover the last index
+
+						# alignment at the beginning
+						else:
+
+							pos = 1
+							ref = reference_seq[ pos_ref[0] : pos_ref[1] + 2 ]
+							alt = sample_seq[ pos_alt[0] : pos_alt[1] + 2 ]
+
+					# both at the end
+					elif pos_ref[1] == paf_list[0].tlen and pos_alt[1] == paf_list[0].qlen:
+
+						# insertion at the end
+						if pos_ref[0] == paf_list[0].tlen:
+
+							pos = pos_ref[0] - 2
+							ref = reference_seq[-1]
+							alt = sample_seq[ pos_alt[0] - 2 : pos_alt[1] + 1 ]
+
+						# deletion at the end
+						elif pos_alt[0] == paf_list[0].qlen:
+
+							pos = pos_ref[0] - 1
+							ref = reference_seq[ pos_ref[0] - 2 : ]
+							alt = sample_seq[-1]
+
+						# alignment at the end
+						else:
+
+							pos = pos_ref[0] - 1
+							ref = reference_seq[ pos_ref[0] - 1 : ]
+							alt = sample_seq[ pos_alt[0] - 1 : ]
+
+					# alt is inserted at the end
+					elif pos_ref[1] == paf_list[0].tlen and pos_alt[0] == 0:
+
+						pos = pos_ref[1] - 1
+						ref = reference_seq[-1]
+						alt = sample_seq[ : pos_alt[1] + 2 ]
+
+					else:
+
+						pos = pos_ref[0] - 1
+						ref = reference_seq[ pos_ref[0] - 1 : pos_ref[1] + 2 ]
+						alt = sample_seq[ pos_alt[0] - 1 : pos_alt[1] + 2 ]
+
+					sv_at_edges.append( Info(f'{pos}*{ref}>{alt}-{mapq}\n') )
+
+	return sv_at_edges
 
 
 def zip_and_index_vcf_files(vcf_file: str) -> None:
@@ -186,10 +555,18 @@ def zip_and_index_vcf_files(vcf_file: str) -> None:
 	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -p vcf {vcf_file}.gz")
 
 
-# def remove_redundant_files():
-	# os.system(f"rm {sample}.fasta; rm {sample}.sam; rm {sample}.bam;"
-	#					f" rm {sample}.sorted.bam; rm {sample}.bam.bai; rm "
-	#					f"{sample}.sorted.bam.bai; rm {sample}.vcf;")
+def remove_redundant_files(sample: str) -> None:
+	"""
+	Take the name of sample and remove the related files
+
+	Parameter
+	---------
+	sample : Name of sample with its directory.
+	"""
+
+	for extension in [ "fasta", "sam", "bam", "sorted.bam", "bam.bai", "sorted.bam.bai", "vcf" ]:
+
+		os.system( f"rm {sample}.{extension}")
 
 
 def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str) -> dict:
@@ -213,10 +590,10 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	allele_id = get_allele_id_from_allele_name(allele_name)
 
 	# create <sample_allele.vcf>
-	call_variants_of_allele(reference, sample)
+	sv_at_edges = call_variants_of_allele( reference, sample )
 
 	# {sample}.vcf contains {allele_id}'s variants for {cds_name}
-	allele_dict = get_ref_alt_qual_of_position_s_variant_dict(f'{sample}.vcf', cds_name, allele_id)
+	allele_dict = get_ref_alt_qual_of_position_s_variant_dict( f'{sample}.vcf', sv_at_edges, cds_name, allele_id )
 
 	zip_and_index_vcf_files(f'{sample}.vcf')
 
@@ -255,7 +632,7 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list) -> li
 
 				if ref_allele_id == '1':
 			
-					out_file = open(f"{args.schema_dir}/references/{ref_allele_name}.fasta", 'w')
+					out_file = open( f"{args.schema_dir}/references/{ref_allele_name}.fasta", 'w' )
 
 					# allele_id
 					out_file.write(f'>{ref_allele_name}\n')
@@ -296,7 +673,6 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list) -> li
 			cds_name = cds_fasta[:-6]
 
 			if cds_name.endswith('_short'):
-
 				cds_name = cds_name[:-6]
 
 		elif cds_fasta.endswith('.fa'):
@@ -304,7 +680,6 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list) -> li
 			cds_name = cds_fasta[:-3]
 
 			if cds_name.endswith('_short'):
-
 				cds_name = cds_name[:-6]
 
 		wd = f"{cds_dir}/alleles/{cds_name}" # directory of allele's vcf files
@@ -351,7 +726,7 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 	cds_to_merge_list : all CDSs for reference vcf
 	"""
 
-	reference_file = open(f"{args.reference_vcf}.temp", 'w')
+	reference_file = open( f"{args.reference_vcf}.temp", 'w' )
 
 	contig_info_set = set()
 
@@ -359,7 +734,7 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 
 		cds_vcf_file_name = f"{wd}/alleles/{cds}/{cds}.vcf"
 
-		with open(cds_vcf_file_name, 'r') as cds_file:
+		with open( cds_vcf_file_name, 'r' ) as cds_file:
 
 			for line in cds_file.readlines():
 
@@ -387,9 +762,9 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 
 	reference_file.close()
 
-	header_file = open(f"{wd}/alleles/header.txt", 'w')
+	header_file = open( f"{wd}/alleles/header.txt", 'w' )
 
-	header = [	'##fileformat=VCFv4.2',
+	header = [  '##fileformat=VCFv4.2',
 				'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
 				'##FORMAT=<ID=PL,Number=G,Type=Float,Description="Phred-scaled Genotype Likelihoods">',
 				'##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">',
@@ -402,7 +777,7 @@ def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
 				'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
 				'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
 				'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
-			]
+			 ]
 
 	header.extend(list(contig_info_set))
 
@@ -467,7 +842,7 @@ def create_dirs_to_split_sequences_to_call_variants() -> None:
 	except OSError:
 
 		print(f"Creation of the directories {args.schema_dir}/references "
-							f"and {args.schema_dir}/alleles are failed.")
+			  f"and {args.schema_dir}/alleles are failed.")
 
 
 def delete_sequences_created_by_milestone() -> None:
@@ -526,10 +901,10 @@ if __name__ == "__main__":
 						help='Number of threads [ default: 1 ].')
 	
 	# parser.add_argument('-a', '--aligner',
-	# 					type = str,
-	# 					required = False,
-	# 					default = 'vg',
-	# 					help = 'Aligner: vg or sbg [ default: vg ].')
+	#                     type = str,
+	#                     required = False,
+	#                     default = 'vg',
+	#                     help = 'Aligner: vg or sbg [ default: vg ].')
 
 	args = parser.parse_args()
 
@@ -552,4 +927,3 @@ if __name__ == "__main__":
 	reference_info_txt_file.touch(exist_ok=True)
 
 	delete_sequences_created_by_milestone()
-	
