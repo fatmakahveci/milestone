@@ -283,7 +283,7 @@ def remove_common_prefices(pos: int, var1: str, var2: str) -> [ int, str, str ]:
 
         i+=1
 
-    return pos-i, var1[i:], var2[i:]
+    return pos+i, var1[i:], var2[i:]
 
 
 def remove_common_mid(pos: int, var1: str, var2: str, qual: int) -> [ list, list, list, list, int ]:
@@ -654,8 +654,8 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 normalized_quality = get_normalized_quality(vcf_line.qual, vcf_line.sample_format, vcf_line.sample)
 
-                if normalized_quality > 24.0:
-
+                # if normalized_quality > 24.0:
+                if True:
                     # multiple type of variations
                     if var_type == 'complex':
 
