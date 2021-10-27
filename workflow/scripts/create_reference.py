@@ -2,7 +2,7 @@
 
 ######################################################
 ## Author: @fatmakhv @rafaelmamede                  ##
-## The latest update: 26/10/2021                    ##
+## The latest update: 27/10/2021                    ##
 ## Aim: Reference FASTA, VCF and INFO file creation ##
 ######################################################
 
@@ -10,6 +10,7 @@
 import argparse, glob, os, shutil, subprocess, sys
 
 from Bio import SeqIO
+from collections import OrderedDict
 from io import StringIO  # python3
 from pathlib import Path
 
@@ -209,7 +210,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, sv_at_edges: list
 	pos_dict : Dictionary of variant positions for allele
 	"""
 
-	pos_dict = {}
+	pos_dict = OrderedDict()
 
 	has_variant = False
 
@@ -227,7 +228,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, sv_at_edges: list
 
 				if not pos_ref in pos_dict.keys():
 
-					pos_dict[pos_ref] = {vcf_line.alt:vcf_line.qual}
+					pos_dict[pos_ref] = { vcf_line.alt : vcf_line.qual }
 
 				else:    # if there is a proof for a high quality variant take
 							# with the highest
@@ -238,14 +239,31 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, sv_at_edges: list
 
 		file.close()
 
-	for variation in sv_at_edges:
-		print(variation)
+	for info in sv_at_edges:
+
+		has_variant = True
+		
+		for i in range(len(info.pos_list)):
+
+			pos_ref = f'{info.pos_list[i]}*{info.ref_list[i]}'
+
+			if not pos_ref in pos_dict.keys():
+
+				pos_dict[pos_ref] = { info.alt_list[i] : info.qual_list[i] }
+
+			else:
+
+				if pos_dict[pos_ref][info.alt_list[i]] <= info.qual_list[i]:
+
+					pos_dict[pos_ref][info.alt_list[i]] = info.qual_list[i]
+
+	sorted_pos_dict = OrderedDict(sorted(pos_dict.items(), key=lambda t: int(t[0].split('*')[0])))
 
 	if has_variant:
 
-		write_allele_defining_variant_list_to_file( cds_name, sv_at_edges, allele_id, pos_dict )
+		write_allele_defining_variant_list_to_file( cds_name, sv_at_edges, allele_id, sorted_pos_dict )
 
-	return pos_dict
+	return sorted_pos_dict
 
 
 def merge_intervals(intervals: dict) -> list:
@@ -567,6 +585,29 @@ def remove_redundant_files(sample: str) -> None:
 	for extension in [ "fasta", "sam", "bam", "sorted.bam", "bam.bai", "sorted.bam.bai", "vcf" ]:
 
 		os.system( f"rm {sample}.{extension}")
+
+
+def convert_info_into_vcf(sv_at_edges: list) -> list:
+	"""
+	Convert info into vcf format
+
+	Parameter
+	---------
+	sv_at_edges : long indels that cannot be managed by minimap2,
+	              especially at the edges. Info-formatted list.
+
+	Return
+	------
+	vcf_list : vcf lines representing SVs at edges.
+	"""
+
+	vcf_list = []
+
+	for info in sv_at_edges:
+
+		print(info)
+
+	return vcf_list
 
 
 def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str) -> dict:
