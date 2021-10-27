@@ -341,7 +341,7 @@ def read_paf_file(file_name: str) -> None:
 	return paf_list, get_nonintersecting_intervals( cds_merged_reference_interval_list, paf_line.tlen ), get_nonintersecting_intervals( cds_merged_sample_interval_list, paf_line.qlen ), paf_line.mapq
 
 
-def get_nonintersecting_intervals(interval_list : list, cds_len: int) -> list:
+def get_nonintersecting_intervals( interval_list : list, cds_len: int ) -> list:
 	"""
 	Take the length of CDS and aligned regions
 	Extract the unaligned regions
@@ -371,7 +371,7 @@ def get_nonintersecting_intervals(interval_list : list, cds_len: int) -> list:
 	return nonintersecting_interval_list
 
 
-def remove_common_suffices(var1: str, var2: str) -> [str, str]:
+def remove_common_suffices( var1: str, var2: str ) -> [str, str]:
     """
     Take two variations and remove the common suffices
 
@@ -399,7 +399,7 @@ def remove_common_suffices(var1: str, var2: str) -> [str, str]:
     return var1[i:][::-1], var2[i:][::-1]
 
 
-def remove_common_prefices(pos: int, var1: str, var2: str) -> [ int, str, str ]:
+def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str ]:
     """
     Take two variations and remove the common prefices
 
@@ -556,27 +556,31 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 						ref = reference_seq[ pos_ref[0] - 1 : pos_ref[1] + 2 ]
 						alt = sample_seq[ pos_alt[0] - 1 : pos_alt[1] + 2 ]
 
-					sv_at_edges.append( Info(f'{pos}*{ref}>{alt}-{mapq}\n') )
+					sv_at_edges.append( Info(f'{pos}*{ref}>{alt}-{mapq}') )
 
 	return sv_at_edges
 
 
-def zip_and_index_vcf_files(vcf_file: str) -> None:
+def sort_zip_and_index_vcf_files(vcf_file: str) -> None:
 	"""
-	Zip and index vcf file
+	Sort, zip, and index vcf file
 	
 	Parameter
 	---------
-	vcf_file : Name of vcf file to be zipped and indexed, with its directory
+	vcf_file : Name of vcf file with its directory
 	"""
-	
-	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -p vcf {vcf_file}.gz")
+
+	# @todo: These might be shortened.
+	os.system(f"bcftools sort {vcf_file} -Ov -o {vcf_file}. 2>/dev/null")
+	os.system(f"mv {vcf_file}. {vcf_file}")
+	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz")
+	os.system(f"bcftools concat -a --rm-dups none {vcf_file}.gz -Ov -o {vcf_file} 2>/dev/null")
+	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz")
 
 
 def remove_redundant_files(sample: str) -> None:
 	"""
 	Take the name of sample and remove the related files
-
 	Parameter
 	---------
 	sample : Name of sample with its directory.
@@ -587,7 +591,7 @@ def remove_redundant_files(sample: str) -> None:
 		os.system( f"rm {sample}.{extension}")
 
 
-def convert_info_into_vcf(sv_at_edges: list) -> list:
+def convert_info_into_vcf( sv_at_edges: list, cds_name: str, allele_name: str ) -> list:
 	"""
 	Convert info into vcf format
 
@@ -595,6 +599,8 @@ def convert_info_into_vcf(sv_at_edges: list) -> list:
 	---------
 	sv_at_edges : long indels that cannot be managed by minimap2,
 	              especially at the edges. Info-formatted list.
+	cds_name : name of cds
+	allele_name : name of allele
 
 	Return
 	------
@@ -605,12 +611,33 @@ def convert_info_into_vcf(sv_at_edges: list) -> list:
 
 	for info in sv_at_edges:
 
-		print(info)
+		for i in range(len(info.pos_list)):
+
+			vcf_list.append(f'{cds_name}_1\t{info.pos_list[i]}\t.\t{info.ref_list[i]}\t{info.alt_list[i]}\t{info.qual_list[i]}\t.\tQNAME={allele_name};QSTART={info.pos_list[i]};QSTRAND=+\tGT\t1')
 
 	return vcf_list
 
 
-def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str, cds_name: str) -> dict:
+def insert_sv_at_edges_to_vcf( sample_vcf_file: str, cds_name: str, allele_name: str, sv_at_edges: list ) -> None:
+	"""
+	Add long indels to sample's vcf file to represent the allele
+
+	Parameter
+	---------
+	sample_vcf_file : <sample.vcf> file to add the long indels
+	sv_at_edges : list of variations (esp. long indels) to be added
+	"""
+
+	with open( sample_vcf_file, 'a' ) as file:
+
+		for vcf_line in convert_info_into_vcf( sv_at_edges, cds_name, allele_name ):
+
+			file.write(f'{vcf_line}')
+
+		file.close()
+
+
+def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str, cds_name: str ) -> dict:
 	"""
 	Create allele dictionary for given CDS
 
@@ -636,14 +663,16 @@ def create_allele_dict_for_a_cds(write_dir: str, allele_name: str, cds_dir: str,
 	# {sample}.vcf contains {allele_id}'s variants for {cds_name}
 	allele_dict = get_ref_alt_qual_of_position_s_variant_dict( f'{sample}.vcf', sv_at_edges, cds_name, allele_id )
 
-	zip_and_index_vcf_files(f'{sample}.vcf')
+	insert_sv_at_edges_to_vcf( f'{sample}.vcf', cds_name, allele_name, sv_at_edges )
+
+	sort_zip_and_index_vcf_files(f'{sample}.vcf')
 
 	# remove_redundant_files()
 
 	return allele_dict
 
 
-def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list) -> list:
+def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> list:
 	"""
 	Creates CDS list
 
@@ -757,9 +786,9 @@ def create_cds_list(cds_dir: str, cds_fasta: str, cds_to_merge_list: list) -> li
 	return cds_to_merge_list
 
 
-def create_reference_vcf_fasta(wd: str, cds_to_merge_list: list) -> None:
+def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 	"""
-	Creates FASTA file for reference 
+	Creates FASTA file for reference
 
 	Parameters
 	----------
@@ -940,12 +969,6 @@ if __name__ == "__main__":
 						required = False,
 						default = '1',
 						help='Number of threads [ default: 1 ].')
-	
-	# parser.add_argument('-a', '--aligner',
-	#                     type = str,
-	#                     required = False,
-	#                     default = 'vg',
-	#                     help = 'Aligner: vg or sbg [ default: vg ].')
 
 	args = parser.parse_args()
 
