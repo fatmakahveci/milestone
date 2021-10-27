@@ -167,7 +167,7 @@ def write_allele_defining_variant_list_to_file( cds_name: str, sv_at_edges: str,
 
 	# checkpoint : sv_at_edges unsorted variations
 
-	with open(args.reference_info, 'a') as out_file:
+	with open( args.reference_info, 'a' ) as out_file:
 
 		out_file.write(f'{cds_name}_{allele_id}\t')
 
@@ -193,7 +193,7 @@ def write_allele_defining_variant_list_to_file( cds_name: str, sv_at_edges: str,
 		out_file.close()
 
 
-def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, sv_at_edges: list, cds_name: str, allele_id: str) -> dict:
+def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, sv_at_edges: list, cds_name: str, allele_id: str ) -> dict:
 	"""
 	Read {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
@@ -214,7 +214,7 @@ def get_ref_alt_qual_of_position_s_variant_dict(vcf_file: str, sv_at_edges: list
 
 	has_variant = False
 
-	with open(vcf_file, 'r') as file:
+	with open( vcf_file, 'r' ) as file:
 
 		for line in file.readlines():
 
@@ -360,13 +360,13 @@ def get_nonintersecting_intervals( interval_list : list, cds_len: int ) -> list:
 	for i, interval in enumerate(interval_list):
 		
 		if i == 0 and interval[0] != 0:
-			nonintersecting_interval_list.append([0, interval[0] - 1])
+			nonintersecting_interval_list.append( [0, interval[0] - 1] )
 
 		if i < len(interval_list) - 1:
-			nonintersecting_interval_list.append([interval[1] + 1, interval_list[i+1][0] - 1])
+			nonintersecting_interval_list.append( [interval[1] + 1, interval_list[i+1][0] - 1] )
 
 		if i == len(interval_list) - 1 and interval[1] < cds_len:
-			nonintersecting_interval_list.append([ interval[1] + 1, cds_len])
+			nonintersecting_interval_list.append( [ interval[1] + 1, cds_len] )
 
 	return nonintersecting_interval_list
 
@@ -449,9 +449,9 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 	cds_allele = sample.strip('\n').split('/')[-1].split('_')
 	cds, allele_id = cds_allele[0], cds_allele[-1]
 
-	reference_seq = str(list(SeqIO.parse(StringIO(open(f'{reference}.fasta', 'r').read()), 'fasta'))[0].seq)
+	reference_seq = str( list( SeqIO.parse( StringIO( open( f'{reference}.fasta', 'r').read() ), 'fasta') )[0].seq )
 
-	sample_seq = str(list(SeqIO.parse(StringIO(open(f'{sample}.fasta', 'r').read()), 'fasta'))[0].seq)
+	sample_seq = str( list( SeqIO.parse( StringIO( open( f'{sample}.fasta', 'r').read() ), 'fasta') )[0].seq )
 
 	if os.path.getsize(f'{sample}.paf') != 0:
 
@@ -632,7 +632,7 @@ def insert_sv_at_edges_to_vcf( sample_vcf_file: str, cds_name: str, allele_name:
 
 		for vcf_line in convert_info_into_vcf( sv_at_edges, cds_name, allele_name ):
 
-			file.write(f'{vcf_line}')
+			file.write(f'{vcf_line}\n')
 
 		file.close()
 
@@ -663,7 +663,9 @@ def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str
 	# {sample}.vcf contains {allele_id}'s variants for {cds_name}
 	allele_dict = get_ref_alt_qual_of_position_s_variant_dict( f'{sample}.vcf', sv_at_edges, cds_name, allele_id )
 
-	insert_sv_at_edges_to_vcf( f'{sample}.vcf', cds_name, allele_name, sv_at_edges )
+	if len(sv_at_edges) != 0:
+
+		insert_sv_at_edges_to_vcf( f'{sample}.vcf', cds_name, allele_name, sv_at_edges )
 
 	sort_zip_and_index_vcf_files(f'{sample}.vcf')
 
@@ -691,7 +693,7 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 
 	try:
 
-		for sequence in list(SeqIO.parse(StringIO(open(f"{cds_dir}/{cds_fasta}", 'r').read()), 'fasta')):
+		for sequence in list( SeqIO.parse( StringIO( open( f"{cds_dir}/{cds_fasta}", 'r' ).read() ), 'fasta') ):
 
 			allele_seq_list = []
 		
@@ -723,12 +725,12 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 
 				write_dir = f"{cds_dir}/alleles/{cds_name}"
 
-				with open(f"{write_dir}/{allele_name}.fasta", "w") as out_file:
+				with open( f"{write_dir}/{allele_name}.fasta", "w" ) as out_file:
 
 					out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
 					out_file.close()
 
-				cds_dict[cds_name] = create_allele_dict_for_a_cds(write_dir, allele_name, cds_dir, cds_name)
+				cds_dict[cds_name] = create_allele_dict_for_a_cds( write_dir, allele_name, cds_dir, cds_name )
 
 	except FileNotFoundError:
 
@@ -865,11 +867,11 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 
 	# merge all CDS fasta files to create reference FASTA
 
-	with open(args.reference_fasta, 'a') as f:
+	with open( args.reference_fasta, 'a' ) as f:
 
 		for file in glob.glob(f'{wd}/references/*.fasta'):
 
-			with open(file) as infile:
+			with open( file, 'w' ) as infile:
 
 				f.write(infile.read().strip('\n')+'\n')
 
