@@ -871,7 +871,7 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 
 		for file in glob.glob(f'{wd}/references/*.fasta'):
 
-			with open( file, 'w' ) as infile:
+			with open( file, 'r' ) as infile:
 
 				f.write(infile.read().strip('\n')+'\n')
 
