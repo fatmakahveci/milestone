@@ -33,11 +33,11 @@ rule vg_index:
         echo "Output files are {output.reference_dist}, {output.reference_giraffe_gbz}, and {output.reference_min}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         gunzip {input.reference_vcf_gz}; awk '$1 ~ /^#/ {{print $0;next}} {{print $0 | "LC_ALL=C sort -k1,1 -k2,2n"}}' {params.reference}.vcf > {params.reference}.sorted.vcf
-        bcftools norm --rm-dup all {params.reference}.sorted.vcf > {params.reference}.vcf
+        bcftools norm --rm-dup all {params.reference}.sorted.vcf > {params.reference}.vcf 2>/dev/null
         rm {params.reference}.sorted.vcf
         bgzip -f {params.reference}.vcf && tabix -p vcf {params.reference}.vcf.gz
-        vg autoindex --ref-fasta {input.reference_fasta} --vcf {input.reference_vcf_gz} -t {threads} --workflow map --prefix {params.aligner_reference}
-        vg autoindex --ref-fasta {input.reference_fasta} --vcf {input.reference_vcf_gz} -t {threads} --workflow giraffe --prefix {params.aligner_reference}
+        vg autoindex --ref-fasta {input.reference_fasta} --vcf {input.reference_vcf_gz} -t {threads} --workflow map --prefix {params.aligner_reference} 2>/dev/null
+        vg autoindex --ref-fasta {input.reference_fasta} --vcf {input.reference_vcf_gz} -t {threads} --workflow giraffe --prefix {params.aligner_reference} 2>/dev/null
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -56,7 +56,7 @@ rule vg_giraffe:
     message: "VG giraffe is running..."
     params:
         reference =config["aligner_reference"],
-        log_file = f'{config["allele_calling_log_file"]}'
+        log_file = config["allele_calling_log_file"]
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -65,10 +65,10 @@ rule vg_giraffe:
         echo "vg giraffe is running on {input.reference_dist}, {input.reference_giraffe_gbz}, {input.reference_min}, {input.read1}, and {input.read2} with {threads} threads." | tee -a {params.log_file}
         echo "Output file is {output.sample_bam}" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        fastp -i {input.read1} -I {input.read2} -o {input.read1}.filtered -O {input.read2}.filtered -n 0
+        fastp -i {input.read1} -I {input.read2} -o {input.read1}.filtered -O {input.read2}.filtered -n 0 2>/dev/null
         mv {input.read1}.filtered {input.read1}
         mv {input.read2}.filtered {input.read2}
-        vg giraffe -Z {input.reference_giraffe_gbz} -m {input.reference_min} -d {input.reference_dist} -f {input.read1} -f {input.read2} -x {params.reference}.xg -o BAM > {output.sample_bam}
+        vg giraffe -Z {input.reference_giraffe_gbz} -m {input.reference_min} -d {input.reference_dist} -f {input.read1} -f {input.read2} -x {params.reference}.xg -o BAM > {output.sample_bam} 2>/dev/null
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -86,7 +86,7 @@ rule sbg_graf:
         read2 = config["samples"]["sample2"],
     output:
         sample_bam = f'{config["output_dir"]}/sbg/{config["sample"]}.bam'
-    params: log_file = f'{config["allele_calling_log_file"]}'
+    params: log_file = config["allele_calling_log_file"]
     threads: config["parameters"]["threads"]
     message: "SBG GRAF is running..."
     shell: 
@@ -98,10 +98,10 @@ rule sbg_graf:
         echo "SBG GRAF is running on {input.reference_fasta}, {input.reference_vcf_gz}, {input.read1}, and {input.read2} with {threads} threads." | tee -a {params.log_file}
         echo "Output file is {output.sample_bam}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        fastp -i {input.read1} -I {input.read2} -o {input.read1}.filtered -O {input.read2}.filtered -n 0
+        fastp -i {input.read1} -I {input.read2} -o {input.read1}.filtered -O {input.read2}.filtered -n 0 2/dev/null
         mv {input.read1}.filtered {input.read1}
         mv {input.read2}.filtered {input.read2}
-        sbg-aligner -v {input.reference_vcf_gz} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam}
+        sbg-aligner -v {input.reference_vcf_gz} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam} 2>/dev/null
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -120,7 +120,7 @@ rule samtools_commands:
     message: "Samtools commands are running..."
     params:
         sample = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}',
-        log_file = f'{config["allele_calling_log_file"]}'
+        log_file = config["allele_calling_log_file"]
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -146,19 +146,21 @@ rule bam_to_vcf:
     output:
         sample_vcf = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.vcf'
     message: "Sample's variants are being called..."
-    params: log_file = f'{config["allele_calling_log_file"]}'
+    params:
+        log_file = config["allele_calling_log_file"]
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
         now=$(date +"%T")
         echo "Start: $now" | tee -a {params.log_file}
         echo "freebayes is running on {input.sample_bam}, {input.sample_bam_bai}, and {input.reference_fasta}." | tee -a {params.log_file}
+        echo "vcffilter is running on {output.sample_vcf}"
         echo "Output file is {output.sample_vcf}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        freebayes -f {input.reference_fasta} {input.sample_bam} | vcffilter -f "QUAL > 24" > {output.sample_vcf}
+        freebayes -f {input.reference_fasta} -C 10 {input.sample_bam} > {output.sample_vcf}
+        vcffilter -f "QUAL > 59" {output.sample_vcf} > {output.sample_vcf}.
         echo "REFERENCE" > REFERENCE
-        bcftools reheader -s REFERENCE -o {output.sample_vcf}. {output.sample_vcf}
-        mv {output.sample_vcf}. {output.sample_vcf}
+        bcftools reheader -s REFERENCE -o {output.sample_vcf} {output.sample_vcf}.
         rm REFERENCE
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
@@ -171,7 +173,7 @@ rule bam_to_sam:
     output:
         sample_sam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sam'
     message: "Sample bam is being converted into sample sam"
-    params: log_file = f'{config["allele_calling_log_file"]}'
+    params: log_file = config["allele_calling_log_file"]
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -200,7 +202,7 @@ rule vcf_to_sample_allele_info:
     message: "File for allele defining variants for each CDS is being created."
     threads: config["parameters"]["threads"]
     params:
-        log_file = f'{config["allele_calling_log_file"]}',
+        log_file = config["allele_calling_log_file"],
         reference = config["reference"],
         update_reference = f'{config["update_reference"]}'
     shell:
