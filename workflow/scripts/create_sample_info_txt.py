@@ -12,7 +12,7 @@ import argparse, os
 
 class Coverage:
 
-    def __init__(self, coverage_line):
+    def __init__( self, coverage_line ):
 
         fields = coverage_line.strip('\n').split('\t')
 
@@ -31,7 +31,7 @@ class Coverage:
 
 class Info:
 
-    def __init__(self, line):
+    def __init__( self, line ):
 
         pos_list, ref_list, alt_list, qual_list = [], [], [], []
 
@@ -68,7 +68,7 @@ class Info:
 
 class Sam:
 
-    def __init__(self, sam_line):
+    def __init__( self, sam_line ):
         fields = sam_line.strip('\n').split('\t')
 
         self.query_name = fields[0]
@@ -99,7 +99,7 @@ class Sam:
 
 class Vcf:
 
-    def __init__(self, vcf_line):
+    def __init__( self, vcf_line ):
 
         fields = vcf_line.strip('\n').split('\t')
 
@@ -223,15 +223,15 @@ def compare_sequence_against_all_alleles_of_cds( sample_cds : str, sample_cds_se
         seq = str(seq_record.seq)
 
         if seq == sample_cds_sequence:
+
             # is_novel = False
-            print(sample_cds, seq_record.id)
             return False, str(seq_record.id)
 
     # is_novel = True
     return True, novel_allele_id_of_cds_dict[sample_cds]
 
 
-def remove_common_suffices(var1: str, var2: str) -> [str, str]:
+def remove_common_suffices( var1: str, var2: str ) -> [str, str]:
     """
     Take two variations and remove the common suffices
 
@@ -259,7 +259,7 @@ def remove_common_suffices(var1: str, var2: str) -> [str, str]:
     return var1[i:][::-1], var2[i:][::-1]
 
 
-def remove_common_prefices(pos: int, var1: str, var2: str) -> [ int, str, str ]:
+def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str ]:
     """
     Take two variations and remove the common prefices
 
@@ -286,7 +286,7 @@ def remove_common_prefices(pos: int, var1: str, var2: str) -> [ int, str, str ]:
     return pos+i, var1[i:], var2[i:]
 
 
-def remove_common_mid(pos: int, var1: str, var2: str, qual: int) -> [ list, list, list, list, int ]:
+def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, list, list, list, int ]:
     """
     Remove the common substrings between ref and alt i.e. TAAG GAAC -> T G - G C
 
@@ -426,7 +426,7 @@ def merge_variations(variations: Info) -> Info:
 
     merged_list = []
 
-    var_list = remove_redundance(Info(",".join(merged_variations_list)))
+    var_list = remove_redundance( Info(",".join(merged_variations_list)) )
 
     for i in range(len(var_list.pos_list)):
 
@@ -435,7 +435,7 @@ def merge_variations(variations: Info) -> Info:
     return Info(",".join(merged_list))
 
 
-def get_normalized_quality(qual: float, sample_format: str, sample: str) -> float:
+def get_normalized_quality( qual: float, sample_format: str, sample: str ) -> float:
     """
     Takes the line in VCF file and from SAMPLE field
     calculates normalized quality using the following formula, QUAL/AD
@@ -532,7 +532,7 @@ def get_cigar_info(info: str) -> [ str, int ]:
     return get_cigar(info), sum(list(map(int, cigar.rstrip('.').split('.'))))
 
 
-def resolve_cigar(vcf_line: str, cigar: str) -> [ list, list, list, list]:
+def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
     """
     Resolve the cigar and returns the corrected variations
 
@@ -839,7 +839,7 @@ def get_reference_cds_seq_dict() -> dict:
     return cds_seq_dict
 
 
-def insert_variations_into_sequence(cds_reference: str, pos_list: list, ref_list: list, alt_list: list) -> str:
+def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_list: list, alt_list: list ) -> str:
     """
     Takes reference sequence of CDS and inserts variations
     to create sequence with variations for CDS
@@ -870,7 +870,7 @@ def insert_variations_into_sequence(cds_reference: str, pos_list: list, ref_list
     return cds_reference
 
 
-def quality_check(seq: str, ref_seq: str) -> bool:
+def quality_check( seq: str, ref_seq: str ) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
@@ -1023,8 +1023,6 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
     for cds, coverage in get_cds_coverage_info().items():
 
-        # print(cds, coverage.coverage, ref_gc_content_dict[cds], float(coverage.coverage)/ref_gc_content_dict[cds])
-
         sample_cds = cds.split('_')[0]
 
         if coverage.coverage <= 60:
@@ -1132,11 +1130,11 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
     if args.update_reference == 'True':
 
-        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz")
+        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz 2>/dev/null")
         os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
-        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf}")
-        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz")
-        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf}")
+        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf} 2>/dev/null")
+        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz 2>/dev/null")
+        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf} 2>/dev/null")
         os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
 
     try:
