@@ -539,7 +539,7 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 						# alignment at the end
 						else:
 
-							pos = pos_ref[0] - 1
+							pos = pos_ref[0]
 							ref = reference_seq[ pos_ref[0] - 1 : ]
 							alt = sample_seq[ pos_alt[0] - 1 : ]
 
@@ -552,7 +552,7 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 
 					else:
 
-						pos = pos_ref[0] - 1
+						pos = pos_ref[0]
 						ref = reference_seq[ pos_ref[0] - 1 : pos_ref[1] + 2 ]
 						alt = sample_seq[ pos_alt[0] - 1 : pos_alt[1] + 2 ]
 
