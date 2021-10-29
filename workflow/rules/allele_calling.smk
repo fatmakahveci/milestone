@@ -132,7 +132,7 @@ rule samtools_commands:
         samtools view -F 0x04 -f 0x2 -q 20 -b {input.sample_bam} | samtools sort -o - | samtools collate -o - - | samtools fixmate -m - - | samtools sort -o - | samtools markdup -r - - > {params.sample}.sorted.bam
         mv {params.sample}.sorted.bam {params.sample}.bam
         samtools index {params.sample}.bam {output.sample_bam_bai}
-        samtools coverage {params.sample}.bam -o {output.sample_depth}
+        samtools coverage {params.sample}.bam --min-MQ 60 -Q 24 -o {output.sample_depth}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
