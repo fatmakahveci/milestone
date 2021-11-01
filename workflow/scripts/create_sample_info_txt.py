@@ -2,7 +2,7 @@
 
 #################################################################################
 ## author: @fatmakhv                                                           ##
-## date: 17/10/2021                                                            ##
+## date: 01/11/2021                                                            ##
 ## aim: create info file for the sample and write novel alleles to schema seed ##
 #################################################################################
 
@@ -26,7 +26,15 @@ class Coverage:
         self.mean_mapq = float(fields[8])
 
     def __repr__(self):
-        return f"cds: {self.cds}\nlength: {self.length}\nnumber of reads: {self.number_of_reads}\ncovered bases: {self.covered_bases}\ncoverage: {self.coverage}\nmean depth: {self.mean_depth}\nmean baseq: {self.mean_baseq}\nmean_mapq: {self.mean_mapq}\n"
+
+        return f"cds: {self.cds}\n" \
+               f"length: {self.length}\n" \
+               f"number of reads: {self.number_of_reads}\n" \
+               f"covered bases: {self.covered_bases}\n" \
+               f"coverage: {self.coverage}\n" \
+               f"mean depth: {self.mean_depth}\n" \
+               f"mean baseq: {self.mean_baseq}\n" \
+               f"mean_mapq: {self.mean_mapq}\n"
 
 
 class Info:
@@ -103,7 +111,7 @@ class Vcf:
 
         fields = vcf_line.strip('\n').split('\t')
 
-        self.chr = get_cds_name_from_allele_name(fields[0])
+        self.chr = get_cds_name_from_allele_name( fields[0] )
         self.pos = int(fields[1])
         self.id = fields[2]
         self.ref = fields[3]
@@ -115,10 +123,30 @@ class Vcf:
         self.sample = fields[9]
 
     def __str__(self):
-        return f"{self.chr}\t{self.pos}\t{self.id}\t{self.ref}\t{self.alt}\t{self.qual}\t{self.filter}\t{self.info}\t{self.sample_format}\t{self.sample}\n"
+
+        return f"{self.chr}\t" \
+               f"{self.pos}\t" \
+               f"{self.id}\t" \
+               f"{self.ref}\t" \
+               f"{self.alt}\t" \
+               f"{self.qual}\t" \
+               f"{self.filter}\t" \
+               f"{self.info}\t" \
+               f"{self.sample_format}\t" \
+               f"{self.sample}\n"
 
     def __repr__(self):
-        return f"chr: {self.chr}\npos: {str(self.pos)}\nid: {self.id}\nref: {self.ref}\nalt: {self.alt}\nqual: {str(self.qual)}\nfilter: {self.filter}\ninfo: {self.info}\nformat: {self.sample_format}\nsample: {self.sample}"
+
+        return f"chr: {self.chr}\n" \
+               f"pos: {str(self.pos)}\n" \
+               f"id: {self.id}\n" \
+               f"ref: {self.ref}\n" \
+               f"alt: {self.alt}\n" \
+               f"qual: {str(self.qual)}\n" \
+               f"filter: {self.filter}\n" \
+               f"info: {self.info}\n" \
+               f"format: {self.sample_format}\n" \
+               f"sample: {self.sample}"
 
 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
@@ -218,7 +246,7 @@ def compare_sequence_against_all_alleles_of_cds( sample_cds : str, sample_cds_se
 
     from Bio import SeqIO
 
-    for seq_record in SeqIO.parse( os.path.join(args.schema_dir, sample_cds+'.fasta'), "fasta" ):
+    for seq_record in SeqIO.parse( os.path.join( args.schema_dir, sample_cds+'.fasta' ), "fasta" ):
 
         seq = str(seq_record.seq)
 
@@ -231,7 +259,7 @@ def compare_sequence_against_all_alleles_of_cds( sample_cds : str, sample_cds_se
     return True, novel_allele_id_of_cds_dict[sample_cds]
 
 
-def remove_common_suffices( var1: str, var2: str ) -> [str, str]:
+def remove_common_suffices( var1: str, var2: str ) -> [ str, str ]:
     """
     Take two variations and remove the common suffices
 
@@ -306,12 +334,7 @@ def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, li
     number_of_common_mids : number of splits for the further investigation
     """
 
-    split_idx_list = []
-    
-    pos_list = []
-    ref_list = []
-    alt_list = []
-    qual_list = []
+    split_idx_list, pos_list, ref_list, alt_list, qual_list = [], [], [], [], []
 
     i = 0 
     while i < len(var1):
@@ -324,10 +347,10 @@ def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, li
 
     for i in split_idx_list:
 
-        pos_list.append(pos+i)
-        ref_list.append(var1[i])
-        alt_list.append(var2[i])
-        qual_list.append(qual)
+        pos_list.append( pos + i )
+        ref_list.append( var1[i] )
+        alt_list.append( var2[i] )
+        qual_list.append( qual )
 
     return pos_list, ref_list, alt_list, qual_list, len(split_idx_list)
 
@@ -351,23 +374,23 @@ def remove_redundance(variations: Info) -> Info:
 
     variations_to_replace = []
 
-    for i in range(len(variations.pos_list)):
+    for i in range( len( variations.pos_list ) ):
 
         # ACG TG -> AC T
-        if len(variations.ref_list[i]) > 1 and len(variations.alt_list[i]) > 1:
+        if len( variations.ref_list[i] ) > 1 and len( variations.alt_list[i] ) > 1:
 
-            variations.ref_list[i], variations.alt_list[i] = remove_common_suffices(variations.ref_list[i], variations.alt_list[i])
+            variations.ref_list[i], variations.alt_list[i] = remove_common_suffices( variations.ref_list[i], variations.alt_list[i] )
 
         # reducing suffices might have effect on the length
         # ACG AT -> CG T
-        if len(variations.ref_list[i]) > 1 and len(variations.alt_list[i]) > 1:
+        if len( variations.ref_list[i] ) > 1 and len( variations.alt_list[i] ) > 1:
 
-            variations.pos_list[i], variations.ref_list[i], variations.alt_list[i] = remove_common_prefices(variations.pos_list[i], variations.ref_list[i], variations.alt_list[i])
+            variations.pos_list[i], variations.ref_list[i], variations.alt_list[i] = remove_common_prefices( variations.pos_list[i], variations.ref_list[i], variations.alt_list[i] )
 
         # AGGT -> A  T
-        if len(variations.ref_list[i]) == len(variations.alt_list[i]) and len(variations.ref_list[i]) > 2:
+        if len( variations.ref_list[i] ) == len( variations.alt_list[i] ) and len( variations.ref_list[i] ) > 2:
 
-            variations_to_replace.append([i, remove_common_mid(variations.pos_list[i], variations.ref_list[i], variations.alt_list[i], variations.qual_list[i])])
+            variations_to_replace.append( [ i, remove_common_mid( variations.pos_list[i], variations.ref_list[i], variations.alt_list[i], variations.qual_list[i] ) ] )
 
     # if there is a split in variations of cds
     if len(variations_to_replace) > 0:
@@ -385,10 +408,10 @@ def remove_redundance(variations: Info) -> Info:
 
             for i in range(len(var[0]))[::-1]:
 
-                variations.pos_list.insert(idx_to_put, var[0][i])
-                variations.ref_list.insert(idx_to_put, var[1][i])
-                variations.alt_list.insert(idx_to_put, var[2][i])
-                variations.qual_list.insert(idx_to_put, var[3][i])
+                variations.pos_list.insert( idx_to_put, var[0][i] )
+                variations.ref_list.insert( idx_to_put, var[1][i] )
+                variations.alt_list.insert( idx_to_put, var[2][i] )
+                variations.qual_list.insert( idx_to_put, var[3][i] )
 
     return variations
 
@@ -432,7 +455,7 @@ def merge_variations(variations: Info) -> Info:
 
         merged_list.append(f"{var_list.pos_list[i]}*{var_list.ref_list[i]}>{var_list.alt_list[i]}-{var_list.qual_list[i]}")
 
-    return Info(",".join(merged_list))
+    return Info( ",".join(merged_list) )
 
 
 def get_normalized_quality( qual: float, sample_format: str, sample: str ) -> float:
@@ -453,12 +476,12 @@ def get_normalized_quality( qual: float, sample_format: str, sample: str ) -> fl
     """
 
     ad_idx = 0
-    for i, f in enumerate(sample_format.split(':')):
+    for i, f in enumerate( sample_format.split(':') ):
         if f == 'AD':
             ad_idx = i
 
     # get idx from FORMAT field for AD, which is equal to the value in the same index of SAMPLE field
-    sample_ad = float(sample.split(':')[ad_idx].split(',')[-1])
+    sample_ad = float( sample.split(':')[ad_idx].split(',')[-1] )
 
     return qual / sample_ad
 
@@ -478,7 +501,7 @@ def get_var_type(info: str) -> str:
 
     start = info.index("TYPE=") + 5
 
-    if not info.strip('/n').endswith(';') and ";" not in info[start:-1]:
+    if not info.strip('/n').endswith(';') and ";" not in info[ start : -1 ] :
 
         return info[start:]
 
@@ -525,11 +548,11 @@ def get_cigar_info(info: str) -> [ str, int ]:
     # in case that multiple cigar take the first
     cigar = get_cigar(info).split(',')[0]
     
-    for sep in [ 'M', 'D', 'I', 'S', 'H', '=', 'X']:
-        cigar = cigar.replace(sep, '.')
+    for sep in [ 'M', 'D', 'I', 'S', 'H', '=', 'X' ]:
+        cigar = cigar.replace( sep, '.' )
 
     # return cigar, len(cigar)
-    return get_cigar(info), sum(list(map(int, cigar.rstrip('.').split('.'))))
+    return get_cigar(info), sum( list( map( int, cigar.rstrip('.').split('.') ) ) )
 
 
 def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
@@ -551,12 +574,9 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
 
     import re
 
-    pos_list = []
-    ref_list = []
-    alt_list = []
-    qual_list = []
+    pos_list, ref_list, alt_list, qual_list = [], [], [], []
     
-    cigar_list = list(zip(list(map(int,re.findall('[0-9]+', cigar))), [s for s in cigar if not s.isdigit()]))
+    cigar_list = list( zip( list( map( int, re.findall('[0-9]+', cigar) ) ), [ s for s in cigar if not s.isdigit() ] ) )
 
     i, j = 0, 0 # i := index in ref and  j := index in alt
 
@@ -564,19 +584,19 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
 
         if case == 'D':
 
-            pos_list.append(vcf_line.pos+i-1)
-            ref_list.append(vcf_line.ref[i-1:i+case_count])
-            alt_list.append(vcf_line.alt[j-1])
-            qual_list.append(vcf_line.qual)
+            pos_list.append( vcf_line.pos + i - 1 )
+            ref_list.append( vcf_line.ref[ i - 1 : i + case_count] )
+            alt_list.append( vcf_line.alt[ j - 1 ] )
+            qual_list.append( vcf_line.qual )
 
             i += case_count
 
         elif case == 'I':
 
-            pos_list.append(vcf_line.pos+i-1)
-            ref_list.append(vcf_line.ref[i-1])
-            alt_list.append(vcf_line.alt[j-1:j+case_count])
-            qual_list.append(vcf_line.qual)
+            pos_list.append( vcf_line.pos + i - 1 )
+            ref_list.append( vcf_line.ref[ i - 1 ] )
+            alt_list.append( vcf_line.alt[ j - 1 : j + case_count ] )
+            qual_list.append( vcf_line.qual)
 
             j += case_count
 
@@ -587,10 +607,10 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
 
                 for n in range(case_count):
 
-                    pos_list.append(vcf_line.pos+i+n)
-                    ref_list.append(vcf_line.ref[i+n])
-                    alt_list.append(vcf_line.alt[j+n])
-                    qual_list.append(vcf_line.qual)
+                    pos_list.append( vcf_line.pos + i + n )
+                    ref_list.append( vcf_line.ref[ i + n ] )
+                    alt_list.append( vcf_line.alt[ j + n ] )
+                    qual_list.append( vcf_line.qual )
 
             # X is in-between
             else:
@@ -601,10 +621,10 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
                     # ...nX or ...1X1M...
                     for n in range(case_count):
 
-                        pos_list.append(vcf_line.pos+i+n)
-                        ref_list.append(vcf_line.ref[i+n])
-                        alt_list.append(vcf_line.alt[j+n])
-                        qual_list.append(vcf_line.qual)
+                        pos_list.append( vcf_line.pos + i + n )
+                        ref_list.append( vcf_line.ref[ i + n ] )
+                        alt_list.append( vcf_line.alt[ j + n ] )
+                        qual_list.append( vcf_line.qual )
 
                 # ...3X1I... or ...3X1D...
                 elif cigar_list[k+1][1] == 'I' or cigar_list[k+1][1] == 'D':
@@ -613,10 +633,10 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list]:
                     for n in range(case_count):
 
                         # do not add the last item it will be used in the next D or I
-                        pos_list.append(vcf_line.pos+i-1)
-                        ref_list.append(vcf_line.ref[i+n-1])
-                        alt_list.append(vcf_line.alt[j+n-1])
-                        qual_list.append(vcf_line.qual)
+                        pos_list.append( vcf_line.pos + i - 1 )
+                        ref_list.append( vcf_line.ref[ i + n - 1 ] )
+                        alt_list.append( vcf_line.alt[ j + n - 1 ] )
+                        qual_list.append( vcf_line.qual )
 
             i += case_count
             j += case_count
@@ -652,7 +672,7 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                 variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = [], [], [], []
 
-                normalized_quality = get_normalized_quality(vcf_line.qual, vcf_line.sample_format, vcf_line.sample)
+                normalized_quality = get_normalized_quality( vcf_line.qual, vcf_line.sample_format, vcf_line.sample )
 
                 # if normalized_quality > 24.0:
                 if True:
@@ -661,14 +681,14 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                         cigar, cigar_len = get_cigar_info(vcf_line.info)
 
-                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
+                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar( vcf_line, cigar )
 
                     # mnp : multiple consecutive snps, del : deletion, ins : insertion
                     elif var_type in [ 'mnp', 'del', 'ins' ]:
 
                         cigar, cigar_len = get_cigar_info(vcf_line.info)
 
-                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar(vcf_line, cigar)
+                        variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar( vcf_line, cigar )
 
                     # snp
                     elif var_type == 'snp':
@@ -685,23 +705,23 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                                 for sb in range(len(vcf_line.alt)):
 
-                                    variation_pos_list.append(vcf_line.pos+sb)
-                                    variation_ref_list.append(vcf_line.ref[sb])
-                                    variation_alt_list.append(vcf_line.alt[sb])
-                                    variation_qual_list.append(vcf_line.qual)
+                                    variation_pos_list.append( vcf_line.pos + sb )
+                                    variation_ref_list.append( vcf_line.ref[sb] )
+                                    variation_alt_list.append( vcf_line.alt[sb] )
+                                    variation_qual_list.append (vcf_line.qual )
 
                             else:
-                                variation_pos_list.append(vcf_line.pos)
-                                variation_ref_list.append(vcf_line.ref)
+                                variation_pos_list.append( vcf_line.pos )
+                                variation_ref_list.append( vcf_line.ref )
 
                                 if len(vcf_line.alt) == 1:
                                     alt_idx = 0
                                 else:
                                     alt_idx = int(vcf_line.sample[0])
 
-                                variation_alt_list.append(vcf_line.alt.split(",")[alt_idx])
+                                variation_alt_list.append( vcf_line.alt.split(",")[alt_idx] )
 
-                                variation_qual_list.append(vcf_line.qual)
+                                variation_qual_list.append( vcf_line.qual )
 
                     if vcf_line.chr not in sample_variation_dict.keys():
 
@@ -720,34 +740,34 @@ def create_sample_variation_dict(ref_allele_id: str) -> dict:
 
                             first_info_fields_list = []
 
-                            for i in range(len(variation_pos_list)):
+                            for i in range( len(variation_pos_list) ):
 
-                                if len(vcf_line.alt.split(',')) == 1:
+                                if len( vcf_line.alt.split(',') ) == 1:
                                     alt_idx = 0
 
                                 else:
                                     alt_idx = int(vcf_line.sample[0])
 
-                                variation_pos_list.append(vcf_line.pos)
-                                variation_ref_list.append(vcf_line.ref)
-                                variation_alt_list.append(vcf_line.alt.split(',')[alt_idx])
-                                variation_qual_list.append(vcf_line.qual)
+                                variation_pos_list.append( vcf_line.pos )
+                                variation_ref_list.append( vcf_line.ref )
+                                variation_alt_list.append( vcf_line.alt.split(',')[alt_idx] )
+                                variation_qual_list.append( vcf_line.qual )
                                 
-                                first_info_fields_list.append(f'{variation_pos_list[i]}*{variation_ref_list[i]}>{variation_alt_list[i]}-{variation_qual_list[i]}')
+                                first_info_fields_list.append( f'{variation_pos_list[i]}*{variation_ref_list[i]}>{variation_alt_list[i]}-{variation_qual_list[i]}' )
 
                             if len(first_info_fields_list) != 0:
 
                                 # allele_field # s := sample
-                                sample_variation_dict[vcf_line.chr] = Info(",".join(first_info_fields_list))
+                                sample_variation_dict[vcf_line.chr] = Info( ",".join(first_info_fields_list) )
 
                     else:
 
                         for i in range(len(variation_pos_list)):
 
-                            sample_variation_dict[vcf_line.chr].pos_list.append(variation_pos_list[i])
-                            sample_variation_dict[vcf_line.chr].ref_list.append(variation_ref_list[i])
-                            sample_variation_dict[vcf_line.chr].alt_list.append(variation_alt_list[i])
-                            sample_variation_dict[vcf_line.chr].qual_list.append(variation_qual_list[i])
+                            sample_variation_dict[vcf_line.chr].pos_list.append( variation_pos_list[i] )
+                            sample_variation_dict[vcf_line.chr].ref_list.append( variation_ref_list[i] )
+                            sample_variation_dict[vcf_line.chr].alt_list.append( variation_alt_list[i] )
+                            sample_variation_dict[vcf_line.chr].qual_list.append( variation_qual_list[i] )
 
     for sample_cds, variations in sample_variation_dict.items():
 
@@ -832,7 +852,7 @@ def get_reference_cds_seq_dict() -> dict:
 
     cds_seq_dict = {}
 
-    for sequence in list(SeqIO.parse(args.reference_fasta, "fasta")):
+    for sequence in list( SeqIO.parse(args.reference_fasta, "fasta") ):
 
         cds_seq_dict[sequence.id] = str(sequence.seq)
 
@@ -857,7 +877,7 @@ def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_lis
     """
     
     # reverse list to avoid their effect on each other
-    for pos, ref, alt in zip(pos_list[::-1], ref_list[::-1], alt_list[::-1]):
+    for pos, ref, alt in zip( pos_list[::-1], ref_list[::-1], alt_list[::-1] ):
 
         pos -= 1
 
@@ -865,7 +885,7 @@ def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_lis
 
             alt = alt[0]
 
-        cds_reference = cds_reference[:pos]+alt.replace('.','')+cds_reference[pos+len(ref):]
+        cds_reference = cds_reference[ : pos ] + alt.replace( '.', '' ) + cds_reference[ pos+len(ref) : ]
 
     return cds_reference
 
@@ -906,7 +926,7 @@ def quality_check( seq: str, ref_seq: str ) -> bool:
     return "LNF"
 
 
-def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info) -> int:
+def compare_ref_to_sample_variations( cds: str, ref_allele_id: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info ) -> int:
     """
     Compare reference variations to sample variations
 
@@ -928,7 +948,7 @@ def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict:
     # cds length check
     diff_len = 0
 
-    for ref, alt in zip(sample_cds_info.ref_list, sample_cds_info.alt_list):
+    for ref, alt in zip( sample_cds_info.ref_list, sample_cds_info.alt_list ):
 
         if alt == '.':
 
@@ -949,7 +969,7 @@ def compare_ref_to_sample_variations(cds: str, ref_allele_id: str, cds_seq_dict:
 
         cds_reference = cds_seq_dict[f'{cds}_{ref_allele_id}']
 
-        allele_id = quality_check(insert_variations_into_sequence(cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list), cds_reference)
+        allele_id = quality_check( insert_variations_into_sequence( cds_reference, sample_cds_info.pos_list, sample_cds_info.ref_list, sample_cds_info.alt_list ), cds_reference )
         
         if allele_id == "EQ":
 
@@ -1078,7 +1098,7 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                             cds_reference = cds_seq_dict[f'{sample_cds}_{ref_allele_id}']
 
-                            sample_allele_dict[cds] = quality_check(insert_variations_into_sequence(cds_reference, sample_variation_dict[sample_cds].pos_list, sample_variation_dict[sample_cds].ref_list, sample_variation_dict[sample_cds].alt_list), cds_reference)
+                            sample_allele_dict[cds] = quality_check( insert_variations_into_sequence( cds_reference, sample_variation_dict[sample_cds].pos_list, sample_variation_dict[sample_cds].ref_list, sample_variation_dict[sample_cds].alt_list ), cds_reference )
 
                             if sample_allele_dict[cds] == "EQ": # sample equals to the reference
 
@@ -1106,13 +1126,13 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                         if len(sample_variation_dict[sample_cds].pos_list) != 0:
 
-                            # write_allele_sequence_to_schema_seed(sample_cds, ref_allele_id, cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
-                            write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds])
-                            write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
+                            # write_allele_sequence_to_schema_seed( sample_cds, ref_allele_id, cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds] )
+                            write_variations_to_reference_vcf_file( sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds] )
+                            write_variations_to_reference_info_file( sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds] )
 
                 else: # both sample and reference has the variations of this allele
 
-                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations(cds = sample_cds, ref_allele_id = ref_allele_id, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variation_dict[sample_cds], sample_cds_info = sample_variation_dict[sample_cds])
+                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations( cds = sample_cds, ref_allele_id = ref_allele_id, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variation_dict[sample_cds], sample_cds_info = sample_variation_dict[sample_cds] )
 
                     if is_novel == True and args.update_reference == 'True':
 
@@ -1124,9 +1144,9 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
                             sample_allele_dict[cds] = novel_allele_id_of_cds_dict[sample_cds]
 
-                            # write_allele_sequence_to_schema_seed(sample_cds, sample_allele_dict[cds], cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds])
-                            write_variations_to_reference_vcf_file(sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds]) 
-                            write_variations_to_reference_info_file(sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds])
+                            # write_allele_sequence_to_schema_seed( sample_cds, sample_allele_dict[cds], cds_seq_dict[f'{sample_cds}_{ref_allele_id}'], sample_variation_dict[sample_cds] )
+                            write_variations_to_reference_vcf_file( sample_cds, temp_sample_vcf_dir, ref_allele_id, sample_variation_dict[sample_cds] ) 
+                            write_variations_to_reference_info_file( sample_cds, sample_allele_dict[cds], sample_variation_dict[sample_cds] )
 
     if args.update_reference == 'True':
 
@@ -1270,7 +1290,7 @@ def calculate_GC_content_of_sequence(seq: str) -> float:
     gc_value : Total number of G and C bases / The length of seq
     """
 
-    return float("{:.2f}".format(float( seq.count('G')+seq.count('C') ) / float(len(seq)) ))
+    return float( "{:.2f}".format( float( seq.count('G')+seq.count('C') ) / float(len(seq) ) ) )
 
 
 if __name__ == "__main__":
