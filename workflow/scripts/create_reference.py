@@ -46,10 +46,10 @@ class Info:
 
     def __repr__(self):
 
-        return f'positions: {" ".join(list(map(str, self.pos_list)))}\n' \
-                f'refs: {" ".join(self.ref_list)}\n' \
-                f'alts: {" ".join(self.alt_list)}\n' \
-                f'quals: {" ".join(list(map(str, self.qual_list)))}\n'
+        return f'positions: { " ".join( list( map( str, self.pos_list) ) ) }\n' \
+                f'refs: { " ".join(self.ref_list) }\n' \
+                f'alts: { " ".join(self.alt_list) }\n' \
+                f'quals: { " ".join( list( map( str, self.qual_list ) ) ) }\n'
 
 
 class Paf:
@@ -93,7 +93,7 @@ class Vcf:
 
 		fields = vcf_line.split('\t')
 
-		self.chr = get_cds_name_from_allele_name(fields[0])
+		self.chr = get_cds_name_from_allele_name( allele_name=fields[0] )
 		self.pos = fields[1]
 		self.id = fields[2]
 		self.ref = fields[3]
@@ -243,7 +243,7 @@ def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, sv_at_edges: lis
 
 		has_variant = True
 		
-		for i in range(len(info.pos_list)):
+		for i in range( len(info.pos_list) ):
 
 			pos_ref = f'{info.pos_list[i]}*{info.ref_list[i]}'
 
@@ -257,11 +257,11 @@ def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, sv_at_edges: lis
 
 					pos_dict[pos_ref][info.alt_list[i]] = info.qual_list[i]
 
-	sorted_pos_dict = OrderedDict(sorted(pos_dict.items(), key=lambda t: int(t[0].split('*')[0])))
+	sorted_pos_dict = OrderedDict( sorted( pos_dict.items(), key=lambda t: int( t[0].split('*')[0] ) ) )
 
 	if has_variant:
 
-		write_allele_defining_variant_list_to_file( cds_name, sv_at_edges, allele_id, sorted_pos_dict )
+		write_allele_defining_variant_list_to_file( cds_name=cds_name, sv_at_edges=sv_at_edges, allele_id=allele_id, pos_dict=sorted_pos_dict )
 
 	return sorted_pos_dict
 
@@ -490,7 +490,7 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 					unaligned_reference_pos_list.insert( 0, [ 0, 0 ] )
 					unaligned_sample_pos_list.append( [ paf_list[0].qlen, paf_list[0].qlen ] )
 
-			for pos_ref, pos_alt in zip(unaligned_reference_pos_list, unaligned_sample_pos_list):
+			for pos_ref, pos_alt in zip( unaligned_reference_pos_list, unaligned_sample_pos_list ):
 
 				# take the different-sized variations
 				if pos_ref[1] - pos_ref[0] != pos_alt[1] - pos_alt[0]:
@@ -556,7 +556,7 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 						ref = reference_seq[ pos_ref[0] - 1 : pos_ref[1] + 2 ]
 						alt = sample_seq[ pos_alt[0] - 1 : pos_alt[1] + 2 ]
 
-					sv_at_edges.append( Info(f'{pos}*{ref}>{alt}-{mapq}') )
+					sv_at_edges.append( Info( f'{pos}*{ref}>{alt}-{mapq}' ) )
 
 	return sv_at_edges
 
@@ -571,11 +571,11 @@ def sort_zip_and_index_vcf_files(vcf_file: str) -> None:
 	"""
 
 	# @todo: These might be shortened.
-	os.system(f"bcftools sort {vcf_file} -Ov -o {vcf_file}. 2>/dev/null")
-	os.system(f"mv {vcf_file}. {vcf_file}")
-	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz")
-	os.system(f"bcftools concat -a --rm-dups none {vcf_file}.gz -Ov -o {vcf_file} 2>/dev/null")
-	os.system(f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz")
+	os.system( f"bcftools sort {vcf_file} -Ov -o {vcf_file}. 2>/dev/null" )
+	os.system( f"mv {vcf_file}. {vcf_file}" )
+	os.system( f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz" )
+	os.system( f"bcftools concat -a --rm-dups none {vcf_file}.gz -Ov -o {vcf_file} 2>/dev/null" )
+	os.system( f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz" )
 
 
 def remove_redundant_files(sample: str) -> None:
@@ -588,7 +588,7 @@ def remove_redundant_files(sample: str) -> None:
 
 	for extension in [ "fasta", "sam", "bam", "sorted.bam", "bam.bai", "sorted.bam.bai", "vcf" ]:
 
-		os.system( f"rm {sample}.{extension}")
+		os.system( f"rm {sample}.{extension}" )
 
 
 def convert_info_into_vcf( sv_at_edges: list, cds_name: str, allele_name: str ) -> list:
@@ -630,7 +630,7 @@ def insert_sv_at_edges_to_vcf( sample_vcf_file: str, cds_name: str, allele_name:
 
 	with open( sample_vcf_file, 'a' ) as file:
 
-		for vcf_line in convert_info_into_vcf( sv_at_edges, cds_name, allele_name ):
+		for vcf_line in convert_info_into_vcf( sv_at_edges=sv_at_edges, cds_name=cds_name, allele_name=allele_name ):
 
 			file.write(f'{vcf_line}\n')
 
@@ -655,7 +655,7 @@ def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str
 
 	sample = f"{write_dir}/{allele_name}"
 	reference = f"{cds_dir}/references/{cds_name}_1"
-	allele_id = get_allele_id_from_allele_name(allele_name)
+	allele_id = get_allele_id_from_allele_name( allele_name=allele_name )
 
 	# create <sample_allele.vcf>
 	sv_at_edges = call_variants_of_allele( reference, sample )
@@ -665,9 +665,9 @@ def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str
 
 	if len(sv_at_edges) != 0:
 
-		insert_sv_at_edges_to_vcf( f'{sample}.vcf', cds_name, allele_name, sv_at_edges )
+		insert_sv_at_edges_to_vcf( sample_vcf_file=f'{sample}.vcf', cds_name=cds_name, allele_name=allele_name, sv_at_edges=sv_at_edges )
 
-	sort_zip_and_index_vcf_files(f'{sample}.vcf')
+	sort_zip_and_index_vcf_files( vcf_file=f'{sample}.vcf' )
 
 	# remove_redundant_files()
 
@@ -716,8 +716,8 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 
 					Path(f"{cds_dir}/alleles/{ref_allele_cds}").mkdir(exist_ok=True)
 
-			cds_name = get_cds_name_from_allele_name(sequence.id)
-			allele_id = get_allele_id_from_allele_name(sequence.id)
+			cds_name = get_cds_name_from_allele_name( allele_name=sequence.id )
+			allele_id = get_allele_id_from_allele_name( allele_name=sequence.id )
 
 			allele_name = f"{cds_name}_{allele_id}"
 
@@ -758,7 +758,7 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 
 		command_list = []
 
-		no_alleles_of_cds = len(glob.glob(f'{wd}/*_*.vcf.gz'))
+		no_alleles_of_cds = len( glob.glob( f'{wd}/*_*.vcf.gz' ) )
 
 		if no_alleles_of_cds == 0: # skip CDS with 1 alleles to avoid redundance
 			pass
@@ -769,14 +769,14 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 
 			# remove .vcf.gz get the allele_id ..._'allele_id'
 			unzip_allele_id = glob.glob(f'{wd}/*_*.vcf.gz')[0][:-7].split('_')[-1]
-			command_list.append(f"gunzip {wd}/{cds_name}_{unzip_allele_id}.vcf.gz")
-			command_list.append(f"mv {wd}/{cds_name}_{unzip_allele_id}.vcf {wd}/{cds_name}.vcf")
+			command_list.append( f"gunzip {wd}/{cds_name}_{unzip_allele_id}.vcf.gz" )
+			command_list.append( f"mv {wd}/{cds_name}_{unzip_allele_id}.vcf {wd}/{cds_name}.vcf" )
 
 		else:
 
 			cds_to_merge_list.append(cds_name)
 
-			command_list.append(f"bcftools merge {' '.join(glob.glob(f'{wd}/*_*.vcf.gz'))} -O v -o {wd}/{cds_name}.vcf")
+			command_list.append( f"bcftools merge { ' '.join( glob.glob(f'{wd}/*_*.vcf.gz')) } -O v -o {wd}/{cds_name}.vcf" )
 
 		for command in command_list:
 			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
@@ -851,17 +851,15 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 				'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
 			 ]
 
-	header.extend(list(contig_info_set))
+	header.extend( list(contig_info_set) )
 
-	header.append("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"
-				  "REFERENCE\n")
+	header.append("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tREFERENCE\n")
 
 	header_file.write("\n".join(header))
 
 	header_file.close()
 
-	os.system(f"cat {wd}/alleles/header.txt {args.reference_vcf}.temp > "
-			  f"{args.reference_vcf}")
+	os.system(f"cat {wd}/alleles/header.txt {args.reference_vcf}.temp > {args.reference_vcf}")
 
 	os.system(f"rm {args.reference_vcf}.temp; rm {wd}/alleles/header.txt;")
 
@@ -869,7 +867,7 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 
 	with open( args.reference_fasta, 'a' ) as f:
 
-		for file in glob.glob(f'{wd}/references/*.fasta'):
+		for file in glob.glob( f'{wd}/references/*.fasta' ):
 
 			with open( file, 'r' ) as infile:
 
@@ -982,9 +980,9 @@ if __name__ == "__main__":
 
 	for cds in cds_list:
 
-		create_cds_list(args.schema_dir, cds, cds_to_merge_list)
+		create_cds_list( cds_dir=args.schema_dir, cds_fasta=cds, cds_to_merge_list=cds_to_merge_list )
 
-	create_reference_vcf_fasta(args.schema_dir, cds_to_merge_list)
+	create_reference_vcf_fasta( wd=args.schema_dir, cds_to_merge_list=cds_to_merge_list )
 
 	# it creates reference_info.txt file in case that
 	# cds sequences are provided as only references
