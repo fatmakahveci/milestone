@@ -304,7 +304,7 @@ def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str 
     var2 : updated variation 2 of which common prefix is deleted
     """
 
-    check_len = min(len(var1), len(var2))
+    check_len = min( len(var1), len(var2) )
 
     i=0
     while i < check_len and var1[i] == var2[i]:
