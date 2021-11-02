@@ -317,9 +317,10 @@ def read_paf_file(file_name: str) -> None:
 
 	paf_list = []
 	mapped_reference_regions, mapped_sample_regions = {}, {}
+
 	with open( file_name, 'r' ) as file:
 
-		for i, line in enumerate(file.readlines()):
+		for i, line in enumerate( file.readlines() ):
 			
 			paf_line = Paf(line)
 			paf_list.append(paf_line)
@@ -327,16 +328,16 @@ def read_paf_file(file_name: str) -> None:
 			if i == 0:
 				cds_len = paf_line.tlen
 
-			mapped_reference_regions.setdefault(paf_line.tname, []).append([paf_line.tstart, paf_line.tend])
-			mapped_sample_regions.setdefault(paf_line.tname, []).append([paf_line.qstart, paf_line.qend])
+			mapped_reference_regions.setdefault( paf_line.tname, [] ).append( [ paf_line.tstart, paf_line.tend ] )
+			mapped_sample_regions.setdefault( paf_line.tname, [] ).append( [ paf_line.qstart, paf_line.qend ] )
 
 		file.close()
 
 	merged_reference_intervals = { k: merge_intervals(v) for k, v in mapped_reference_regions.items() }
-	cds_merged_reference_interval_list = merged_reference_intervals[list(merged_reference_intervals.keys())[0]]
+	cds_merged_reference_interval_list = merged_reference_intervals[ list( merged_reference_intervals.keys() )[0] ]
 	
 	merged_sample_intervals = { k: merge_intervals(v) for k, v in mapped_sample_regions.items() }
-	cds_merged_sample_interval_list = merged_sample_intervals[list(merged_sample_intervals.keys())[0]]
+	cds_merged_sample_interval_list = merged_sample_intervals[ list( merged_sample_intervals.keys() )[0] ]
 
 	return paf_list, get_nonintersecting_intervals( cds_merged_reference_interval_list, paf_line.tlen ), get_nonintersecting_intervals( cds_merged_sample_interval_list, paf_line.qlen ), paf_line.mapq
 
@@ -357,16 +358,20 @@ def get_nonintersecting_intervals( interval_list : list, cds_len: int ) -> list:
 	"""
 
 	nonintersecting_interval_list = list()
+
 	for i, interval in enumerate(interval_list):
 		
 		if i == 0 and interval[0] != 0:
-			nonintersecting_interval_list.append( [0, interval[0] - 1] )
+
+			nonintersecting_interval_list.append( [ 0, interval[0] - 1 ] )
 
 		if i < len(interval_list) - 1:
-			nonintersecting_interval_list.append( [interval[1] + 1, interval_list[i+1][0] - 1] )
+
+			nonintersecting_interval_list.append( [ interval[1] + 1, interval_list[i+1][0] - 1 ] )
 
 		if i == len(interval_list) - 1 and interval[1] < cds_len:
-			nonintersecting_interval_list.append( [ interval[1] + 1, cds_len] )
+
+			nonintersecting_interval_list.append( [ interval[1] + 1, cds_len ] )
 
 	return nonintersecting_interval_list
 
@@ -426,7 +431,7 @@ def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str 
     return pos+i, var1[i:], var2[i:]
 
 
-def call_variants_of_allele( reference: str, sample: str ) -> str:
+def call_variants_of_allele( reference: str, sample: str ) ->  str:
 	"""
 	Align sample sequences onto the reference and create sample.vcf
 
@@ -442,20 +447,20 @@ def call_variants_of_allele( reference: str, sample: str ) -> str:
 
 	sv_at_edges = []
 
-	# match : 1, mismatch : 4, gap_opening : 6, gap_extend : 1 (Graph aligner's)
+	# A (match) : 1, B (mismatch) : 4, O (gap_opening) : 6, E (gap_extend) : 1 (Scores are equal to the graph aligners'.)
 	os.system(f"minimap2 -c --cs=long -t {args.threads} -A 1 -B 4 -O 6 -E 1 {reference}.fasta {sample}.fasta 2>/dev/null > {sample}.paf;")
 	os.system(f"sort -k6,6 -k8,8n {sample}.paf | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - 2>/dev/null > {sample}.vcf;")
 
 	cds_allele = sample.strip('\n').split('/')[-1].split('_')
 	cds, allele_id = cds_allele[0], cds_allele[-1]
 
-	reference_seq = str( list( SeqIO.parse( StringIO( open( f'{reference}.fasta', 'r').read() ), 'fasta') )[0].seq )
+	reference_seq = str( list( SeqIO.parse( StringIO( open( f'{reference}.fasta', 'r').read() ), 'fasta' ) )[0].seq )
+	sample_seq = str( list( SeqIO.parse( StringIO( open( f'{sample}.fasta', 'r').read() ), 'fasta' ) )[0].seq )
 
-	sample_seq = str( list( SeqIO.parse( StringIO( open( f'{sample}.fasta', 'r').read() ), 'fasta') )[0].seq )
+	# if paf file is not empty.
+	if os.path.getsize( f'{sample}.paf' ) != 0:
 
-	if os.path.getsize(f'{sample}.paf') != 0:
-
-		paf_list, unaligned_reference_pos_list, unaligned_sample_pos_list, mapq = read_paf_file(f'{sample}.paf')
+		paf_list, unaligned_reference_pos_list, unaligned_sample_pos_list, mapq = read_paf_file( f'{sample}.paf' )
 
 		if unaligned_reference_pos_list != [] or unaligned_sample_pos_list != []:
 
@@ -581,6 +586,7 @@ def sort_zip_and_index_vcf_files(vcf_file: str) -> None:
 def remove_redundant_files(sample: str) -> None:
 	"""
 	Take the name of sample and remove the related files
+
 	Parameter
 	---------
 	sample : Name of sample with its directory.
@@ -591,7 +597,7 @@ def remove_redundant_files(sample: str) -> None:
 		os.system( f"rm {sample}.{extension}" )
 
 
-def convert_info_into_vcf( sv_at_edges: list, cds_name: str, allele_name: str ) -> list:
+def convert_info_into_vcf( sv_at_edges: list, cds_name: str, allele_name: str) -> list:
 	"""
 	Convert info into vcf format
 
@@ -618,7 +624,7 @@ def convert_info_into_vcf( sv_at_edges: list, cds_name: str, allele_name: str ) 
 	return vcf_list
 
 
-def insert_sv_at_edges_to_vcf( sample_vcf_file: str, cds_name: str, allele_name: str, sv_at_edges: list ) -> None:
+def insert_sv_at_edges_to_vcf( sample_vcf_file: str, cds_name: str, allele_name: str, sv_at_edges: list) -> None:
 	"""
 	Add long indels to sample's vcf file to represent the allele
 
@@ -630,7 +636,7 @@ def insert_sv_at_edges_to_vcf( sample_vcf_file: str, cds_name: str, allele_name:
 
 	with open( sample_vcf_file, 'a' ) as file:
 
-		for vcf_line in convert_info_into_vcf( sv_at_edges=sv_at_edges, cds_name=cds_name, allele_name=allele_name ):
+		for vcf_line in convert_info_into_vcf( sv_at_edges=sv_at_edges, cds_name=cds_name, allele_name=allele_name):
 
 			file.write(f'{vcf_line}\n')
 
@@ -822,7 +828,7 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 
 				elif not line.startswith("#"):
 
-					fields = (line.split('\t'))[:8]
+					fields = ( line.split('\t') )[:8]
 					fields.append("GT")
 					fields.append("1")
 
