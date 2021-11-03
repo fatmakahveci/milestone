@@ -122,12 +122,12 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 	"""
 	Get {cds_name}_{allele_id} and return {cds_name}
 
-	Parameters
-	----------
+	Parameter
+	---------
 	allele_name : {cds_name}_{allele_id}
 
-	Returns
-	-------
+	Return
+	------
 	cds_name : name of CDS for given allele_name
 	"""
 
@@ -140,12 +140,12 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
 	"""
 	Get {cds_name}_{allele_id} and return {allele_id}
 
-	Parameters
-	----------
+	Parameter
+	---------
 	allele_name : {cds_name}_{allele_id}
 
-	Returns
-	-------
+	Return
+	------
 	allele_id : allele ID for given allele_name
 	"""
 
@@ -158,8 +158,8 @@ def write_allele_defining_variant_list_to_file( cds_name: str, sv_at_edges: str,
 	"""
 	Write the variants of alleles that are not equal to the reference CDS
 
-	Parameters
-	----------
+	Parameter
+	---------
 	cds_name : name of cds of which allele will be written
 	allele_id : ID of allele of which variant will be written
 	pos_dict : positions of variants for the allele
@@ -198,15 +198,15 @@ def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, sv_at_edges: lis
 	Read {sample}.vcf to create dictionary that contains positions
 	of variants of allele of cds.
 
-	Parameters
-	----------
+	Parameter
+	---------
 	vcf_file : {sample}.vcf contains {allele_id}'s variants for {cds_name}
 	sv_at_edges : Info-formatted variations consisting of uncovered variations
 	cds_name : name of CDS of which positions will be taken
 	allele_id : ID of allele of CDS of which positions will be taken
 
-	Returns
-	-------
+	Return
+	------
 	pos_dict : Dictionary of variant positions for allele
 	"""
 
@@ -380,13 +380,13 @@ def remove_common_suffices( var1: str, var2: str ) -> [str, str]:
     """
     Take two variations and remove the common suffices
 
-    Parameters
-    ----------
+    Parameter
+    ---------
     var1 : variation sequence
     var2 : variation sequence
 
-    Returns
-    -------
+    Return
+    ------
     var1 : updated variation 1 of which common suffix is deleted
     var2 : updated variation 2 of which common suffix is deleted
     """
@@ -647,15 +647,15 @@ def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str
 	"""
 	Create allele dictionary for given CDS
 
-	Parameters
-	----------
+	Parameter
+	---------
 	write_dir : core genome directory
 	allele_name : {cds_name}_{allele_id}
 	cds_dir : alleles' directory that contains sequences of alleles
 	cds_name : CDS name to create its allele dictionary
 
-	Returns
-	-------
+	Return
+	------
 	allele_dict : position dictionary for allele
 	"""
 
@@ -684,14 +684,14 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 	"""
 	Creates CDS list
 
-	Parameters
-	----------
+	Parameter
+	---------
 	cds_dir : alleles' directory that contains sequences of alleles
 	cds_fasta : FASTA file for CDS
 	cds_to_merge_list : all CDSs for reference vcf
 
-	Returns
-	-------
+	Return
+	------
 	cds_to_merge_list : all CDSs for reference vcf
 	"""
 
@@ -798,8 +798,8 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 	"""
 	Creates FASTA file for reference
 
-	Parameters
-	----------
+	Parameter
+	---------
 	wd : working directory
 	cds_to_merge_list : all CDSs for reference vcf
 	"""
@@ -886,8 +886,8 @@ def get_cds_list() -> list:
 	"""
 	Returns names of CDSs as list
 
-	Returns
-	-------
+	Return
+	------
 	cds_list : List of CDS names
 	"""
 

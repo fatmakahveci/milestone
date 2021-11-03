@@ -157,7 +157,6 @@ def base_ratio_check( variation_pos: int, cds_name: str ) -> str:
     ----------
     variation_pos: variation position on CDS sequence
     cds_name: CDS sequence name to be investigated
-
     Returns
     -------
     dominant_base : base name with max count
@@ -180,13 +179,11 @@ def base_ratio_check( variation_pos: int, cds_name: str ) -> str:
 def base_dict_for_sam( base_dict: dict, pos_seq_cigar: list, variation_pos: int ) -> dict:
     """
     Returns number of bases aligned to given position in sam file's line
-
     Parameters
     ----------
     base_dict : dictionary of bases to count
     pos_seq_cigar : position, sequence, and cigar sequence in sample sam file's line
     variation_pos: variation position on CDS sequence
-
     Returns
     -------
     base_dict : dictionary of bases to count 
@@ -233,11 +230,9 @@ def base_dict_for_sam( base_dict: dict, pos_seq_cigar: list, variation_pos: int 
 def get_cds_name_from_allele_name(allele_name: str) -> str:
     """
     Get <cds-name> from <cds-name_allele-id>
-
     Parameters
     ----------
     allele_name : <cds-name_allele-id>
-
     Returns
     -------
     cds_name : <cds-name>
@@ -251,11 +246,9 @@ def get_cds_name_from_allele_name(allele_name: str) -> str:
 def get_allele_id_from_allele_name(allele_name: str) -> str:
     """
     Get <allele-id> from <cds-name_allele-id>
-
     Parameters
     ----------
     allele_name : <cds-name_allele-id>
-
     Returns
     -------
     allele_id : <allele-id>
@@ -270,7 +263,6 @@ def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
     """
     Reads reference_info.txt and returns allele ID dictionary
     for each CDS in reference_info.txt
-
     Return
     ------
     novel_allele_id_of_cds_dict: {CDS: {allele_id: allele_info} ...}
@@ -288,12 +280,10 @@ def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
 def remove_common_suffices( var1: str, var2: str ) -> [ str, str ]:
     """
     Take two variations and remove the common suffices
-
     Parameters
     ----------
     var1 : variation sequence
     var2 : variation sequence
-
     Returns
     -------
     var1 : updated variation 1 of which common suffix is deleted
@@ -316,13 +306,11 @@ def remove_common_suffices( var1: str, var2: str ) -> [ str, str ]:
 def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str ]:
     """
     Take two variations and remove the common prefices
-
     Parameter
     ---------
     pos : position of the variation which might be affected by the change
     var1 : variation sequence
     var2 : variation sequence
-
     Return
     ------
     pos : position of the variation which might be affected by the change
@@ -343,14 +331,12 @@ def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str 
 def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, list, list, list, int ]:
     """
     Remove the common substrings between ref and alt i.e. TAAG GAAC -> T G - G C
-
     Parameter
     ---------
     pos : position of the variation which might be affected by the change
     var1 : variation sequence
     var2 : variation sequence
     qual : quality score
-
     Return
     ------
     pos : updated positions after the removal
@@ -384,11 +370,9 @@ def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, li
 def remove_redundance(variations: Info) -> Info:
     """
     Remove common prefices and suffices from both reference and alternate
-
     Parameters
     ----------
     variations : Info
-
     Returns
     -------
     variations : updated variations with removed suffices and prefices
@@ -446,11 +430,9 @@ def merge_variations(variations: Info) -> Info:
     """
     Take the variations for reference_info.txt file
     Merge the variations of which positions are intersected.
-
     Parameters
     ----------
     variations : variations in reference_info.txt file
-
     Returns
     -------
     variations : merged variations for reference_info.txt file
@@ -487,7 +469,6 @@ def merge_variations(variations: Info) -> Info:
 def get_var_type(info: str) -> str:
     """
     Return ...;TYPE="<type>";... from INFO field in VCF file
-
     Parameters
     ----------
     info : INFO field in VCF file
@@ -513,7 +494,6 @@ def get_var_type(info: str) -> str:
 def get_cigar(info: str) -> str:
     """
     Return ...;CIGAR="<cigar>";... from INFO field in VCF file
-
     Parameter
     ---------
     info : INFO field in VCF file
@@ -532,7 +512,6 @@ def get_cigar(info: str) -> str:
 def get_cigar_info(info: str) -> [ str, int ]:
     """
     Return ...;<CIGAR>="<cigar>";... from INFO field in VCF file
-
     Parameter
     ---------
     info : INFO field in VCF file
@@ -556,12 +535,10 @@ def get_cigar_info(info: str) -> [ str, int ]:
 def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list ]:
     """
     Resolve the cigar and returns the corrected variations
-
     Parameter
     ---------
     vcf_line : vcf line containing complex cigar
     cigar : cigar sequence in vcf_line
-
     Return
     ------
     pos_list : positions of variations in VCF file
@@ -638,7 +615,6 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list ]:
 def get_sample_sam_dict() -> dict:
     """
     Read Sample's SAM file and returns sequence, cigar, and position info
-
     Returns
     -------
     sample_sam_dict : { CDS: [pos, seq, cigar], [pos, seq, cigar], ..., CDS: ...}
@@ -672,7 +648,6 @@ def get_sample_sam_dict() -> dict:
 def create_sample_variation_dict() -> dict:
     """
     Creates variation dictionary
-
     Return
     ------
     sample_variation_dict : variations of sample dictionary for alleles
@@ -760,11 +735,9 @@ def read_reference_info_txt(info_file: str) -> dict:
     """
     Read reference_info.txt
     Create dictionary for allele of variations in CDS
-
     Parameter
     ---------
     info_file : Name of reference_info.txt to write
-
     Return
     ------
     reference_allele_variation_dict : allele of variations in CDS
@@ -798,7 +771,6 @@ def get_cds_coverage_info() -> dict:
     """
     Gets the output of `samtools depth` and creates cds dictionary
     for its results
-
     Return
     ------
     cds_depth_dict : {cds_1: coverage_info_for_cds_1, ...}
@@ -823,7 +795,6 @@ def get_cds_coverage_info() -> dict:
 def get_reference_cds_seq_dict() -> dict:
     """
     Reads <reference.fasta> and returns cds_seq_dict
-
     Returns
     -------
     cds_seq_dict : { cds1: seq1, cds2: seq2, ... }
@@ -843,14 +814,12 @@ def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_lis
     """
     Takes reference sequence of CDS and inserts variations
     to create sequence with variations for CDS
-
     Parameters
     ----------
     cds_reference : reference sequence for given CDS
     pos_list : list of variation positions for given CDS
     ref_list : reference bases of variations in pos_list for given CDS
     alt_list : alternate bases of variations in pos_list for given CDS
-
     Returns
     -------
     cds_reference : CDS sequence with variations
@@ -874,12 +843,10 @@ def quality_check( seq: str, ref_seq: str ) -> bool:
     """
     Checks its length is 3n, the first three base is for start codon,
     and the last three base is for stop codon
-
     Parameter
     ---------
     seq : FASTA sequence
     ref_seq : FASTA sequence for the reference of seq
-
     Return
     ------
     is_passed : Returns True if all is valid
@@ -909,14 +876,12 @@ def quality_check( seq: str, ref_seq: str ) -> bool:
 def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info ) -> int:
     """
     Compare reference variations to sample variations
-
     Parameter
     ---------
     cds : Name of CDS
     cds_seq_dict : Reference sequence dict of CDSs
     reference_info : reference variations
     sample_cds_info : sample_cds variations
-
     Return
     ------
     allele_id : allele ID after comparison
@@ -994,7 +959,6 @@ def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_in
 def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     """
     Returns allele ID for samples coding sequences
-
     Return
     ------
     sample_allele_dict : { cds_1 : allele_ID_1, ... }
@@ -1147,7 +1111,6 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 def write_allele_sequence_to_schema_seed( sample_cds: str, cds_allele_id: str, sample_ref_seq: str, sample_cds_variation: Info ) -> None:
     """
     Write variations to the schema file.
-
     Parameter
     ---------
     sample_cds : Name of CDS
@@ -1169,7 +1132,6 @@ def write_allele_sequence_to_schema_seed( sample_cds: str, cds_allele_id: str, s
 def write_variations_to_reference_info_file( cds: str, allele_id: str, cds_variation: Info ) -> None:
     """
     Write variations to the reference_info.txt file.
-
     Parameter
     ---------
     cds : Name of CDS
@@ -1200,7 +1162,6 @@ def write_variations_to_reference_vcf_file( cds: str, temp_sample_vcf_dir: str, 
     """
     Take the variations from sample variation list
     Write from sample.vcf to reference.vcf
-
     Parameter
     ---------
     cds : CDS name
