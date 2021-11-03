@@ -74,43 +74,6 @@ rule vg_giraffe:
         echo "---------------------------------------" | tee -a {params.log_file}
         '''
 
-#####################################
-## SBG                             ##
-#####################################
-
-rule sbg_graf:
-    input:
-        reference_fasta = config["reference_fasta"],
-        reference_vcf_gz = f'{config["reference"]}.vcf.gz',
-        read1 = config["samples"]["sample1"],
-        read2 = config["samples"]["sample2"],
-    output:
-        sample_bam = f'{config["output_dir"]}/sbg/{config["sample"]}.bam'
-    params: log_file = config["allele_calling_log_file"]
-    threads: config["parameters"]["threads"]
-    message: "SBG GRAF is running..."
-    shell: 
-        '''
-        echo "---------------------------------------" | tee -a {params.log_file}
-        now=$(date +"%T")
-        echo "Start: $now" | tee -a {params.log_file}
-        echo "{input.reference_vcf_gz} is being uncompressed for SBG GRAF." | tee -a {params.log_file}
-        echo "SBG GRAF is running on {input.reference_fasta}, {input.reference_vcf_gz}, {input.read1}, and {input.read2} with {threads} threads." | tee -a {params.log_file}
-        echo "Output file is {output.sample_bam}." | tee -a {params.log_file}
-        echo "---------------------------------------" | tee -a {params.log_file}
-        fastp -i {input.read1} -I {input.read2} -o {input.read1}.filtered -O {input.read2}.filtered -n 0 2/dev/null
-        mv {input.read1}.filtered {input.read1}
-        mv {input.read2}.filtered {input.read2}
-        sbg-aligner -v {input.reference_vcf_gz} --threads {threads} --reference {input.reference_fasta} -q {input.read1} -Q {input.read2} --read_group_library 'lib' -o {output.sample_bam} 2>/dev/null
-        now=$(date +"%T")
-        echo "End: $now" | tee -a {params.log_file}
-        echo "---------------------------------------" | tee -a {params.log_file}
-        '''
-
-#####################################
-## FOR BOTH SBG AND VG             ##
-#####################################
-
 rule samtools_commands:
     input:
         sample_bam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.bam'

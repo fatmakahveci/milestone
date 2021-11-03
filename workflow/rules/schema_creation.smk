@@ -25,7 +25,7 @@ rule create_reference_vcf_fasta:
         echo "Start: $now" | tee -a {params.log_file}
         echo "Rule {rule} running create_reference.py on {input.schema_dir}." | tee -a {params.log_file}
         echo "Output files are {output.reference_vcf}, {params.reference_info_txt}, and {output.reference_fasta}. " | tee -a {params.log_file}
-        python {input.code_dir}/scripts/create_reference.py --schema_dir {input.schema_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {params.reference_info_txt} --threads {threads} 2>&1 | tee -a {params.log_file}
+        python {input.code_dir}/scripts/create_reference.py --schema_dir {input.schema_dir} --reference_vcf {output.reference_vcf} --reference_fasta {output.reference_fasta} --reference_info {params.reference_info_txt} --threads {threads} | tee -a {params.log_file}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -92,6 +92,8 @@ rule sort_filter_zip_index_vcf:
         echo "{input.reference_vcf} file is being compressed." | tee -a {params.log_file}
         echo "Output compressed file is {output.reference_vcf_gz}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
+        bcftools norm -a -D {input.reference_vcf} -Ov -o {input.reference_vcf}.
+        mv {input.reference_vcf}. {input.reference_vcf}
         bcftools sort {input.reference_vcf} -Ov -o {params.temp_reference_vcf}
         mv {params.temp_reference_vcf} {input.reference_vcf}
         bgzip {input.reference_vcf} && tabix -p vcf {output.reference_vcf_gz}

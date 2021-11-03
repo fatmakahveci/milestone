@@ -41,9 +41,6 @@ def create_config():
 
         ## schema_creation log file
         output_file.write(f'schema_creation_log_file: "{schema_creation_log_file}"\n')
-
-        ## name of aligner vg or sbg
-        # output_file.write(f'aligner: "{args.aligner}"\n')
         
         output_file.write(f'output_dir: {args.output.rstrip("/")}\n')
 
@@ -221,12 +218,6 @@ def parse_arguments():
         help = 'schema_creation - Run schema_creation workflow to create FASTA and VCF files\
              for reference genome.')
 
-    # schema_creation_parser.add_argument('-a', '--aligner',
-    #     type = str,
-    #     default = 'vg',
-    #     required = False,
-    #     help = 'Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)')
-
     schema_creation_parser.add_argument('-sn', '--schema_name',
         type = str,
         help = 'Schema name with its directory containing user-provided coding sequences and their alleles. (required)',
@@ -244,11 +235,11 @@ def parse_arguments():
     allele_calling_parser = subparsers.add_parser("allele_calling",
         parents = [parent_parser],
         description = 'Allele Calling and Reference Update',
-        help = 'Allele Calling and Reference Update- Choose VG or SBG GRAF aligners to align reads\
+        help = 'Allele Calling and Reference Update - VG GRAF aligners to align reads\
              onto the reference genome and Call Alleles. (Optional: --update_reference)')
 
     allele_calling_parser.add_argument('--aligner',
-        help = 'Allele Calling and Reference Update - Graph Aligner option, sbg or vg. (default: vg)',
+        help = 'Allele Calling and Reference Update - Graph Aligner option. (default: vg)',
         default = 'vg',
         required = False)
 
