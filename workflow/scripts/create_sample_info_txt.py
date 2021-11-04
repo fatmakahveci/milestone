@@ -677,28 +677,25 @@ def create_sample_variation_dict() -> dict:
                 # snp
                 elif var_type == 'snp':
 
-                    # it does not equal to the reference    
-                    if not vcf_line.sample.startswith('0'):
+                    if len ( vcf_line.alt ) > 1 and len( vcf_line.alt ) == len( vcf_line.ref ):
 
-                        if len ( vcf_line.alt ) > 1 and len( vcf_line.alt ) == len( vcf_line.ref ):
+                        for sb in range(len(vcf_line.alt)):
 
-                            for sb in range(len(vcf_line.alt)):
+                            variation_pos_list.append( vcf_line.pos + sb )
+                            variation_ref_list.append( vcf_line.ref[sb] )
+                            variation_alt_list.append( vcf_line.alt[sb] )
+                            variation_qual_list.append (vcf_line.qual )
 
-                                variation_pos_list.append( vcf_line.pos + sb )
-                                variation_ref_list.append( vcf_line.ref[sb] )
-                                variation_alt_list.append( vcf_line.alt[sb] )
-                                variation_qual_list.append (vcf_line.qual )
+                    else:
 
+                        variation_pos_list.append( vcf_line.pos )
+                        variation_ref_list.append( vcf_line.ref )
+                        if len(vcf_line.alt) == 1:
+                            alt_idx = 0
                         else:
-
-                            variation_pos_list.append( vcf_line.pos )
-                            variation_ref_list.append( vcf_line.ref )
-                            if len(vcf_line.alt) == 1:
-                                alt_idx = 0
-                            else:
-                                alt_idx = int(vcf_line.sample[0])
-                            variation_alt_list.append( vcf_line.alt.split(",")[alt_idx] )
-                            variation_qual_list.append( vcf_line.qual )
+                            alt_idx = int(vcf_line.sample[0])
+                        variation_alt_list.append( vcf_line.alt.split(",")[alt_idx] )
+                        variation_qual_list.append( vcf_line.qual )
 
                 if vcf_line.chr not in sample_variation_dict.keys():
 
@@ -727,7 +724,9 @@ def create_sample_variation_dict() -> dict:
     for sample_cds, variations in sample_variation_dict.items():
 
         sample_variation_dict[sample_cds] = merge_variations( variations=sample_variation_dict[sample_cds] )
-
+    
+    # for k,v in sample_variation_dict.items():
+    #     print(f'{k}\t{v}')
     return sample_variation_dict
 
 

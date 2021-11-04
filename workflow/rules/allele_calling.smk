@@ -92,10 +92,10 @@ rule samtools_commands:
         echo "samtools view, sort, collate, fixmate, and markdup are running on {input.sample_bam}." | tee -a {params.log_file}
         echo "Output files are {output.sample_bam_bai} and {output.sample_depth}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        samtools view -f 2 -q 20 -b {input.sample_bam} | samtools sort -o - | samtools collate -o - - | samtools fixmate -m - - | samtools sort -o - | samtools markdup -r - - > {params.sample}.sorted.bam
+        samtools view -f 2 -q 24 -m 120 -b {input.sample_bam} | samtools sort -o - | samtools collate -o - - | samtools fixmate -m - - | samtools sort -o - | samtools markdup -r - - > {params.sample}.sorted.bam
         mv {params.sample}.sorted.bam {params.sample}.bam
         samtools index {params.sample}.bam {output.sample_bam_bai}
-        samtools coverage {params.sample}.bam -Q 20 -o {output.sample_depth}
+        samtools coverage {params.sample}.bam -q 59 -Q 36 -o {output.sample_depth}
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -120,7 +120,7 @@ rule bam_to_vcf:
         echo "vcffilter is running on {output.sample_vcf}"
         echo "Output file is {output.sample_vcf}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        freebayes -f {input.reference_fasta} -C 10 {input.sample_bam} > {output.sample_vcf}
+        freebayes -f {input.reference_fasta} -p 1 -C 20 {input.sample_bam} > {output.sample_vcf}
         vcffilter -f "QUAL > 49" {output.sample_vcf} > {output.sample_vcf}.
         echo "REFERENCE" > REFERENCE
         bcftools reheader -s REFERENCE -o {output.sample_vcf} {output.sample_vcf}.
