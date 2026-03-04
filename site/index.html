@@ -3,55 +3,72 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Milestone wgMLST workflow for local bacterial typing</title>
-  <meta name="description" content="Milestone is a local wgMLST workflow for bacterial allele calling, profile comparison, schema QC, public schema import, and validation support.">
-  <meta name="keywords" content="wgMLST, bacterial typing, allele calling, profile comparison, PubMLST, schema QC">
-  <meta property="og:title" content="Milestone local wgMLST workflow">
-  <meta property="og:description" content="Local workflow for bacterial allele calling, wgMLST profile comparison, schema QC, public schema import, and validation support.">
+  <title>Milestone | wgMLST web app and local workflow</title>
+  <meta name="description" content="Milestone provides a Streamlit web app and CLI pipeline for wgMLST schema import, allele calling, profile comparison, benchmark validation, and publication-ready outputs.">
+  <meta name="keywords" content="wgMLST, bacterial typing, Streamlit, allele calling, PubMLST, EnteroBase, schema QC, benchmark">
+  <meta property="og:title" content="Milestone wgMLST web app and pipeline">
+  <meta property="og:description" content="Run public schema import, allele calling, profile comparison, benchmark validation, and publication packaging with Milestone.">
   <meta property="og:type" content="website">
   <link rel="canonical" href="https://fatmakahveci.github.io/milestone/">
   <style>
-    body { font-family: Georgia, "Times New Roman", serif; margin: 0; background: linear-gradient(180deg, #f7f3ea 0%, #fbfaf6 40%, #f3f5ef 100%); color: #173126; }
-    main { max-width: 1040px; margin: 0 auto; padding: 3.5rem 1.5rem 4rem; }
-    h1 { font-size: 3rem; margin-bottom: 0.6rem; }
+    :root {
+      --bg: linear-gradient(180deg, #f7f3ea 0%, #fbfaf6 40%, #f3f5ef 100%);
+      --text: #173126;
+      --muted: #28473a;
+      --accent: #0c6b45;
+      --card-border: #d7e3dc;
+    }
+    body { font-family: Georgia, "Times New Roman", serif; margin: 0; background: var(--bg); color: var(--text); }
+    main { max-width: 1080px; margin: 0 auto; padding: 3.2rem 1.5rem 4rem; }
+    .brand { display: flex; align-items: center; gap: 0.9rem; }
+    .brand img { width: 56px; height: 56px; object-fit: contain; }
+    h1 { font-size: 3rem; margin: 0.1rem 0 0.6rem; }
     h2 { margin-top: 0; }
     p { line-height: 1.7; max-width: 760px; }
-    .lede { font-size: 1.2rem; color: #28473a; }
+    .lede { font-size: 1.2rem; color: var(--muted); margin-top: 0.5rem; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 2rem; }
-    .card { background: rgba(255,255,255,0.88); border: 1px solid #d7e3dc; border-radius: 18px; padding: 1.2rem; box-shadow: 0 12px 30px rgba(23,49,38,0.06); }
+    .card { background: rgba(255,255,255,0.88); border: 1px solid var(--card-border); border-radius: 18px; padding: 1.2rem; box-shadow: 0 12px 30px rgba(23,49,38,0.06); }
     .links { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.4rem; }
-    .button { display: inline-block; padding: 0.75rem 1rem; border-radius: 999px; background: #0c6b45; color: white; text-decoration: none; }
-    .button.secondary { background: transparent; color: #0c6b45; border: 1px solid #b8ccc1; }
+    .button { display: inline-block; padding: 0.75rem 1rem; border-radius: 999px; background: var(--accent); color: white; text-decoration: none; }
+    .button.secondary { background: transparent; color: var(--accent); border: 1px solid #b8ccc1; }
+    .note { margin-top: 1.3rem; padding: 0.9rem 1rem; border-radius: 12px; border: 1px solid #cfddd5; background: rgba(255,255,255,0.72); max-width: 840px; }
     .small-links { margin-top: 1.4rem; }
     .small-links a { margin-right: 1rem; }
-    a { color: #0c6b45; }
+    a { color: var(--accent); }
   </style>
 </head>
 <body>
   <main>
-    <h1>Milestone</h1>
-    <p class="lede">Milestone is a local <code>wgMLST</code> workflow for bacterial allele calling, profile comparison, schema QC, public schema import, and validation support.</p>
+    <div class="brand">
+      <img src="https://raw.githubusercontent.com/fatmakahveci/milestone/master/images/milestone.png" alt="Milestone logo">
+      <h1>Milestone</h1>
+    </div>
+    <p class="lede">Milestone is a Streamlit web app and CLI workflow for <code>wgMLST</code>: public schema import, allele calling, profile comparison, matrix/batch analysis, benchmark validation, and publication-ready packaging.</p>
     <div class="links">
       <a class="button" href="https://github.com/fatmakahveci/milestone">View Repository</a>
+      <a class="button secondary" href="https://github.com/fatmakahveci/milestone/blob/master/README.md">Quick Start</a>
       <a class="button secondary" href="https://github.com/fatmakahveci/milestone/blob/master/docs/how-to-use-milestone.md">How To Use Milestone</a>
+      <a class="button secondary" href="benchmark.html">Benchmark Page</a>
     </div>
+    <p class="note"><strong>Important:</strong> This GitHub Pages site is a static overview. The interactive Milestone UI runs with <code>streamlit run webapp/app.py</code> or via your own Streamlit deployment.</p>
     <div class="grid">
       <section class="card">
-        <h2>One workflow</h2>
-        <p>Run schema creation or import, allele calling, profile comparison, schema QC, and benchmarking in one local project.</p>
+        <h2>Web UI + live jobs</h2>
+        <p>Run demo or real jobs from the browser with job-state tracking, live log streaming, and downloadable run outputs.</p>
       </section>
       <section class="card">
         <h2>Public schema import</h2>
-        <p>Import PubMLST and EnteroBase assets, then freeze selected isolates into provenance-aware benchmark packs.</p>
+        <p>Import PubMLST and EnteroBase assets, filter cgMLST/wgMLST schemes, and freeze isolate-backed benchmark packs.</p>
       </section>
       <section class="card">
-        <h2>Validation support</h2>
-        <p>Use schema QC, benchmark reports, validation bundles, and reporting outputs to keep analyses easier to rerun and inspect.</p>
+        <h2>Scientific validation</h2>
+        <p>Use schema QC, per-locus benchmarking, novel allele export, and publication-readiness packaging for reproducible outputs.</p>
       </section>
     </div>
     <p class="small-links">
       <a href="https://github.com/fatmakahveci/milestone/blob/master/README.md">README</a>
       <a href="https://github.com/fatmakahveci/milestone/blob/master/docs/scientific-positioning.md">What Milestone Is</a>
+      <a href="https://github.com/fatmakahveci/milestone/blob/master/docs/how-to-use-milestone.md">Web App Guide</a>
       <a href="https://github.com/fatmakahveci/milestone/blob/master/docs/competitive-analysis.md">Compared with other tools</a>
       <a href="https://github.com/fatmakahveci/milestone/blob/master/docs/public-benchmark-datasets.md">Public benchmark datasets</a>
     </p>

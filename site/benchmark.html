@@ -3,26 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Milestone wgMLST benchmark packs and validation</title>
-  <meta name="description" content="Milestone benchmark packs provide reproducible wgMLST truth-set validation, per-locus discordance summaries, and frozen public benchmark snapshots.">
+  <title>Milestone benchmark validation</title>
+  <meta name="description" content="Milestone benchmark packs provide reproducible wgMLST validation with species-aware truth sets, per-locus discordance summaries, and publication artifacts.">
   <link rel="canonical" href="https://fatmakahveci.github.io/milestone/benchmark.html">
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #fffdf9; color: #173126; }
-    main { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; }
-    h1 { font-size: 2.4rem; }
+    body { font-family: Georgia, "Times New Roman", serif; margin: 0; background: #fffdf9; color: #173126; }
+    main { max-width: 980px; margin: 0 auto; padding: 3rem 1.5rem; }
+    h1 { font-size: 2.4rem; margin-bottom: 0.5rem; }
     li { margin-bottom: 0.6rem; }
+    .note { margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 12px; border: 1px solid #d7e3dc; background: #f8fbf9; }
+    a { color: #0c6b45; }
   </style>
 </head>
 <body>
   <main>
     <h1>Benchmark and Validation</h1>
-    <p>Milestone supports truth-set benchmarking, provenance-aware species packs, frozen public snapshots, per-locus mismatch summaries, and validation bundles suitable for supplementary academic material.</p>
+    <p>Milestone supports truth-set benchmarking, provenance-aware species packs, frozen public snapshots, per-locus mismatch summaries, and validation bundles suitable for reproducible bioinformatics reporting.</p>
     <ul>
       <li>Species benchmark packs for <code>Escherichia coli</code>, <code>Neisseria meningitidis</code>, and <code>Acinetobacter baumannii</code></li>
       <li>PubMLST-backed benchmark-pack import and freezing</li>
       <li>HTML, TSV, and JSON benchmark reports</li>
+      <li>Novel-allele export and per-locus discordance visibility</li>
       <li>Tool harness scaffolding for Milestone, chewBBACA, and MentaLiST</li>
     </ul>
+    <p class="note"><strong>Run locally:</strong> <code>streamlit run webapp/app.py</code> for interactive benchmark run control and downloadable outputs.</p>
+    <p><a href="index.html">Back to main page</a></p>
   </main>
 </body>
 </html>
