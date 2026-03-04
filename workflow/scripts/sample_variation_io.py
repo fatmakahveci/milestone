@@ -36,7 +36,13 @@ def resolve_cigar(
 ) -> tuple[list, list, list, list]:
     pos_list, ref_list, alt_list, qual_list = [], [], [], []
 
-    cigar_list = list(zip(list(map(int, re.findall("[0-9]+", cigar))), [s for s in cigar if not s.isdigit()]))
+    cigar_list = list(
+        zip(
+            list(map(int, re.findall("[0-9]+", cigar))),
+            [s for s in cigar if not s.isdigit()],
+            strict=False,
+        )
+    )
 
     i, j = 0, 0
 

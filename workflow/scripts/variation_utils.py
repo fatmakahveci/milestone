@@ -115,6 +115,7 @@ def merge_variations(variations: ParsedVariationInfo) -> ParsedVariationInfo:
         variations.ref_list,
         variations.alt_list,
         variations.qual_list,
+        strict=False,
     ):
         merged_variations_list.append(f"{pos}*{ref}>{alt}-{qual}")
 
@@ -126,6 +127,7 @@ def merge_variations(variations: ParsedVariationInfo) -> ParsedVariationInfo:
         var_list.ref_list,
         var_list.alt_list,
         var_list.qual_list,
+        strict=False,
     ):
         merged_list.append(f"{pos}*{ref}>{alt}-{qual}")
 
@@ -135,7 +137,14 @@ def merge_variations(variations: ParsedVariationInfo) -> ParsedVariationInfo:
 def build_variation_signature(
     variation_info: ParsedVariationInfo,
 ) -> Counter[tuple[int, str, str]]:
-    return Counter(zip(variation_info.pos_list, variation_info.ref_list, variation_info.alt_list))
+    return Counter(
+        zip(
+            variation_info.pos_list,
+            variation_info.ref_list,
+            variation_info.alt_list,
+            strict=False,
+        )
+    )
 
 
 def write_novel_allele_exports(

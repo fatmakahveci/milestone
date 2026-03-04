@@ -27,6 +27,7 @@ def write_variations_to_reference_info_file(
             cds_variation.ref_list,
             cds_variation.alt_list,
             cds_variation.qual_list,
+            strict=False,
         ):
             if type(alt) is list:
                 alt = ";".join(alt)

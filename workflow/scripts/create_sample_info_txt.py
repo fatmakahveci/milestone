@@ -146,7 +146,11 @@ def base_dict_for_sam( base_dict: dict, pos_seq_cigar: list, variation_pos: int 
     sam_start_pos = pos - 1
 
     # match/mismatch loci in sam sequence
-    for case, number_of_case in zip( re.findall("[A-Z]", cigar), map( int, re.findall("[0-9]+", cigar) ) ):
+    for case, number_of_case in zip(
+        re.findall("[A-Z]", cigar),
+        map(int, re.findall("[0-9]+", cigar)),
+        strict=False,
+    ):
 
         if case == 'M':
 
@@ -520,7 +524,7 @@ def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_lis
     """
     
     # reverse list to avoid their effect on each other
-    for pos, ref, alt in zip( pos_list[::-1], ref_list[::-1], alt_list[::-1] ):
+    for pos, ref, alt in zip(pos_list[::-1], ref_list[::-1], alt_list[::-1], strict=False):
 
         pos -= 1
 
@@ -600,6 +604,7 @@ def summarize_variations(sample_cds_variation: Info) -> str:
             sample_cds_variation.pos_list,
             sample_cds_variation.ref_list,
             sample_cds_variation.alt_list,
+            strict=False,
         )
     )
 
@@ -630,7 +635,7 @@ def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_in
     # cds length check
     diff_len = 0
 
-    for ref, alt in zip( sample_cds_info.ref_list, sample_cds_info.alt_list ):
+    for ref, alt in zip(sample_cds_info.ref_list, sample_cds_info.alt_list, strict=False):
 
         if alt == '.':
 
@@ -692,7 +697,7 @@ def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_in
 
 def _variation_length_delta(variation_info: Info) -> int:
     diff_len = 0
-    for ref, alt in zip(variation_info.ref_list, variation_info.alt_list):
+    for ref, alt in zip(variation_info.ref_list, variation_info.alt_list, strict=False):
         if alt == ".":
             diff_len += len(ref)
         else:

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import sys
+from importlib import util
 from pathlib import Path
 
 
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "benchmark_typing_tools.py"
-SPEC = importlib.util.spec_from_file_location("benchmark_typing_tools", MODULE_PATH)
-MODULE = importlib.util.module_from_spec(SPEC)
+SPEC = util.spec_from_file_location("benchmark_typing_tools", MODULE_PATH)
+MODULE = util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)

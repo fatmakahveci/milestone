@@ -195,15 +195,15 @@ def get_translation_table_settings(
     settings = TRANSLATION_TABLE_ROWS.get(translation_table)
     if settings is None:
         raise ValueError(f"Unsupported translation table: {translation_table}")
-    codons = [f"{a}{b}{c}" for a, b, c in zip(BASE1, BASE2, BASE3)]
+    codons = [f"{a}{b}{c}" for a, b, c in zip(BASE1, BASE2, BASE3, strict=True)]
     stop_codons = {
         codon
-        for codon, aa in zip(codons, settings["aas"])
+        for codon, aa in zip(codons, settings["aas"], strict=True)
         if aa == "*"
     }
     start_codons = allowed_start_codons or {
         codon
-        for codon, marker in zip(codons, settings["starts"])
+        for codon, marker in zip(codons, settings["starts"], strict=True)
         if marker == "M"
     }
     return {codon.upper() for codon in start_codons}, stop_codons

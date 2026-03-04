@@ -30,7 +30,10 @@ def summarize_collection(collection_dir: str | Path) -> dict[str, object]:
         "kind": "species_validation_corpus",
         "collection_dir": str(collection_dir),
         "species_count": len(pack_dirs),
-        "species": [manifest.get("species", pack_dir.name) for pack_dir, manifest in zip(pack_dirs, manifests)],
+        "species": [
+            manifest.get("species", pack_dir.name)
+            for pack_dir, manifest in zip(pack_dirs, manifests, strict=False)
+        ],
         "schema_types": dict(schema_types),
         "packs": manifests,
     }
