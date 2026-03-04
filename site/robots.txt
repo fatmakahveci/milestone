@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fatmakahveci.github.io/milestone/sitemap.xml
