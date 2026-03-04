@@ -199,8 +199,15 @@ def write_report(report: dict[str, object], output_dir: Path) -> tuple[Path, Pat
     tsv_path = output_dir / "schema_qc_issues.tsv"
     with tsv_path.open("w", encoding="utf-8") as handle:
         handle.write("locus\tseverity\tissue\tdetail\n")
-        for issue in report["issues"]:
-            handle.write(f"{issue['locus']}\t{issue['severity']}\t{issue['issue']}\t{issue['detail']}\n")
+        issues = report.get("issues")
+        if isinstance(issues, list):
+            for issue in issues:
+                if not isinstance(issue, dict):
+                    continue
+                handle.write(
+                    f"{issue.get('locus', '')}\t{issue.get('severity', '')}\t"
+                    f"{issue.get('issue', '')}\t{issue.get('detail', '')}\n"
+                )
     return json_path, tsv_path
 
 

@@ -7,8 +7,9 @@ from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "import_pubmlst_scheme.py"
 SPEC = importlib.util.spec_from_file_location("import_pubmlst_scheme", MODULE_PATH)
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError(f"Unable to load import_pubmlst_scheme module from {MODULE_PATH}")
 MODULE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
 sys.modules.setdefault(SPEC.name, MODULE)
 SPEC.loader.exec_module(MODULE)
 

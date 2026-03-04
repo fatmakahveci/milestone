@@ -3,7 +3,9 @@ from __future__ import annotations
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence, TypedDict
+
+from Bio.SeqRecord import SeqRecord
 
 COMMON_BACTERIAL_START_CODONS = {"ATG", "CTG", "GTG", "TTG"}
 STOP_CODONS = {"TAG", "TAA", "TGA"}
@@ -90,6 +92,14 @@ TRANSLATION_TABLE_ROWS = {
 ALLELE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
+class QualityCheckResult(TypedDict):
+    status: str
+    reason: str
+    reference_match: bool
+    sequence_length: int
+    length_delta: int
+
+
 def split_allele_name(allele_name: str) -> tuple[str, str]:
     normalized = allele_name.strip("\n")
     if "_" not in normalized:
@@ -106,7 +116,7 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     return split_allele_name(allele_name)[1]
 
 
-def _reference_sort_key(record) -> tuple[int, object, str]:
+def _reference_sort_key(record: SeqRecord) -> tuple[int, object, str]:
     allele_id = get_allele_id_from_allele_name(record.id)
     if allele_id == REFERENCE_ALLELE_ID:
         return (0, 0, record.id)
@@ -115,7 +125,7 @@ def _reference_sort_key(record) -> tuple[int, object, str]:
     return (1, allele_id.lower(), record.id)
 
 
-def select_reference_record(records: list):
+def select_reference_record(records: Sequence[SeqRecord]) -> SeqRecord:
     if records:
         return min(records, key=_reference_sort_key)
     raise ValueError("Cannot select a reference allele from an empty locus FASTA.")
@@ -214,7 +224,7 @@ def describe_quality_check(
     locus_mode_length: int,
     translation_table: int = TRANSLATION_TABLE_DEFAULT,
     allowed_start_codons: set[str] | None = None,
-) -> dict[str, object]:
+) -> QualityCheckResult:
     start_codons, stop_codons = get_translation_table_settings(
         translation_table=translation_table,
         allowed_start_codons=allowed_start_codons,
@@ -299,13 +309,14 @@ def quality_check(
     translation_table: int = TRANSLATION_TABLE_DEFAULT,
     allowed_start_codons: set[str] | None = None,
 ) -> str:
-    return describe_quality_check(
+    result: QualityCheckResult = describe_quality_check(
         seq,
         ref_seq,
         locus_mode_length,
         translation_table=translation_table,
         allowed_start_codons=allowed_start_codons,
-    )["status"]
+    )
+    return result["status"]
 
 
 def get_numeric_allele_ids_from_fasta(locus_fasta: str | Path) -> list[int]:

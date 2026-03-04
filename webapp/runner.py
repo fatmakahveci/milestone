@@ -10,6 +10,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Mapping
 from uuid import uuid4
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -58,7 +59,7 @@ class JobSnapshot:
 @dataclass(frozen=True)
 class ResultMetric:
     kind: str
-    values: dict[str, object]
+    values: Mapping[str, object]
 
 
 def timestamp() -> str:
