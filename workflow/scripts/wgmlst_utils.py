@@ -117,12 +117,13 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
 
 
 def _reference_sort_key(record: SeqRecord) -> tuple[int, object, str]:
-    allele_id = get_allele_id_from_allele_name(record.id)
+    record_id = record.id or ""
+    allele_id = get_allele_id_from_allele_name(record_id)
     if allele_id == REFERENCE_ALLELE_ID:
-        return (0, 0, record.id)
+        return (0, 0, record_id)
     if allele_id.isdigit():
-        return (2, int(allele_id), record.id)
-    return (1, allele_id.lower(), record.id)
+        return (2, int(allele_id), record_id)
+    return (1, allele_id.lower(), record_id)
 
 
 def select_reference_record(records: Sequence[SeqRecord]) -> SeqRecord:
