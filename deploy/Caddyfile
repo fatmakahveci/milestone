@@ -1,0 +1,13 @@
+{$DOMAIN} {
+  encode gzip
+
+  redir /milestone /milestone/ 308
+
+  handle /milestone* {
+    reverse_proxy milestone-web:8501
+  }
+
+  handle {
+    respond "Milestone Streamlit app is served at /milestone/" 200
+  }
+}

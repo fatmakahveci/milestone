@@ -191,6 +191,7 @@ docker compose run --rm milestone-benchmark
 
 - [What Milestone Is](docs/scientific-positioning.md)
 - [How To Use Milestone](docs/how-to-use-milestone.md)
+- [Publish Web Demo](docs/deploy-webapp.md)
 - [Competitive Analysis](docs/competitive-analysis.md)
 - [Public Benchmark Datasets](docs/public-benchmark-datasets.md)
 - [Publication Checklist](docs/publication-checklist.md)

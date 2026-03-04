@@ -1,0 +1,30 @@
+services:
+  milestone-web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: >
+      streamlit run webapp/app.py
+      --server.address=0.0.0.0
+      --server.port=8501
+      --server.baseUrlPath=milestone
+      --server.enableCORS=false
+      --server.enableXsrfProtection=false
+
+  milestone-proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - milestone-web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
