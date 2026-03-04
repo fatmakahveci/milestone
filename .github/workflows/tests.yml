@@ -122,7 +122,8 @@ jobs:
       - name: Run benchmark smoke
         run: |
           python workflow/milestone.py profile_benchmark \
-            --benchmark-pack-dir tests/fixtures/benchmark/public_species_packs \
+            --predicted-dir tests/fixtures/benchmark/demo_species/predicted \
+            --truth-dir tests/fixtures/benchmark/demo_species/truth \
             --output /tmp/milestone-benchmark/output
 
       - name: Run tool benchmark harness
