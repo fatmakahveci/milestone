@@ -3,9 +3,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Iterable, Sequence, TypedDict
-
-from Bio.SeqRecord import SeqRecord
+from typing import Any, Iterable, Sequence, TypedDict
 
 COMMON_BACTERIAL_START_CODONS = {"ATG", "CTG", "GTG", "TTG"}
 STOP_CODONS = {"TAG", "TAA", "TGA"}
@@ -116,7 +114,7 @@ def get_allele_id_from_allele_name(allele_name: str) -> str:
     return split_allele_name(allele_name)[1]
 
 
-def _reference_sort_key(record: SeqRecord) -> tuple[int, object, str]:
+def _reference_sort_key(record: Any) -> tuple[int, object, str]:
     record_id = record.id or ""
     allele_id = get_allele_id_from_allele_name(record_id)
     if allele_id == REFERENCE_ALLELE_ID:
@@ -126,7 +124,7 @@ def _reference_sort_key(record: SeqRecord) -> tuple[int, object, str]:
     return (1, allele_id.lower(), record_id)
 
 
-def select_reference_record(records: Sequence[SeqRecord]) -> SeqRecord:
+def select_reference_record(records: Sequence[Any]) -> Any:
     if records:
         return min(records, key=_reference_sort_key)
     raise ValueError("Cannot select a reference allele from an empty locus FASTA.")
