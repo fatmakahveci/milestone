@@ -99,7 +99,8 @@ def execution_controls(form_key: str) -> tuple[str, bool]:
         key=f"{form_key}_dryrun",
         help="Recommended for first execution. Builds the DAG without running heavy jobs.",
     )
-    return mode, dryrun
+    resolved_mode = mode or "Demo preview"
+    return resolved_mode, dryrun
 
 
 def require_password_if_configured() -> bool:
