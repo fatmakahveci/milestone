@@ -1,0 +1,22 @@
+{
+  "milestone": {
+    "label": "Milestone",
+    "command": ["python", "workflow/milestone.py", "profile_compare", "--help"],
+    "workdir": ".",
+    "timeout_seconds": 60,
+    "required_files": ["workflow/milestone.py"],
+    "notes": "Repository-local command used as a smoke benchmark target."
+  },
+  "chewbbaca": {
+    "label": "chewBBACA",
+    "command": ["chewBBACA.py", "--help"],
+    "timeout_seconds": 60,
+    "notes": "Replace with AlleleCall/CreateSchema commands in a full benchmark environment."
+  },
+  "mentalist": {
+    "label": "MentaLiST",
+    "command": ["mentalist", "--help"],
+    "timeout_seconds": 60,
+    "notes": "Replace with real MentaLiST calling commands against a fixed scheme for published benchmarks."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "base_url": "https://rest.pubmlst.org",
+  "species": [
+    {
+      "slug": "neisseria_meningitidis",
+      "species": "Neisseria meningitidis",
+      "scheme_database": "pubmlst_neisseria_seqdef",
+      "isolate_database": "pubmlst_neisseria_isolates",
+      "scheme_id": 1,
+      "isolate_ids": [1, 2],
+      "source_name": "Frozen PubMLST benchmark pack",
+      "selection_criteria": "Replace with a documented isolate selection strategy.",
+      "download_contigs": false,
+      "zip_name": "frozen_benchmark_pack.zip"
+    },
+    {
+      "slug": "escherichia_coli",
+      "species": "Escherichia coli",
+      "scheme_database": "pubmlst_escherichia_seqdef",
+      "isolate_database": "pubmlst_escherichia_isolates",
+      "scheme_id": 1,
+      "isolate_ids": [1, 2],
+      "source_name": "Frozen PubMLST benchmark pack",
+      "selection_criteria": "Replace with a documented isolate selection strategy.",
+      "download_contigs": false,
+      "zip_name": "frozen_benchmark_pack.zip"
+    }
+  ]
+}

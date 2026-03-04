@@ -1,0 +1,25 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "Milestone",
+  "description": "A research-oriented wgMLST workflow for schema-based allele calling, profile comparison, and validation reporting.",
+  "codeRepository": "https://github.com/fatmakahveci/milestone",
+  "license": "https://opensource.org/licenses/MIT",
+  "programmingLanguage": [
+    "Python"
+  ],
+  "keywords": [
+    "wgMLST",
+    "bacterial genomics",
+    "allele calling",
+    "strain typing",
+    "bioinformatics"
+  ],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Fatma",
+      "familyName": "Kahveci"
+    }
+  ]
+}

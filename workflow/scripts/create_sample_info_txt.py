@@ -7,146 +7,96 @@
 #################################################################################
 
 
-import argparse, os
+import os, subprocess, sys
+from collections import Counter
+from pathlib import Path
+from types import SimpleNamespace
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from wgmlst_utils import (
+    REFERENCE_ALLELE_ID,
+    describe_quality_check,
+    get_allele_id_from_allele_name,
+    get_cds_name_from_allele_name,
+    get_locus_length_mode_from_fasta,
+    get_next_novel_allele_id_from_fasta,
+    get_reference_alignment_target_name as shared_get_reference_alignment_target_name,
+    get_reference_allele_name as shared_get_reference_allele_name,
+    quality_check as shared_quality_check,
+)
+from script_utils import ParsedVariationInfo, run_checked_command
+from sample_variation_io import (
+    create_sample_variation_dict as shared_create_sample_variation_dict,
+    get_cigar as shared_get_cigar,
+    get_cigar_info as shared_get_cigar_info,
+    get_sample_sam_dict as shared_get_sample_sam_dict,
+    get_var_type as shared_get_var_type,
+    resolve_cigar as shared_resolve_cigar,
+)
+from reference_update_io import (
+    write_allele_sequence_to_schema_seed as shared_write_allele_sequence_to_schema_seed,
+    write_variations_to_reference_info_file as shared_write_variations_to_reference_info_file,
+    write_variations_to_reference_vcf_file as shared_write_variations_to_reference_vcf_file,
+)
+from reference_merge_pipeline import merge_reference_with_novel_vcfs
+from sample_call_cli_args import parse_cli_args
+from sample_call_orchestrator import run_sample_calling_workflow
+from sample_formats import Coverage, Sam, Vcf
+from variation_utils import (
+    build_variation_signature as shared_build_variation_signature,
+    merge_variations as shared_merge_variations,
+    remove_common_mid as shared_remove_common_mid,
+    remove_common_prefixes as shared_remove_common_prefixes,
+    remove_common_suffixes as shared_remove_common_suffixes,
+    remove_redundance as shared_remove_redundance,
+    write_novel_allele_exports as shared_write_novel_allele_exports,
+)
 
 
-class Coverage:
-
-    def __init__( self, coverage_line ):
-
-        fields = coverage_line.strip('\n').split('\t')
-
-        self.cds = fields[0]
-        self.length = int(fields[2])
-        self.number_of_reads = int(fields[3])
-        self.covered_bases = int(fields[4])
-        self.coverage = float(fields[5])
-        self.mean_depth = float(fields[6])
-        self.mean_baseq = float(fields[7])
-        self.mean_mapq = float(fields[8])
-
-    def __repr__(self):
-
-        return f"cds: {self.cds}\n" \
-               f"length: {self.length}\n" \
-               f"number of reads: {self.number_of_reads}\n" \
-               f"covered bases: {self.covered_bases}\n" \
-               f"coverage: {self.coverage}\n" \
-               f"mean depth: {self.mean_depth}\n" \
-               f"mean baseq: {self.mean_baseq}\n" \
-               f"mean_mapq: {self.mean_mapq}\n"
+Info = ParsedVariationInfo
 
 
-class Info:
-
-    def __init__( self, line ):
-
-        pos_list, ref_list, alt_list, qual_list = [], [], [], []
-
-        for variation in line.split(','):
-
-            pos_end_idx = variation.index('*')
-            pos = int(variation[ : pos_end_idx ])
-
-            ref_end_idx = variation.index('>')
-            ref = variation[ pos_end_idx +1 : ref_end_idx ]
-
-            alt_end_idx = variation.index('-')
-            alt = variation[ ref_end_idx + 1 : alt_end_idx ]
-                        
-            qual = variation[ alt_end_idx + 1 : ] 
-            
-            pos_list.append(pos)
-            ref_list.append(ref)
-            alt_list.append(alt)
-            qual_list.append(qual)
-
-        self.pos_list = pos_list
-        self.ref_list = ref_list
-        self.alt_list = alt_list
-        self.qual_list = qual_list
-
-    def __repr__(self):
-
-        return f'positions: {" ".join(list(map(str, self.pos_list)))}\n' \
-                f'refs: {" ".join(self.ref_list)}\n' \
-                f'alts: {" ".join(self.alt_list)}\n' \
-                f'quals: {" ".join(list(map(str, self.qual_list)))}\n'
+DEFAULT_MIN_LOCUS_COVERAGE = 60.0
+args = SimpleNamespace(
+    schema_dir="",
+    reference_info="",
+    sample_sam="",
+    sample_vcf="",
+    sample_depth="",
+    reference_fasta="",
+    reference_vcf="",
+    update_reference="False",
+    min_locus_coverage=DEFAULT_MIN_LOCUS_COVERAGE,
+    translation_table=11,
+    allowed_start_codons=None,
+    threads="1",
+)
+sample_sam_dict: dict = {}
+novel_allele_id_of_cds_dict: dict = {}
 
 
-class Sam:
-
-    def __init__( self, sam_line ):
-        fields = sam_line.strip('\n').split('\t')
-
-        self.query_name = fields[0]
-        self.read_info = fields[1]
-        self.target_sequence_name = fields[2]
-        self.position = int(fields[3])
-        self.mapping_quality = fields[4]
-        self.cigar = fields[5]
-        self.rnext = fields[6]
-        self.pnext = fields[7]
-        self.tlen = fields[8]
-        self.sequence = fields[9]
-        self.read_quality = fields[10]
-
-    def __repr__(self):
-        return f'QNAME: {self.query_name}\t' \
-               f'FLAG: {self.read_info}\t' \
-               f'RNAME: {self.target_sequence_name}\t' \
-               f'POS: {self.position}\t' \
-               f'MAPQ: {self.mapping_quality}\t' \
-               f'CIGAR: {self.cigar}\t' \
-               f'RNEXT: {self.rnext}\t' \
-               f'PNEXT: {self.pnext}\t' \
-               f'TLEN: {self.tlen}\t' \
-               f'SEQ: {self.sequence}\t' \
-               f'QUAL: {self.read_quality}'
+def _runtime_args():
+    return globals().get("args", args)
 
 
-class Vcf:
+def _init_runtime_state() -> None:
+    global novel_allele_id_of_cds_dict, sample_sam_dict
+    novel_allele_id_of_cds_dict = get_allele_ids_of_cds_in_reference_info_txt()
+    sample_sam_dict = get_sample_sam_dict()
 
-    def __init__( self, vcf_line ):
 
-        fields = vcf_line.strip('\n').split('\t')
+def parse_allowed_start_codons(raw_value: str | None) -> set[str] | None:
+    if not raw_value:
+        return None
+    codons = {item.strip().upper() for item in raw_value.split(",") if item.strip()}
+    return codons or None
 
-        self.chr = get_cds_name_from_allele_name( allele_name=fields[0] )
-        self.pos = int(fields[1])
-        self.id = fields[2]
-        self.ref = fields[3]
-        self.alt = fields[4].split(',')[0]  # in case that there is more than one alt
-        self.qual = float(fields[5])
-        self.filter = fields[6]
-        self.info = fields[7]
-        self.sample_format = fields[8]
-        self.sample = fields[9]
 
-    def __str__(self):
-
-        return f"{self.chr}\t" \
-               f"{self.pos}\t" \
-               f"{self.id}\t" \
-               f"{self.ref}\t" \
-               f"{self.alt}\t" \
-               f"{self.qual}\t" \
-               f"{self.filter}\t" \
-               f"{self.info}\t" \
-               f"{self.sample_format}\t" \
-               f"{self.sample}\n"
-
-    def __repr__(self):
-
-        return f"chr: {self.chr}\n" \
-               f"pos: {str(self.pos)}\n" \
-               f"id: {self.id}\n" \
-               f"ref: {self.ref}\n" \
-               f"alt: {self.alt}\n" \
-               f"qual: {str(self.qual)}\n" \
-               f"filter: {self.filter}\n" \
-               f"info: {self.info}\n" \
-               f"format: {self.sample_format}\n" \
-               f"sample: {self.sample}"
+def run_command(command: list[str]) -> None:
+    run_checked_command(command, stderr=subprocess.DEVNULL)
 
 
 def base_ratio_check( variation_pos: int, cds_name: str ) -> str:
@@ -161,9 +111,6 @@ def base_ratio_check( variation_pos: int, cds_name: str ) -> str:
     -------
     dominant_base : base name with max count
     """
-
-    # avoid redundant operations after cds is found
-    is_cds_found = False
 
     base_dict = { 'A': 0, 'C': 0, 'G': 0, 'T': 0 }
 
@@ -227,42 +174,13 @@ def base_dict_for_sam( base_dict: dict, pos_seq_cigar: list, variation_pos: int 
     return base_dict
 
 
-def get_cds_name_from_allele_name(allele_name: str) -> str:
-    """
-    Get <cds-name> from <cds-name_allele-id>
-    Parameters
-    ----------
-    allele_name : <cds-name_allele-id>
-    Returns
-    -------
-    cds_name : <cds-name>
-    """
-
-    cds_name = allele_name.strip("\n").split("_")[0]
-
-    return cds_name
-
-
-def get_allele_id_from_allele_name(allele_name: str) -> str:
-    """
-    Get <allele-id> from <cds-name_allele-id>
-    Parameters
-    ----------
-    allele_name : <cds-name_allele-id>
-    Returns
-    -------
-    allele_id : <allele-id>
-    """
-
-    allele_id = allele_name.strip("\n").split("_")[-1]
-
-    return allele_id
-
-
 def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
     """
-    Reads reference_info.txt and returns allele ID dictionary
-    for each CDS in reference_info.txt
+    Return the next numeric novel allele ID for loci present in the schema.
+
+    The previous implementation derived IDs only from `reference_info.txt`,
+    which silently failed for loci whose reference allele had no listed
+    variation or used a non-numeric identifier.
     Return
     ------
     novel_allele_id_of_cds_dict: {CDS: {allele_id: allele_info} ...}
@@ -270,42 +188,52 @@ def get_allele_ids_of_cds_in_reference_info_txt() -> dict:
 
     novel_allele_id_of_cds_dict = {}
 
-    for cds, alleles in read_reference_info_txt( info_file=args.reference_info ).items():
+    runtime = _runtime_args()
+    for schema_fasta in Path(runtime.schema_dir).glob("*.fasta"):
+        cds = schema_fasta.stem
+        novel_allele_id_of_cds_dict[cds] = get_next_novel_allele_id(cds)
 
-        novel_allele_id_of_cds_dict[cds] = max( map( int, alleles.keys() ) ) + 1
+    for cds in read_reference_info_txt(info_file=runtime.reference_info).keys():
+        novel_allele_id_of_cds_dict.setdefault(cds, get_next_novel_allele_id(cds))
 
     return novel_allele_id_of_cds_dict
 
 
-def remove_common_suffices( var1: str, var2: str ) -> [ str, str ]:
+def get_numeric_allele_ids_for_locus(cds: str) -> list[int]:
+    runtime = _runtime_args()
+    locus_fasta = Path(runtime.schema_dir) / f"{cds}.fasta"
+    from wgmlst_utils import get_numeric_allele_ids_from_fasta
+    return get_numeric_allele_ids_from_fasta(locus_fasta)
+
+
+def get_next_novel_allele_id(cds: str) -> int:
+    runtime = _runtime_args()
+    return get_next_novel_allele_id_from_fasta(Path(runtime.schema_dir) / f"{cds}.fasta")
+
+
+def get_reference_alignment_target_name(cds: str) -> str:
+    return shared_get_reference_alignment_target_name(cds, sample_sam_dict)
+
+
+def remove_common_suffixes( var1: str, var2: str ) -> [ str, str ]:
     """
-    Take two variations and remove the common suffices
+    Take two variations and remove the common suffixes
     Parameters
     ----------
     var1 : variation sequence
     var2 : variation sequence
     Returns
     -------
-    var1 : updated variation 1 of which common suffix is deleted
-    var2 : updated variation 2 of which common suffix is deleted
+    var1 : updated variation 1 with common suffix removed
+    var2 : updated variation 2 with common suffix removed
     """
 
-    check_len = min( len(var1), len(var2) )
-
-    var1 = var1[::-1]
-    var2 = var2[::-1]
-
-    i=0
-    while i < check_len and var1[i] == var2[i]:
-
-        i+=1
-
-    return var1[i:][::-1], var2[i:][::-1]
+    return list(shared_remove_common_suffixes(var1, var2))
 
 
-def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str ]:
+def remove_common_prefixes( pos: int, var1: str, var2: str ) -> [ int, str, str ]:
     """
-    Take two variations and remove the common prefices
+    Take two variations and remove the common prefixes
     Parameter
     ---------
     pos : position of the variation which might be affected by the change
@@ -314,18 +242,11 @@ def remove_common_prefices( pos: int, var1: str, var2: str ) -> [ int, str, str 
     Return
     ------
     pos : position of the variation which might be affected by the change
-    var1 : updated variation 1 of which common prefix is deleted
-    var2 : updated variation 2 of which common prefix is deleted
+    var1 : updated variation 1 with common prefix removed
+    var2 : updated variation 2 with common prefix removed
     """
 
-    check_len = min( len(var1), len(var2) )
-
-    i=0
-    while i < check_len and var1[i] == var2[i]:
-
-        i+=1
-
-    return pos+i, var1[i:], var2[i:]
+    return list(shared_remove_common_prefixes(pos, var1, var2))
 
 
 def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, list, list, list, int ]:
@@ -346,84 +267,21 @@ def remove_common_mid( pos: int, var1: str, var2: str, qual: int ) -> [ list, li
     number_of_common_mids : number of splits for the further investigation
     """
 
-    split_idx_list, pos_list, ref_list, alt_list, qual_list = [], [], [], [], []
-
-    i = 0 
-    while i < len(var1):
-
-        if var1[i] != var2[i]:
-
-            split_idx_list.append(i)
-
-        i += 1
-
-    for i in split_idx_list:
-
-        pos_list.append( pos + i )
-        ref_list.append( var1[i] )
-        alt_list.append( var2[i] )
-        qual_list.append( qual )
-
-    return pos_list, ref_list, alt_list, qual_list, len(split_idx_list)
+    return list(shared_remove_common_mid(pos, var1, var2, qual))
 
 
 def remove_redundance(variations: Info) -> Info:
     """
-    Remove common prefices and suffices from both reference and alternate
+    Remove common prefixes and suffixes from both reference and alternate
     Parameters
     ----------
     variations : Info
     Returns
     -------
-    variations : updated variations with removed suffices and prefices
+    variations : updated variations with removed suffixes and prefixes
     """
 
-    variations_from_splits = []
-
-    number_of_splits = 0
-
-    variations_to_replace = []
-
-    for i in range( len( variations.pos_list ) ):
-
-        # ACG TG -> AC T
-        if len( variations.ref_list[i] ) > 1 and len( variations.alt_list[i] ) > 1:
-
-            variations.ref_list[i], variations.alt_list[i] = remove_common_suffices( var1=variations.ref_list[i], var2=variations.alt_list[i] )
-
-        # reducing suffices might have effect on the length
-        # ACG AT -> CG T
-        if len( variations.ref_list[i] ) > 1 and len( variations.alt_list[i] ) > 1:
-
-            variations.pos_list[i], variations.ref_list[i], variations.alt_list[i] = remove_common_prefices( pos=variations.pos_list[i], var1=variations.ref_list[i], var2=variations.alt_list[i] )
-
-        # AGGT -> A  T
-        if len( variations.ref_list[i] ) == len( variations.alt_list[i] ) and len( variations.ref_list[i] ) > 2:
-
-            variations_to_replace.append( [ i, remove_common_mid( pos=variations.pos_list[i], var1=variations.ref_list[i], var2=variations.alt_list[i], qual=variations.qual_list[i] ) ] )
-
-    # if there is a split in variations of cds
-    if len(variations_to_replace) > 0:
-
-        for variation in variations_to_replace[::-1]:
-
-            # remove the current redundant variation in that index
-            del variations.pos_list[variation[0]]
-            del variations.ref_list[variation[0]]
-            del variations.alt_list[variation[0]]
-            del variations.qual_list[variation[0]]
-
-            idx_to_put = variation[0]
-            var = variation[1]
-
-            for i in range(len(var[0]))[::-1]:
-
-                variations.pos_list.insert( idx_to_put, var[0][i] )
-                variations.ref_list.insert( idx_to_put, var[1][i] )
-                variations.alt_list.insert( idx_to_put, var[2][i] )
-                variations.qual_list.insert( idx_to_put, var[3][i] )
-
-    return variations
+    return shared_remove_redundance(variations)
 
 
 def merge_variations(variations: Info) -> Info:
@@ -438,32 +296,7 @@ def merge_variations(variations: Info) -> Info:
     variations : merged variations for reference_info.txt file
     """
 
-    # no need to merge single variation
-    if len(variations.pos_list) == 1:
-
-        return variations
-
-    merged_variations_list = []
-
-    pos_list, ref_list, alt_list, qual_list = variations.pos_list, variations.ref_list, variations.alt_list, variations.qual_list
-
-    number_of_variations = len(pos_list)
-
-    is_the_last_variation_added = False
-
-    for i in range(number_of_variations):
-
-        merged_variations_list.append(f"{pos_list[i]}*{ref_list[i]}>{alt_list[i]}-{qual_list[i]}")
-
-    merged_list = []
-
-    var_list = remove_redundance( variations = Info( ",".join(merged_variations_list) ) )
-
-    for i in range(len(var_list.pos_list)):
-
-        merged_list.append(f"{var_list.pos_list[i]}*{var_list.ref_list[i]}>{var_list.alt_list[i]}-{var_list.qual_list[i]}")
-
-    return Info( ",".join(merged_list) )
+    return shared_merge_variations(variations)
 
 
 def get_var_type(info: str) -> str:
@@ -478,17 +311,7 @@ def get_var_type(info: str) -> str:
     <type> : TYPE in INFO field
     """
 
-    start = info.index("TYPE=") + 5
-
-    if not info.strip('/n').endswith(';') and ";" not in info[ start : -1 ] :
-
-        return info[start:]
-
-    else:
-
-        end = info.index(';', start)
-
-        return info[start:end]
+    return shared_get_var_type(info)
 
 
 def get_cigar(info: str) -> str:
@@ -503,10 +326,7 @@ def get_cigar(info: str) -> str:
     <cigar> : CIGAR in INFO field
     """
 
-    start = info.index("CIGAR=") + 6
-    end = info.index( ";", start )
-
-    return info[ start : end ]
+    return shared_get_cigar(info)
 
 
 def get_cigar_info(info: str) -> [ str, int ]:
@@ -522,14 +342,7 @@ def get_cigar_info(info: str) -> [ str, int ]:
     cigar_len : length of CIGAR
     """
 
-    # in case that multiple cigar take the first
-    cigar = get_cigar(info=info).split(',')[0]
-    
-    for sep in [ 'M', 'D', 'I', 'S', 'H', '=', 'X' ]:
-        cigar = cigar.replace( sep, '.' )
-
-    # return cigar, len(cigar)
-    return get_cigar(info=info), sum( list( map( int, cigar.rstrip('.').split('.') ) ) )
+    return shared_get_cigar_info(info)
 
 
 def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list ]:
@@ -547,69 +360,12 @@ def resolve_cigar( vcf_line: str, cigar: str ) -> [ list, list, list, list ]:
     qual_list : qualities of variations in VCF file
     """
 
-    import re
-
-    pos_list, ref_list, alt_list, qual_list = [], [], [], []
-    
-    cigar_list = list( zip( list( map( int, re.findall( '[0-9]+', cigar ) ) ), [ s for s in cigar if not s.isdigit() ] ) )
-
-    i, j = 0, 0 # i := index in ref and  j := index in alt
-
-    for k, [ case_count, case ] in enumerate(cigar_list):
-
-        if case == 'D':
-
-            pos_list.append( vcf_line.pos + i - 1 )
-            ref_list.append( vcf_line.ref[ i - 1 : i + case_count ] )
-            alt_list.append( vcf_line.alt[ j - 1 ] )
-            qual_list.append( vcf_line.qual )
-
-            i += case_count
-
-        elif case == 'I':
-
-            pos_list.append( vcf_line.pos + i - 1 )
-            ref_list.append( vcf_line.ref[ i - 1 ] )
-            alt_list.append( vcf_line.alt[ j - 1 : j + case_count ] )
-            qual_list.append( vcf_line.qual)
-
-            j += case_count
-
-        elif case == 'X':
-
-            # X is the last case or # ...3X1M...
-            if k == len(cigar_list) - 1 or cigar_list[k+1][1] == 'M':
-
-                for n in range(case_count):
-
-                    if vcf_line.ref[ i + n ] != base_ratio_check( variation_pos=vcf_line.pos + i + n, cds_name=f'{vcf_line.chr}_1' ):
-
-                        pos_list.append( vcf_line.pos + i + n )
-                        ref_list.append( vcf_line.ref[ i + n ] )
-                        alt_list.append( vcf_line.alt[ j + n ] )
-                        qual_list.append( vcf_line.qual )
-
-            # ...3X1I... or ...3X1D...
-            elif cigar_list[k+1][1] == 'I' or cigar_list[k+1][1] == 'D':
-
-                # ...nX or ...1X1M...
-                for n in range(case_count):
-
-                    # do not add the last item it will be used in the next D or I
-                    pos_list.append( vcf_line.pos + i - 1 )
-                    ref_list.append( vcf_line.ref[ i + n - 1 ] )
-                    alt_list.append( vcf_line.alt[ j + n - 1 ] )
-                    qual_list.append( vcf_line.qual )
-
-            i += case_count
-            j += case_count
-
-        else:
-
-            i += case_count
-            j += case_count
-
-    return pos_list, ref_list, alt_list, qual_list
+    return shared_resolve_cigar(
+        vcf_line,
+        cigar,
+        base_ratio_lookup=base_ratio_check,
+        reference_target_lookup=get_reference_alignment_target_name,
+    )
 
 
 def get_sample_sam_dict() -> dict:
@@ -620,29 +376,8 @@ def get_sample_sam_dict() -> dict:
     sample_sam_dict : { CDS: [pos, seq, cigar], [pos, seq, cigar], ..., CDS: ...}
     """
 
-    sample_sam_dict = dict()
-
-    with open(args.sample_sam, 'r') as file:
-
-        for line in file.readlines():
-
-            # skip header
-            if not line.startswith('@'):
-
-                sam = Sam(line)
-
-                if sam.target_sequence_name not in sample_sam_dict.keys():
-
-                    sample_sam_dict[sam.target_sequence_name] = []
-                    sample_sam_dict[sam.target_sequence_name].append( [ sam.position, sam.sequence, sam.cigar ] )
-
-                else:
-
-                    sample_sam_dict[sam.target_sequence_name].append( [ sam.position, sam.sequence, sam.cigar ] )
-
-        file.close()
-
-    return sample_sam_dict
+    runtime = _runtime_args()
+    return shared_get_sample_sam_dict(runtime.sample_sam, Sam)
 
 
 def create_sample_variation_dict() -> dict:
@@ -653,81 +388,14 @@ def create_sample_variation_dict() -> dict:
     sample_variation_dict : variations of sample dictionary for alleles
     """
 
-    sample_variation_dict = {}
-
-    with open( args.sample_vcf, 'r' ) as file:
-
-        for line in file.readlines():
-
-            if not line.startswith("#"):
-
-                vcf_line = Vcf(line)
-
-                var_type = get_var_type(info=vcf_line.info)
-
-                variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = [], [], [], []
-
-                # complex : multiple type of variations, mnp : multiple consecutive snps, del : deletion, ins : insertion
-                if var_type in [ 'complex', 'mnp', 'del', 'ins' ]:
-
-                    cigar, cigar_len = get_cigar_info( info=vcf_line.info )
-
-                    variation_pos_list, variation_ref_list, variation_alt_list, variation_qual_list = resolve_cigar( vcf_line=vcf_line, cigar=cigar )
-
-                # snp
-                elif var_type == 'snp':
-
-                    if len ( vcf_line.alt ) > 1 and len( vcf_line.alt ) == len( vcf_line.ref ):
-
-                        for sb in range(len(vcf_line.alt)):
-
-                            variation_pos_list.append( vcf_line.pos + sb )
-                            variation_ref_list.append( vcf_line.ref[sb] )
-                            variation_alt_list.append( vcf_line.alt[sb] )
-                            variation_qual_list.append (vcf_line.qual )
-
-                    else:
-
-                        variation_pos_list.append( vcf_line.pos )
-                        variation_ref_list.append( vcf_line.ref )
-                        if len(vcf_line.alt) == 1:
-                            alt_idx = 0
-                        else:
-                            alt_idx = int(vcf_line.sample[0])
-                        variation_alt_list.append( vcf_line.alt.split(",")[alt_idx] )
-                        variation_qual_list.append( vcf_line.qual )
-
-                if vcf_line.chr not in sample_variation_dict.keys():
-
-                    if len(variation_pos_list) > 0:
-
-                        sample_variation_dict[vcf_line.chr] = Info( f'{variation_pos_list[0]}*{variation_ref_list[0]}>{variation_alt_list[0]}-{variation_qual_list[0]}' )
-
-                    if len(variation_pos_list) > 1:
-
-                        for i in range( 1, len(variation_pos_list) ):
-
-                            sample_variation_dict[vcf_line.chr].pos_list.append( variation_pos_list[i] )
-                            sample_variation_dict[vcf_line.chr].ref_list.append( variation_ref_list[i] )
-                            sample_variation_dict[vcf_line.chr].alt_list.append( variation_alt_list[i] )
-                            sample_variation_dict[vcf_line.chr].qual_list.append( variation_qual_list[i] )
-
-                else:
-
-                    for i in range( len(variation_pos_list) ):
-
-                        sample_variation_dict[vcf_line.chr].pos_list.append( variation_pos_list[i] )
-                        sample_variation_dict[vcf_line.chr].ref_list.append( variation_ref_list[i] )
-                        sample_variation_dict[vcf_line.chr].alt_list.append( variation_alt_list[i] )
-                        sample_variation_dict[vcf_line.chr].qual_list.append( variation_qual_list[i] )
-
-    for sample_cds, variations in sample_variation_dict.items():
-
-        sample_variation_dict[sample_cds] = merge_variations( variations=sample_variation_dict[sample_cds] )
-    
-    # for k,v in sample_variation_dict.items():
-    #     print(f'{k}\t{v}')
-    return sample_variation_dict
+    return shared_create_sample_variation_dict(
+        sample_vcf_path=_runtime_args().sample_vcf,
+        vcf_class=Vcf,
+        variation_factory=Info,
+        merge_variations=merge_variations,
+        base_ratio_lookup=base_ratio_check,
+        reference_target_lookup=get_reference_alignment_target_name,
+    )
 
 
 def read_reference_info_txt(info_file: str) -> dict:
@@ -761,8 +429,6 @@ def read_reference_info_txt(info_file: str) -> dict:
             
                 reference_allele_variation_dict[cds][allele_id] = Info(fields[1])
 
-        file.close()
-
     return reference_allele_variation_dict
 
 
@@ -777,7 +443,7 @@ def get_cds_coverage_info() -> dict:
 
     cds_depth_dict = {}
 
-    with open(args.sample_depth, 'r') as file:
+    with open(_runtime_args().sample_depth, 'r') as file:
 
         for line in file.readlines():
 
@@ -785,8 +451,6 @@ def get_cds_coverage_info() -> dict:
 
                 coverage = Coverage(line)
                 cds_depth_dict[coverage.cds] = coverage
-
-        file.close()
 
     return cds_depth_dict
 
@@ -802,11 +466,42 @@ def get_reference_cds_seq_dict() -> dict:
 
     cds_seq_dict = {}
 
-    for sequence in list( SeqIO.parse( args.reference_fasta, "fasta" ) ):
+    for sequence in list( SeqIO.parse( _runtime_args().reference_fasta, "fasta" ) ):
 
         cds_seq_dict[sequence.id] = str(sequence.seq)
 
     return cds_seq_dict
+
+
+def get_reference_allele_name(cds: str, cds_seq_dict: dict) -> str:
+    """
+    Return the schema's designated reference allele name for a locus.
+
+    Prefer allele ID 1 when present, otherwise infer the unique reference
+    sequence already embedded in the reference FASTA for that locus.
+    """
+    try:
+        return shared_get_reference_allele_name(cds, cds_seq_dict.keys())
+    except ValueError as exc:
+        raise ValueError(
+            f"Unable to determine a unique reference allele for locus '{cds}'. "
+            f"Candidates found in reference FASTA: "
+            f"{', '.join(sorted(name for name in cds_seq_dict if get_cds_name_from_allele_name(name) == cds)) or 'none'}."
+        ) from exc
+
+
+def get_reference_allele_id(cds: str, cds_seq_dict: dict) -> str:
+    return get_allele_id_from_allele_name(get_reference_allele_name(cds, cds_seq_dict))
+
+
+def get_locus_length_mode(cds: str, ref_seq: str) -> int:
+    """
+    Return the modal allele length for a locus based on the schema FASTA.
+    Fallback to the reference sequence length if the locus FASTA is missing.
+    """
+
+    runtime = _runtime_args()
+    return get_locus_length_mode_from_fasta(Path(runtime.schema_dir) / f"{cds}.fasta", ref_seq)
 
 
 def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_list: list, alt_list: list ) -> str:
@@ -838,38 +533,83 @@ def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_lis
     return cds_reference
 
 
-def quality_check( seq: str, ref_seq: str ) -> bool:
+def quality_check(
+    seq: str,
+    ref_seq: str,
+    locus_mode_length: int,
+    translation_table: int | None = None,
+    allowed_start_codons: set[str] | None = None,
+) -> str:
     """
-    Checks its length is 3n, the first three base is for start codon,
-    and the last three base is for stop codon
+    Validate whether a CDS-like sequence keeps an intact ORF and whether
+    its length is within the tolerated range for the locus.
     Parameter
     ---------
     seq : FASTA sequence
     ref_seq : FASTA sequence for the reference of seq
+    locus_mode_length : modal allele length for the locus
     Return
     ------
-    is_passed : Returns True if all is valid
+    quality label : EQ, Q, ASM, ALM, or LNF
     """
 
-    if seq == ref_seq:
+    runtime_args = _runtime_args()
+    return shared_quality_check(
+        seq,
+        ref_seq,
+        locus_mode_length,
+        translation_table=translation_table or runtime_args.translation_table,
+        allowed_start_codons=allowed_start_codons or parse_allowed_start_codons(runtime_args.allowed_start_codons),
+    )
 
-        return "EQ"
 
-    for i in range(0, len(seq)-3, 3):
+def quality_check_details(
+    seq: str,
+    ref_seq: str,
+    locus_mode_length: int,
+    translation_table: int | None = None,
+    allowed_start_codons: set[str] | None = None,
+) -> dict[str, object]:
+    runtime_args = _runtime_args()
+    runtime_translation_table = getattr(runtime_args, "translation_table", 11)
+    runtime_start_codons = getattr(runtime_args, "allowed_start_codons", None)
+    return describe_quality_check(
+        seq,
+        ref_seq,
+        locus_mode_length,
+        translation_table=translation_table or runtime_translation_table,
+        allowed_start_codons=allowed_start_codons or parse_allowed_start_codons(runtime_start_codons),
+    )
 
-        if seq[ i : i+3 ] == 'TAG' or seq[ i : i+3 ] == 'TAA' or seq[ i : i+3 ] == 'TGA':
 
-            return "LNF" # in-frame stop codon
+def build_novel_allele_sequence(sample_cds: str, cds_seq_dict: dict, sample_cds_variation: Info) -> str:
+    reference_allele_name = get_reference_allele_name(sample_cds, cds_seq_dict)
+    cds_reference = cds_seq_dict[reference_allele_name]
+    return insert_variations_into_sequence(
+        cds_reference=cds_reference,
+        pos_list=sample_cds_variation.pos_list,
+        ref_list=sample_cds_variation.ref_list,
+        alt_list=sample_cds_variation.alt_list,
+    )
 
-    # check if cds length is multiple of 3
-    # stop codons: seq[-3:] - 49% TAG (likely for high GC),
-    #                                  32% TAA (likely for low GC), 19% TGA
-    # start codons: seq[:3] - 90% MET (ATG)
-    if seq[ -3 : ] in [ 'TAG', 'TAA', 'TGA' ] and seq[ : 3 ] in [ 'ATG', 'CTG', 'GTG', 'TTG' ]:
 
-        return "Q" # It passed quality checks.
+def summarize_variations(sample_cds_variation: Info) -> str:
+    return ",".join(
+        f"{pos}:{ref}>{alt}"
+        for pos, ref, alt in zip(
+            sample_cds_variation.pos_list,
+            sample_cds_variation.ref_list,
+            sample_cds_variation.alt_list,
+        )
+    )
 
-    return "LNF"
+
+def build_variation_signature(variation_info: Info) -> Counter[tuple[int, str, str]]:
+    return shared_build_variation_signature(variation_info)
+
+
+def write_novel_allele_exports(novel_alleles: list[dict[str, str]]) -> tuple[Path, Path]:
+    return shared_write_novel_allele_exports(_runtime_args().sample_vcf, novel_alleles)
 
 
 def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_info : Info, sample_cds_info : Info ) -> int:
@@ -886,8 +626,6 @@ def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_in
     allele_id : allele ID after comparison
     is_novel : check if allele is novel or not
     """
-
-    from collections import Counter
 
     # cds length check
     diff_len = 0
@@ -911,48 +649,154 @@ def compare_ref_to_sample_variations( cds: str, cds_seq_dict: dict, reference_in
 
         is_novel = True
 
-        cds_reference = cds_seq_dict[f'{cds}_1']
+        reference_allele_name = get_reference_allele_name(cds, cds_seq_dict)
+        reference_allele_id = get_allele_id_from_allele_name(reference_allele_name)
+        cds_reference = cds_seq_dict[reference_allele_name]
+        locus_mode_length = get_locus_length_mode(cds, cds_reference)
 
-        allele_id = quality_check( seq=insert_variations_into_sequence( cds_reference=cds_reference, pos_list=sample_cds_info.pos_list, ref_list=sample_cds_info.ref_list, alt_list=sample_cds_info.alt_list ), ref_seq=cds_reference )
+        allele_id = quality_check(
+            seq=insert_variations_into_sequence(
+                cds_reference=cds_reference,
+                pos_list=sample_cds_info.pos_list,
+                ref_list=sample_cds_info.ref_list,
+                alt_list=sample_cds_info.alt_list,
+            ),
+            ref_seq=cds_reference,
+            locus_mode_length=locus_mode_length,
+        )
         
         if allele_id == "EQ":
 
             is_novel = False
-            allele_id = '1'
+            allele_id = reference_allele_id
 
         elif allele_id == 'Q':
 
-            # both reference and sample alleles contain only snps
-            # so direct comparison is possible
+            sample_signature = build_variation_signature(sample_cds_info)
             for cds_id, ref_info in reference_info.items():
 
-                # if positions are not equal there is nothing to compare
-                if Counter(sample_cds_info.pos_list) == Counter(ref_info.pos_list):
-
-                    # get allele ID from the chewbbaca results
-                    if Counter(sample_cds_info.ref_list) == Counter(ref_info.ref_list) and Counter(sample_cds_info.alt_list) == Counter(ref_info.alt_list):
-
-                        is_novel = False # allele is found among the reference alleles
-                        allele_id = cds_id
-                    
-                        # allele is found on the reference
-                        break
-                
-                    else:
-
-                        is_novel = True
-                        allele_id = str(novel_allele_id_of_cds_dict[cds])
-
-                else:
-
-                    is_novel = True
-                    allele_id = str(novel_allele_id_of_cds_dict[cds])
+                if sample_signature == build_variation_signature(ref_info):
+                    is_novel = False
+                    allele_id = cds_id
+                    break
+            else:
+                is_novel = True
+                allele_id = str(novel_allele_id_of_cds_dict[cds])
 
         else:
 
             is_novel = False
 
     return [ allele_id, is_novel ]
+
+
+def _variation_length_delta(variation_info: Info) -> int:
+    diff_len = 0
+    for ref, alt in zip(variation_info.ref_list, variation_info.alt_list):
+        if alt == ".":
+            diff_len += len(ref)
+        else:
+            diff_len += len(ref) - len(alt)
+    return diff_len
+
+
+def _resolve_novel_reference_locus(
+    sample_cds: str,
+    cds_seq_dict: dict,
+    sample_variation: Info,
+) -> tuple[str, bool, dict[str, str] | None]:
+    if len(sample_variation.pos_list) == 0:
+        return get_reference_allele_id(sample_cds, cds_seq_dict), False, None
+
+    if _variation_length_delta(sample_variation) % 3 != 0:
+        return "LNF", False, None
+
+    reference_allele_name = get_reference_allele_name(sample_cds, cds_seq_dict)
+    reference_allele_id = get_allele_id_from_allele_name(reference_allele_name)
+    cds_reference = cds_seq_dict[reference_allele_name]
+    locus_mode_length = get_locus_length_mode(sample_cds, cds_reference)
+
+    candidate_sequence = insert_variations_into_sequence(
+        cds_reference=cds_reference,
+        pos_list=sample_variation.pos_list,
+        ref_list=sample_variation.ref_list,
+        alt_list=sample_variation.alt_list,
+    )
+    qc_result = quality_check_details(
+        seq=candidate_sequence,
+        ref_seq=cds_reference,
+        locus_mode_length=locus_mode_length,
+    )
+    status = str(qc_result["status"])
+
+    if status == "EQ":
+        return reference_allele_id, False, None
+    if status != "Q":
+        return status, False, None
+
+    allele_id = str(get_next_novel_allele_id(sample_cds))
+    record = {
+        "locus": sample_cds,
+        "allele_id": allele_id,
+        "sequence": candidate_sequence,
+        "status": "novel_candidate",
+        "reference_allele": reference_allele_name,
+        "variation_summary": summarize_variations(sample_variation),
+        "orf_reason": str(qc_result["reason"]),
+    }
+    return allele_id, True, record
+
+
+def _resolve_existing_reference_locus(
+    sample_cds: str,
+    cds_seq_dict: dict,
+    sample_variation: Info,
+    reference_allele_variation_dict: dict,
+) -> tuple[str, bool, dict[str, str] | None]:
+    allele_id, is_novel = compare_ref_to_sample_variations(
+        cds=sample_cds,
+        cds_seq_dict=cds_seq_dict,
+        reference_info=reference_allele_variation_dict[sample_cds],
+        sample_cds_info=sample_variation,
+    )
+    allele_id = str(allele_id)
+
+    if is_novel and len(sample_variation.pos_list) != 0:
+        record = {
+            "locus": sample_cds,
+            "allele_id": allele_id,
+            "sequence": build_novel_allele_sequence(sample_cds, cds_seq_dict, sample_variation),
+            "status": "novel_candidate",
+            "reference_allele": get_reference_allele_name(sample_cds, cds_seq_dict),
+            "variation_summary": summarize_variations(sample_variation),
+            "orf_reason": "passes_orf_qc",
+        }
+        return allele_id, is_novel, record
+
+    return allele_id, is_novel, None
+
+
+def _update_reference_assets_for_novel(
+    sample_cds: str,
+    sample_variation: Info,
+    cds_seq_dict: dict,
+    temp_sample_vcf_dir: str,
+    allele_id: str,
+) -> None:
+    if len(sample_variation.pos_list) == 0:
+        return
+
+    write_variations_to_reference_vcf_file(
+        cds=sample_cds,
+        reference_allele_name=get_reference_allele_name(sample_cds, cds_seq_dict),
+        temp_sample_vcf_dir=temp_sample_vcf_dir,
+        cds_variation=sample_variation,
+    )
+    write_variations_to_reference_info_file(
+        cds=sample_cds,
+        allele_id=allele_id,
+        cds_variation=sample_variation,
+    )
 
 
 def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
@@ -965,7 +809,8 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
 
     import glob, shutil
 
-    temp_sample_vcf_dir = f'{args.sample_vcf}_dir'
+    runtime = _runtime_args()
+    temp_sample_vcf_dir = f'{runtime.sample_vcf}_dir'
 
     if not os.path.isdir(temp_sample_vcf_dir):
 
@@ -973,36 +818,30 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     
     sample_variation_dict = create_sample_variation_dict()
 
-    reference_allele_variation_dict = read_reference_info_txt(info_file=args.reference_info)
+    reference_allele_variation_dict = read_reference_info_txt(info_file=runtime.reference_info)
 
     # { CDS1_ref: seq1, ... }
     cds_seq_dict = get_reference_cds_seq_dict()
 
     sample_allele_dict = {}
+    novel_alleles: list[dict[str, str]] = []
 
     for cds, coverage in get_cds_coverage_info().items():
 
-        sample_cds = cds.split('_')[0]
+        sample_cds = get_cds_name_from_allele_name(cds)
 
-        if coverage.coverage <= 60:
+        if coverage.coverage <= runtime.min_locus_coverage:
 
             # CDS is not covered by the reads.
             sample_allele_dict[cds] = 'LNF'
             is_novel = False
 
-        elif 60 < coverage.coverage < 80:
-
-            # CDS is not covered by the reads.
-            sample_allele_dict[cds] = 'ASM'
-            is_novel = False
-
-        # Sample reads are mapped to the reference.
         else:
 
             if sample_cds not in sample_variation_dict.keys():
 
                 # Sample does not have any variation in CDS so it equals to the reference.
-                sample_allele_dict[cds] = '1'
+                sample_allele_dict[cds] = get_reference_allele_id(sample_cds, cds_seq_dict)
                 is_novel = False
 
             else:
@@ -1010,91 +849,54 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
                 is_novel = False
 
                 # It is a novel allele for the reference.
+                sample_variation = sample_variation_dict[sample_cds]
                 if sample_cds not in reference_allele_variation_dict.keys():
-                    
-                    # Sample has variations for this CDS.
-                    if len( sample_variation_dict[sample_cds].pos_list ) != 0:
+                    allele_id, is_novel, novel_record = _resolve_novel_reference_locus(
+                        sample_cds=sample_cds,
+                        cds_seq_dict=cds_seq_dict,
+                        sample_variation=sample_variation,
+                    )
+                    sample_allele_dict[cds] = allele_id
+                    if novel_record is not None:
+                        novel_alleles.append(novel_record)
+                else:  # both sample and reference has the variations of this allele
+                    allele_id, is_novel, novel_record = _resolve_existing_reference_locus(
+                        sample_cds=sample_cds,
+                        cds_seq_dict=cds_seq_dict,
+                        sample_variation=sample_variation,
+                        reference_allele_variation_dict=reference_allele_variation_dict,
+                    )
+                    sample_allele_dict[cds] = allele_id
+                    if novel_record is not None:
+                        novel_alleles.append(novel_record)
 
-                        # cds length check
-                        diff_len = 0
-
-                        for ref, alt in zip( sample_variation_dict[sample_cds].ref_list, sample_variation_dict[sample_cds].alt_list ):
-
-                            if alt == '.':
-
-                                diff_len += len(ref)
-
-                            else:
-
-                                diff_len += len(ref) - len(alt)
-
-                        if diff_len % 3 != 0:
-
-                            is_novel = False
-                            sample_allele_dict[cds] = 'LNF' # incorrect length
-
+                if is_novel and runtime.update_reference == 'True':
+                    if sample_cds in reference_allele_variation_dict.keys():
+                        if len(sample_variation.pos_list) == 0:
+                            sample_allele_dict[cds] = get_reference_allele_id(sample_cds, cds_seq_dict)
                         else:
+                            sample_allele_dict[cds] = str(novel_allele_id_of_cds_dict[sample_cds])
 
-                            cds_reference = cds_seq_dict[f'{sample_cds}_1']
+                    _update_reference_assets_for_novel(
+                        sample_cds=sample_cds,
+                        sample_variation=sample_variation,
+                        cds_seq_dict=cds_seq_dict,
+                        temp_sample_vcf_dir=temp_sample_vcf_dir,
+                        allele_id=sample_allele_dict[cds],
+                    )
 
-                            sample_allele_dict[cds] = quality_check( seq=insert_variations_into_sequence( cds_reference=cds_reference, pos_list=sample_variation_dict[sample_cds].pos_list, ref_list=sample_variation_dict[sample_cds].ref_list, alt_list=sample_variation_dict[sample_cds].alt_list ), ref_seq=cds_reference )
+    if runtime.update_reference == 'True':
+        temp_vcfs = glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz')
+        merge_reference_with_novel_vcfs(
+            temp_vcfs=temp_vcfs,
+            sample_vcf_path=runtime.sample_vcf,
+            reference_vcf_path=runtime.reference_vcf,
+            threads=runtime.threads,
+            run_command=run_command,
+        )
 
-                            if sample_allele_dict[cds] == "EQ": # sample equals to the reference
-
-                                is_novel = False
-                                sample_allele_dict[cds] = '1'
-
-                            if sample_allele_dict[cds] == 'Q': # it passed 3n, start, stop, in-frame stop
-
-                                is_novel = True
-
-                                # The reference doesn't have any variation for the CDS.
-                                # It is also a novel allele for the reference.
-                                # The reference has only the reference sequence for the CDS.
-                                sample_allele_dict[cds] = '2'
-
-                            if sample_allele_dict[cds] in [ 'ASM', 'ALM', 'LNF', 'EQ']:
-
-                                is_novel = False
-                    else:
-
-                        # Reference allele variation set is empty so sample's CDS equals to the reference.
-                        sample_allele_dict[cds] = '1'
-
-                    if args.update_reference == 'True' and is_novel == True:
-
-                        if len(sample_variation_dict[sample_cds].pos_list) != 0:
-
-                            # write_allele_sequence_to_schema_seed( sample_cds=sample_cds, cds_allele_id=sample_allele_dict[cds], sample_ref_seq=cds_seq_dict[f'{sample_cds}_1'], sample_cds_variation=sample_variation_dict[sample_cds] ) #
-                            write_variations_to_reference_vcf_file( cds=sample_cds, temp_sample_vcf_dir=temp_sample_vcf_dir, cds_variation=sample_variation_dict[sample_cds] )
-                            write_variations_to_reference_info_file( cds=sample_cds, allele_id=sample_allele_dict[cds], cds_variation=sample_variation_dict[sample_cds] )
-
-                else: # both sample and reference has the variations of this allele
-
-                    sample_allele_dict[cds], is_novel = compare_ref_to_sample_variations( cds = sample_cds, cds_seq_dict = cds_seq_dict, reference_info = reference_allele_variation_dict[sample_cds], sample_cds_info = sample_variation_dict[sample_cds] )
-
-                    if is_novel == True and args.update_reference == 'True':
-
-                        if len(sample_variation_dict[sample_cds].pos_list) == 0:
-
-                            sample_allele_dict[cds] = '1' # sample doesn't have variations for the CDS so it equals to the reference CDS
-
-                        else: # sample has variations for the CDS
-
-                            sample_allele_dict[cds] = novel_allele_id_of_cds_dict[sample_cds]
-
-                            # write_allele_sequence_to_schema_seed( sample_cds=sample_cds, cds_allele_id=sample_allele_dict[cds], sample_ref_seq=cds_seq_dict[f'{sample_cds}_1'], sample_cds_variation=sample_variation_dict[sample_cds] )
-                            write_variations_to_reference_vcf_file( cds=sample_cds, temp_sample_vcf_dir=temp_sample_vcf_dir, cds_variation=sample_variation_dict[sample_cds] ) 
-                            write_variations_to_reference_info_file( cds=sample_cds, allele_id=sample_allele_dict[cds], cds_variation=sample_variation_dict[sample_cds] )
-
-    if args.update_reference == 'True':
-
-        os.system(f"bcftools concat {' '.join(glob.glob(f'{temp_sample_vcf_dir}/*.vcf.gz'))} --threads {args.threads} -Oz -o {args.sample_vcf}.gz 2>/dev/null")
-        os.system(f"tabix -f -p vcf {args.sample_vcf}.gz")
-        os.system(f"bcftools concat -a --threads {args.threads} {args.reference_vcf}.gz {args.sample_vcf}.gz -Ov -o {args.reference_vcf} 2>/dev/null")
-        os.system(f"bcftools sort {args.reference_vcf} -Oz -o {args.reference_vcf}.gz 2>/dev/null")
-        os.system(f"bcftools norm {args.reference_vcf}.gz -m +any -Ov -o {args.reference_vcf} 2>/dev/null")
-        os.system(f"bgzip -f {args.reference_vcf} && tabix -f -p vcf {args.reference_vcf}.gz")
+    if novel_alleles:
+        write_novel_allele_exports(novel_alleles)
 
     try:
 
@@ -1120,12 +922,13 @@ def write_allele_sequence_to_schema_seed( sample_cds: str, cds_allele_id: str, s
 
     cds_allele_seq_with_variation = insert_variations_into_sequence( cds_reference=sample_ref_seq, pos_list=sample_cds_variation.pos_list, ref_list=sample_cds_variation.ref_list, alt_list=sample_cds_variation.alt_list )
 
-    with open( os.path.join(args.schema_dir, sample_cds+'.fasta'), 'a' ) as file:
-
-        file.write(f'>{sample_cds}_{cds_allele_id}\n')
-        file.write(f'{cds_allele_seq_with_variation}\n')
-
-        file.close()
+    runtime = _runtime_args()
+    shared_write_allele_sequence_to_schema_seed(
+        schema_dir=runtime.schema_dir,
+        sample_cds=sample_cds,
+        cds_allele_id=cds_allele_id,
+        sequence_with_variation=cds_allele_seq_with_variation,
+    )
 
 
 def write_variations_to_reference_info_file( cds: str, allele_id: str, cds_variation: Info ) -> None:
@@ -1138,26 +941,20 @@ def write_variations_to_reference_info_file( cds: str, allele_id: str, cds_varia
     cds_variation : Variant list of allele ID from CDS dict
     """
     
-    with open(args.reference_info, 'a') as file:
-
-        line = []
-        for pos, ref, alt, qual in zip( cds_variation.pos_list,
-                                        cds_variation.ref_list,
-                                        cds_variation.alt_list,
-                                        cds_variation.qual_list ):
-
-            if type(alt) is list:
-
-                alt = ";".join(alt)
-
-            line.append(f'{pos}*{ref}>{alt}-{qual}')
-
-        file.write(f'{cds}_{allele_id}\t{",".join(line)}\n')
-
-        file.close()
+    shared_write_variations_to_reference_info_file(
+        reference_info_path=_runtime_args().reference_info,
+        cds=cds,
+        allele_id=allele_id,
+        cds_variation=cds_variation,
+    )
 
 
-def write_variations_to_reference_vcf_file( cds: str, temp_sample_vcf_dir: str, cds_variation: Info ) -> None:
+def write_variations_to_reference_vcf_file(
+    cds: str,
+    reference_allele_name: str,
+    temp_sample_vcf_dir: str,
+    cds_variation: Info,
+) -> None:
     """
     Take the variations from sample variation list
     Write from sample.vcf to reference.vcf
@@ -1168,110 +965,24 @@ def write_variations_to_reference_vcf_file( cds: str, temp_sample_vcf_dir: str, 
     cds_variation : list of variations in allele of CDS
     """
 
-    cds_vcf_line_list = []
-
-    temp_sample_vcf_file_name = os.path.join(temp_sample_vcf_dir, f'{cds}.vcf')
-
-    temp_sample_vcf_file = open(temp_sample_vcf_file_name , 'w')
-
-    info_line_list = []
-
-    with open(args.sample_vcf, 'r') as file:
-
-        for line in file.readlines():
-
-            if line.startswith('#'):
-
-                if line.startswith('#CHROM'):
-
-                    temp_sample_vcf_file.write("\t".join(line.rstrip('\n').split('\t')[:-1])+"\tREFERENCE\n")
-
-                else:
-
-                    temp_sample_vcf_file.write(line)
-
-            else:
-
-                if f'{cds}_1' in line:
-
-                    vcf_line = Vcf(line)
-
-                    if vcf_line.pos in cds_variation.pos_list:
-                
-                        vcf_line.chr = cds + '_1'
-                        vcf_line.info = "."
-                        vcf_line.sample_format = "GT"
-                        vcf_line.sample = '1'
-
-                        temp_sample_vcf_file.write(str(vcf_line))
-                    
-        file.close()
-
-    temp_sample_vcf_file.close()
-
-    os.system(f'bgzip -f {temp_sample_vcf_file_name} && tabix -p vcf {temp_sample_vcf_file_name}.gz')
+    shared_write_variations_to_reference_vcf_file(
+        sample_vcf_path=_runtime_args().sample_vcf,
+        cds=cds,
+        reference_allele_name=reference_allele_name,
+        temp_sample_vcf_dir=temp_sample_vcf_dir,
+        cds_variation=cds_variation,
+        vcf_class=Vcf,
+        run_command=run_command,
+    )
 
 
 if __name__ == "__main__":
+    parsed_args = parse_cli_args(DEFAULT_MIN_LOCUS_COVERAGE)
+    args = parsed_args
 
-    parser = argparse.ArgumentParser(add_help = True)
-
-    parser.add_argument('--reference_fasta',
-                        type = str,
-                        required = True,
-                        help = 'Reference\'s fasta file name with its directory.')
-
-    parser.add_argument('--reference_info',
-                        type = str,
-                        required = True,
-                        help = 'Reference\'s info file name with its directory.')
-
-    parser.add_argument('--reference_vcf',
-                        type = str,
-                        required = True,
-                        help = 'Reference\'s vcf file name with its directory.')
-
-    parser.add_argument('--sample_depth',
-                        type = str,
-                        required = True,
-                        help = 'Sample\'s depth file name with its directory.')
-
-    parser.add_argument('--sample_vcf',
-                        type = str,
-                        required = True,
-                        help = 'Sample\'s vcf file name with its directory.')
-
-    parser.add_argument('--schema_dir',
-                        type = str,
-                        required = True,
-                        help = 'Directory of schema\'s to write novel alleles.')
-
-    parser.add_argument('--sample_sam',
-                        type = str,
-                        required = True,
-                        help = 'Sample\'s sam file name with its directory.')
-
-    parser.add_argument('--threads',
-                        type = str,
-                        required = True,
-                        help = 'Number of threads.')
-
-    parser.add_argument('--update_reference',
-                        type = str,
-                        required = False,
-                        help = 'Update reference\'s vcf and info file for the further analysis. False if it is not given.')
-
-    args = parser.parse_args()
-
-    # to get the number of identified alleles for each CDS
-    novel_allele_id_of_cds_dict = get_allele_ids_of_cds_in_reference_info_txt()
-    
-    sample_sam_dict = get_sample_sam_dict()
-
-    with open( f'{args.sample_vcf[:-4]}_mlst.tsv', 'w' ) as file:
-
-        for sample_cds, allele_id in take_allele_id_for_sample_from_chewbbaca_alleles().items():
-
-            file.write(f'{sample_cds.split("_")[0]}\t{allele_id}\n')
-
-        file.close()
+    run_sample_calling_workflow(
+        sample_vcf_path=parsed_args.sample_vcf,
+        init_state=_init_runtime_state,
+        collect_allele_calls=take_allele_id_for_sample_from_chewbbaca_alleles,
+        get_cds_name_from_allele_name=get_cds_name_from_allele_name,
+    )

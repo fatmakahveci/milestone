@@ -1,0 +1,60 @@
+name: External Benchmark Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 0"
+
+jobs:
+  external-benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Milestone benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
+      - name: Install micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: benchmark-tools
+          create-args: >-
+            python=3.11
+            blast
+          init-shell: bash
+
+      - name: Install chewBBACA
+        run: |
+          python -m venv /tmp/chewie
+          /tmp/chewie/bin/pip install setuptools wheel chewBBACA
+
+      - name: Run chewBBACA fixture smoke
+        env:
+          CHEWIE_BIN: /tmp/chewie/bin/chewBBACA.py
+          BLAST_BIN_DIR: ${{ env.MAMBA_ROOT_PREFIX }}/envs/benchmark-tools/bin
+        run: |
+          bash benchmarking/run_chewbbaca_fixture_smoke.sh /tmp/chewie-fixture || true
+
+      - name: Run external tool smoke suite
+        env:
+          CHEWIE_BIN: /tmp/chewie/bin/chewBBACA.py
+          BLAST_BIN_DIR: ${{ env.MAMBA_ROOT_PREFIX }}/envs/benchmark-tools/bin
+        run: |
+          bash benchmarking/run_external_tool_smoke_suite.sh /tmp/milestone-external-smoke
+
+      - name: Upload external benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone-external-benchmark-smoke
+          path: |
+            /tmp/chewie-fixture
+            /tmp/milestone-external-smoke

@@ -1,0 +1,26 @@
+{
+  "milestone": {
+    "label": "Milestone",
+    "command": ["python3", "workflow/milestone.py", "profile_compare", "--help"],
+    "workdir": ".",
+    "timeout_seconds": 60,
+    "required_files": ["workflow/milestone.py"],
+    "notes": "Milestone CLI smoke baseline."
+  },
+  "chewbbaca_fixture": {
+    "label": "chewBBACA fixture smoke",
+    "command": ["bash", "benchmarking/run_chewbbaca_fixture_smoke.sh"],
+    "workdir": ".",
+    "timeout_seconds": 300,
+    "required_files": ["benchmarking/run_chewbbaca_fixture_smoke.sh", "tests/fixtures/e2e_schema/abc.fasta"],
+    "notes": "Requires CHEWIE_BIN and BLAST_BIN_DIR to point to a working chewBBACA+BLAST installation."
+  },
+  "mentalist_docker": {
+    "label": "MentaLiST Docker smoke",
+    "command": ["bash", "benchmarking/run_mentalist_docker_smoke.sh"],
+    "workdir": ".",
+    "timeout_seconds": 300,
+    "required_files": ["benchmarking/run_mentalist_docker_smoke.sh"],
+    "notes": "Requires a running Docker daemon and network access to pull the MentaLiST image."
+  }
+}

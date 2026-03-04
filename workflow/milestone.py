@@ -1,307 +1,609 @@
 #!/usr/bin/env python3
 
-####################################################
-## Author: @fatmakhv                              ##
-## The latest update: 01/10/2021                  ##
-## Aim: Creation of config file and milestone run ##
-####################################################
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 
-import argparse, os, subprocess, sys
+REPO_ROOT = Path(__file__).resolve().parent.parent
+WORKFLOW_DIR = Path(__file__).resolve().parent
+RULES_DIR = WORKFLOW_DIR / "rules"
+COMPARE_SCRIPT = WORKFLOW_DIR / "scripts" / "compare_wgmlst_profiles.py"
+MATRIX_SCRIPT = WORKFLOW_DIR / "scripts" / "compare_wgmlst_matrix.py"
+COMPARE_BATCH_SCRIPT = WORKFLOW_DIR / "scripts" / "compare_wgmlst_batch.py"
+BENCHMARK_SCRIPT = WORKFLOW_DIR / "scripts" / "benchmark_wgmlst_profiles.py"
+PUBLICATION_READINESS_SCRIPT = WORKFLOW_DIR / "scripts" / "publication_readiness.py"
+PUBLICATION_PACKAGE_SCRIPT = WORKFLOW_DIR / "scripts" / "build_publication_package.py"
+SUPPLEMENT_SCRIPT = WORKFLOW_DIR / "scripts" / "build_manuscript_supplement.py"
+VALIDATION_CORPUS_SCRIPT = WORKFLOW_DIR / "scripts" / "build_species_validation_corpus.py"
+CONFIG_PATH = WORKFLOW_DIR / "config.yaml"
 
 
-def create_config():
-
-    output_file = open(configfile, "w")
-
-    output_file.write(f"# milestone.py created {configfile}.\n\n")
-
-    # config files
-    output_file.write(f'logs: "{log_dir}"\n')
-
-    # wd for code
-    output_file.write(f'working_dir: "{code_dir}"\n')
-
-    # config parameters
-    output_file.write('\n')
-    output_file.write(f'parameters: \n')
-    output_file.write(f' threads: {args.threads}\n')
-    output_file.write(f'reference: {os.path.join(args.output, f"{args.reference}")}\n')
-    output_file.write(f'reference_vcf: {os.path.join(args.output, f"{args.reference}.vcf")}\n')
-    output_file.write(f'reference_vcf_gz: {os.path.join(args.output, f"{args.reference}.vcf.gz")}\n')
-    output_file.write(f'reference_vcf_gz_tbi: {os.path.join(args.output, f"{args.reference}.vcf.gz.tbi")}\n')
-    output_file.write(f'reference_info_txt: {os.path.join(args.output, f"{args.reference}_info.txt")}\n')
-    output_file.write(f'reference_fasta: {os.path.join(args.output, f"{args.reference}.fasta")}\n')
-
-    ## schema_creation run
-    if args.command == 'schema_creation':
-
-        ## alleles directory
-        output_file.write(f'schema_dir: {args.schema_name.rstrip("/")+"/"}\n')
-
-        ## schema_creation log file
-        output_file.write(f'schema_creation_log_file: "{schema_creation_log_file}"\n')
-        
-        output_file.write(f'output_dir: {args.output.rstrip("/")}\n')
-
-    ## Run to create <sample.mlst> or
-    ## [<reference.updated.fasta> and <reference.updated.vcf>]
-    elif args.command == 'allele_calling':
-
-        ## alleles directory
-        output_file.write(f'schema_dir: {args.schema_name.rstrip("/")+"/"}\n')
-
-        output_file.write(f'sample: "{args.read1.split("/")[-1].split("_1")[0]}"\n')
-
-        ## graph alignment
-        output_file.write(f'samples:\n sample1: "{args.read1}"\n sample2: "{args.read2}"\n')
-
-        ## name of aligner vg or sbg
-        output_file.write(f'aligner: "{args.aligner}"\n')
-        
-        output_file.write(f'output_dir: {args.output.rstrip("/")}\n')
-        output_file.write(f'aligner_reference: {os.path.join(args.output, f"{args.aligner}/{args.reference}")}\n')
-
-        ## update reference
-        output_file.write(f'update_reference: "{args.update_reference}"\n')
-
-        ## allele_calling log file
-        output_file.write(f'allele_calling_log_file: "{allele_calling_log_file}"\n')
-
-    output_file.close()
+@dataclass(frozen=True)
+class WorkflowPaths:
+    log_dir: Path
+    schema_log: Path
+    allele_log: Path
+    snakefile: Path
 
 
-def run_snakemake():
+def workflow_paths(args: argparse.Namespace) -> WorkflowPaths:
+    log_dir = Path(args.output) / "logs"
+    return WorkflowPaths(
+        log_dir=log_dir,
+        schema_log=log_dir / "schema_creation.log",
+        allele_log=log_dir / "allele_calling.log",
+        snakefile=WORKFLOW_DIR / args.snakefile,
+    )
 
-    dryrun = ""
-    if args.dryrun:
-        dryrun = "--dryrun"
 
-    forceall = ""
+def sample_name_from_read(read1: str) -> str:
+    return Path(read1).name.split("_1")[0]
+
+
+def build_config_text(args: argparse.Namespace, paths: WorkflowPaths) -> str:
+    lines = [
+        f"# milestone.py created {CONFIG_PATH}.",
+        "",
+        f'logs: "{paths.log_dir}"',
+        f'working_dir: "{WORKFLOW_DIR}"',
+        "",
+        "parameters: ",
+        f" threads: {args.threads}",
+        f" min_locus_coverage: {args.min_locus_coverage}",
+        f" translation_table: {getattr(args, 'translation_table', 11)}",
+        f' allowed_start_codons: "{getattr(args, "allowed_start_codons", "") or ""}"',
+        f'reference: "{Path(args.output) / args.reference}"',
+        f'reference_vcf: "{Path(args.output) / f"{args.reference}.vcf"}"',
+        f'reference_vcf_gz: "{Path(args.output) / f"{args.reference}.vcf.gz"}"',
+        f'reference_vcf_gz_tbi: "{Path(args.output) / f"{args.reference}.vcf.gz.tbi"}"',
+        f'reference_info_txt: "{Path(args.output) / f"{args.reference}_info.txt"}"',
+        f'reference_fasta: "{Path(args.output) / f"{args.reference}.fasta"}"',
+    ]
+    if args.command == "schema_creation":
+        lines.extend(
+            [
+                f'schema_dir: "{str(args.schema_name).rstrip("/") + "/"}"',
+                f'schema_creation_log_file: "{paths.schema_log}"',
+                f'output_dir: "{str(args.output).rstrip("/")}"',
+            ]
+        )
+    elif args.command == "allele_calling":
+        lines.extend(
+            [
+                f'schema_dir: "{str(args.schema_name).rstrip("/") + "/"}"',
+                f'sample: "{sample_name_from_read(args.read1)}"',
+                "samples:",
+                f' sample1: "{args.read1}"',
+                f' sample2: "{args.read2}"',
+                f'aligner: "{args.aligner}"',
+                f'output_dir: "{str(args.output).rstrip("/")}"',
+                f'aligner_reference: "{Path(args.output) / args.aligner / args.reference}"',
+                f'update_reference: "{args.update_reference}"',
+                f'allele_calling_log_file: "{paths.allele_log}"',
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
+def write_config(args: argparse.Namespace, paths: WorkflowPaths) -> None:
+    CONFIG_PATH.write_text(build_config_text(args, paths), encoding="utf-8")
+
+
+def build_snakefile_text(args: argparse.Namespace, paths: WorkflowPaths) -> str:
+    lines = [
+        "import glob, os, sys",
+        "",
+        f'configfile: "{CONFIG_PATH}"',
+        "",
+    ]
+    if args.command == "schema_creation":
+        lines.extend(
+            [
+                f'include: "{RULES_DIR / "schema_creation.smk"}"',
+                "",
+                "rule all:",
+                "\tinput:",
+                f'\t\treference_vcf_gz = "{Path(args.output) / f"{args.reference}.vcf.gz"}"',
+            ]
+        )
+    elif args.command == "allele_calling":
+        sample_name = sample_name_from_read(args.read1)
+        out_dir = str(args.output).rstrip("/")
+        lines.extend(
+            [
+                f'include: "{RULES_DIR / "allele_calling.smk"}"',
+                "",
+                "rule all:",
+                "\tinput:",
+                f'\t\tsample_wgmlst = "{out_dir}/{args.aligner}/{sample_name}_wgmlst.tsv"',
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
+def write_snakefile(args: argparse.Namespace, paths: WorkflowPaths) -> None:
+    paths.snakefile.write_text(build_snakefile_text(args, paths), encoding="utf-8")
+    if args.command == "schema_creation":
+        paths.schema_log.touch(exist_ok=True)
+    elif args.command == "allele_calling":
+        paths.allele_log.touch(exist_ok=True)
+
+
+def build_snakemake_command(args: argparse.Namespace, paths: WorkflowPaths) -> list[str]:
+    command = [
+        "snakemake",
+        "-p",
+        "--use-conda",
+        "--configfile",
+        str(CONFIG_PATH),
+        "--cores",
+        str(args.threads),
+        "--snakefile",
+        str(paths.snakefile),
+    ]
     if args.forceall:
-        forceall = "--forceall"
-
-    printshellcmds = ""
+        command.append("--forceall")
+    if args.dryrun:
+        command.append("--dryrun")
     if args.printshellcmds:
-        printshellcmds = "--printshellcmds"
-
-    ri = ""
+        command.append("--printshellcmds")
     if args.ri:
-        ri = "--rerun-incomplete"
-
-    unlock = ""
+        command.append("--rerun-incomplete")
     if args.unlock:
-        unlock="--unlock"
-
-    cmd = (f'snakemake -p --use-conda --configfile "{configfile}" --cores {args.threads} --snakefile {snakefile} {forceall} {dryrun} {printshellcmds} {ri} {unlock}')
-
-    os.system(cmd)
-
-
-def create_snakefile():
-
-    output_file = open(snakefile, 'w')
-
-    output_file.write('import glob, os, sys\n\n')
-    output_file.write(f'configfile: "{configfile}"\n\n')
-
-    if args.command == 'schema_creation':
-
-        # create a log file for schema_creation
-        os.system(f'touch {schema_creation_log_file}')
-
-        output_file.write(f'include: "{rules_dir}/schema_creation.smk"\n\n')
-        output_file.write('rule all:\n\tinput:\n')
-        output_file.write(f'\t\treference_vcf_gz = "{os.path.join(args.output, args.reference)}.vcf.gz"')
-
-    elif args.command == 'allele_calling':
-
-        # create a log file for allele_calling
-        os.system(f'touch {allele_calling_log_file}')
-
-        output_file.write(f'include: "{rules_dir}/allele_calling.smk"\n\n')
-        output_file.write('rule all:\n\tinput:\n')
-
-        sample_name = args.read1.split("/")[-1].split("_1")[0]
-        out_dir = args.output.rstrip('/')
-        output_file.write(f'\t\tsample_mlst = "{out_dir}/{args.aligner}/{sample_name}_mlst.tsv"\n')
-
-    output_file.close()
+        command.append("--unlock")
+    if args.quiet:
+        command.append("--quiet")
+    return command
 
 
-def parse_arguments():
+def run_snakemake(args: argparse.Namespace, paths: WorkflowPaths) -> int:
+    completed = subprocess.run(build_snakemake_command(args, paths), check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    parent_parser = argparse.ArgumentParser(add_help = False)
 
-    ########################################
-    # SNAKEMAKE PARAMETERS
-    parent_parser.add_argument('-n', '--dryrun', '--dry-run',
-        help = "Snakemake - Do not execute anything, and display what would be\
-             done. If you have a very large workflow, use --dry-run --quiet to\
-             just print a summary of the DAG of jobs. (default: False)",
-        default = False,
-        action='store_true', 
-        required = False)
+def run_profile_compare(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(COMPARE_SCRIPT),
+        "--profile-a",
+        args.profile_a,
+        "--profile-b",
+        args.profile_b,
+        "--output-dir",
+        args.output,
+        "--label-a",
+        args.label_a,
+        "--label-b",
+        args.label_b,
+    ]
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    parent_parser.add_argument('-p', '--printshellcmds',
-        help = 'Snakemake - Print out the shell commands that will be executed. (default: False)',
-        default = False,
-        action='store_true',
-        required = False)
 
-    parent_parser.add_argument('-s', '--snakefile',
-        help = "Snakemake - The workflow definition in form of a snakefile.\
-             Usually, you should not need to specify this. By default,\
-             Snakemake will search for 'Snakefile','snakefile',\
-             'workflow/Snakefile', 'workflow/snakefile' beneath the current\
-             working directory, in this order. Only if you definitely want a\
-             different layout, you need to use this parameter. (default: Snakefile)",
-        default = 'Snakefile',
-        required = False)
+def run_profile_matrix(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(MATRIX_SCRIPT),
+        "--profiles",
+        *args.profiles,
+        "--output-dir",
+        args.output,
+    ]
+    command.extend(["--distance-threshold", str(args.distance_threshold)])
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    parent_parser.add_argument('-t', '--threads', '--set-threads',
-        help = 'Snakemake - Overwrite thread usage of rules. This allows to\
-             fine-tune workflow parallelization. In particular, this is\
-             helpful to target certain cluster nodes by e.g. shifting a rule\
-             to use more, or less threads than defined in the workflow.\
-             Thereby, THREADS has to be a positive integer, and RULE has to be\
-             the name of the rule. (default: 1)',
-        required = False,
-        type = int,
-        default = 1)
 
-    parent_parser.add_argument('-F', '--forceall',
-        help = 'Snakemake - Force the execution of the selected (or the first)\
-             rule and all rules it is dependent on regardless of already\
-             created output. (default: False)',
-        default = False,
-        action='store_true',
-        required = False)
+def run_profile_compare_batch(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(COMPARE_BATCH_SCRIPT),
+        "--profiles",
+        *args.profiles,
+        "--output-dir",
+        args.output,
+    ]
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    parent_parser.add_argument('--ri', '--rerun-incomplete',
-        help = 'Snakemake - Re-run all jobs the output of which is recognized\
-             as incomplete. (default: False)',
-        default = False,
-        action='store_true',
-        required = False)
 
-    parent_parser.add_argument('--unlock',
-        help = 'Snakemake - Remove a lock on the working directory. (default: False)',
-        default = False,
-        action='store_true',
-        required = False)
+def run_profile_benchmark(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(BENCHMARK_SCRIPT),
+        "--output-dir",
+        args.output,
+    ]
+    benchmark_pack_dir = getattr(args, "benchmark_pack_dir", None)
+    if benchmark_pack_dir:
+        command.extend(["--benchmark-pack-dir", benchmark_pack_dir])
+    else:
+        command.extend(["--predicted-dir", args.predicted_dir, "--truth-dir", args.truth_dir])
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    parent_parser.add_argument('-q', '--quiet',
-        help = 'Snakemake - Do not output any progress or rule information. (default: False)',
-        default = False,
-        action='store_true',
-        required = False)
 
-    # REFERENCE FILES PARAMETER
-    parent_parser.add_argument('-r', '--reference',
-        help = 'Name of reference file to be given without extension and directory.\
-             (Both VCF and FASTA file name of the reference.) (required)',
-        required = True)
-    
-    ########################################
+def run_publication_readiness(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(PUBLICATION_READINESS_SCRIPT),
+        "--schema-qc-summary",
+        args.schema_qc_summary,
+        "--benchmark-summary",
+        args.benchmark_summary,
+        "--output-dir",
+        args.output,
+        "--max-non-comparable-rate",
+        str(args.max_non_comparable_rate),
+    ]
+    if args.schema_manifest:
+        command.extend(["--schema-manifest", args.schema_manifest])
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    parser = argparse.ArgumentParser(add_help = True)
 
-    subparsers = parser.add_subparsers(title='commands',
-        dest = 'command')
+def run_publication_package(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(PUBLICATION_PACKAGE_SCRIPT),
+        "--schema-qc-summary",
+        args.schema_qc_summary,
+        "--benchmark-summary",
+        args.benchmark_summary,
+        "--output",
+        args.output,
+        "--max-non-comparable-rate",
+        str(args.max_non_comparable_rate),
+    ]
+    if args.schema_manifest:
+        command.extend(["--schema-manifest", args.schema_manifest])
+    if args.title:
+        command.extend(["--title", args.title])
+    if args.notes:
+        command.extend(["--notes", args.notes])
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    ########################################
-    # milestone.py schema_creation mode PARAMETERS
-    schema_creation_parser = subparsers.add_parser("schema_creation",
-        parents = [parent_parser],
-        description = 'schema_creation',
-        help = 'schema_creation - Run schema_creation workflow to create FASTA and VCF files\
-             for reference genome.')
 
-    schema_creation_parser.add_argument('-sn', '--schema_name',
-        type = str,
-        help = 'Schema name with its directory containing user-provided coding sequences and their alleles. (required)',
-        required = True)
+def run_manuscript_supplement(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(SUPPLEMENT_SCRIPT),
+        "--publication-package",
+        args.publication_package,
+        "--output-dir",
+        args.output,
+    ]
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    schema_creation_parser.add_argument('-o', '--output', 
-        help = 'Directory to be created for the output files. (required)',
-        required = True)
 
-    ########################################
+def run_validation_corpus(args: argparse.Namespace) -> int:
+    command = [
+        sys.executable,
+        str(VALIDATION_CORPUS_SCRIPT),
+        "--collection-dir",
+        args.collection_dir,
+        "--output-dir",
+        args.output,
+        "--zip-name",
+        args.zip_name,
+    ]
+    completed = subprocess.run(command, check=False, cwd=REPO_ROOT)
+    return completed.returncode
 
-    ########################################
-    # milestone.py allele_calling mode PARAMETERS
 
-    allele_calling_parser = subparsers.add_parser("allele_calling",
-        parents = [parent_parser],
-        description = 'Allele Calling and Reference Update',
-        help = 'Allele Calling and Reference Update - VG GRAF aligners to align reads\
-             onto the reference genome and Call Alleles. (Optional: --update_reference)')
+def build_parent_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-n",
+        "--dryrun",
+        "--dry-run",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Snakemake dry-run mode.",
+    )
+    parser.add_argument(
+        "-p",
+        "--printshellcmds",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Print Snakemake shell commands before execution.",
+    )
+    parser.add_argument(
+        "-s",
+        "--snakefile",
+        default="Snakefile",
+        required=False,
+        help="Snakefile name to generate inside workflow/.",
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        "--set-threads",
+        required=False,
+        type=int,
+        default=1,
+        help="Thread count for Snakemake rules.",
+    )
+    parser.add_argument(
+        "--min-locus-coverage",
+        dest="min_locus_coverage",
+        required=False,
+        type=float,
+        default=60.0,
+        help="Minimum locus breadth coverage percentage before calling a locus as present. Default: 60.",
+    )
+    parser.add_argument(
+        "--translation-table",
+        dest="translation_table",
+        required=False,
+        type=int,
+        default=11,
+        help="NCBI translation table used for ORF validation. Default: 11.",
+    )
+    parser.add_argument(
+        "--allowed-start-codons",
+        dest="allowed_start_codons",
+        required=False,
+        default=None,
+        help="Optional comma-separated start codons overriding translation-table defaults.",
+    )
+    parser.add_argument(
+        "-F",
+        "--forceall",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Force all dependent rules to rerun.",
+    )
+    parser.add_argument(
+        "--ri",
+        "--rerun-incomplete",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Rerun incomplete jobs.",
+    )
+    parser.add_argument(
+        "--unlock",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Unlock Snakemake working directory.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Reduce Snakemake progress output.",
+    )
+    parser.add_argument(
+        "-r",
+        "--reference",
+        required=True,
+        help="Reference prefix without extension.",
+    )
+    return parser
 
-    allele_calling_parser.add_argument('--aligner',
-        help = 'Allele Calling and Reference Update - Graph Aligner option. (default: vg)',
-        default = 'vg',
-        required = False)
 
-    allele_calling_parser.add_argument('-e', '--read1',
-        type = str,
-        help = 'Allele Calling and Reference Update - Sample first read including its directory. (required)',
-        required = True)
+def parse_arguments() -> argparse.Namespace:
+    parent_parser = build_parent_parser()
+    parser = argparse.ArgumentParser(add_help=True)
+    subparsers = parser.add_subparsers(title="commands", dest="command", required=True)
 
-    allele_calling_parser.add_argument('-E', '--read2',
-        type = str,
-        help = 'Allele Calling and Reference Update - Sample second read including its directory. (required)',
-        required = True)
+    schema_creation_parser = subparsers.add_parser(
+        "schema_creation",
+        parents=[parent_parser],
+        description="Run schema_creation workflow to create reference FASTA and VCF files.",
+        help="schema_creation",
+    )
+    schema_creation_parser.add_argument(
+        "-sn",
+        "--schema_name",
+        type=str,
+        required=True,
+        help="Directory containing user-provided coding sequences and their alleles.",
+    )
+    schema_creation_parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Directory for schema_creation outputs.",
+    )
 
-    allele_calling_parser.add_argument('--ur', '--update_reference',
-        help = 'Allele Calling and Reference Update - Update <reference_info.txt> and <reference.vcf> after\
-             the alignment of the given sample. (default: False)',
-        dest = 'update_reference',
-        default = False,
-        action='store_true',
-        required = False)
+    allele_calling_parser = subparsers.add_parser(
+        "allele_calling",
+        parents=[parent_parser],
+        description="Run graph-based allele calling and optional reference update.",
+        help="allele_calling",
+    )
+    allele_calling_parser.add_argument(
+        "--aligner",
+        default="vg",
+        required=False,
+        help="Graph aligner to use. Default: vg.",
+    )
+    allele_calling_parser.add_argument(
+        "-e",
+        "--read1",
+        type=str,
+        required=True,
+        help="First paired-end read file.",
+    )
+    allele_calling_parser.add_argument(
+        "-E",
+        "--read2",
+        type=str,
+        required=True,
+        help="Second paired-end read file.",
+    )
+    allele_calling_parser.add_argument(
+        "--ur",
+        "--update_reference",
+        dest="update_reference",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Update reference VCF and info files after calling novel alleles.",
+    )
+    allele_calling_parser.add_argument(
+        "-sn",
+        "--schema_name",
+        type=str,
+        required=True,
+        help="Directory containing schema sequences and alleles.",
+    )
+    allele_calling_parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Directory for allele_calling outputs.",
+    )
 
-    allele_calling_parser.add_argument('-sn', '--schema_name',
-        type = str,
-        help = 'Schema name with its directory containing the user-defined coding sequences and their alleles, and novel allele sequences. (required)',
-        required = True)
+    compare_parser = subparsers.add_parser(
+        "profile_compare",
+        description="Compare two wgMLST profiles and report whether they are distinguishable.",
+        help="profile_compare",
+    )
+    compare_parser.add_argument("--profile-a", required=True, help="First wgMLST TSV profile.")
+    compare_parser.add_argument("--profile-b", required=True, help="Second wgMLST TSV profile.")
+    compare_parser.add_argument("-o", "--output", required=True, help="Output directory for comparison results.")
+    compare_parser.add_argument("--label-a", default="sample_a", help="Display label for profile A.")
+    compare_parser.add_argument("--label-b", default="sample_b", help="Display label for profile B.")
 
-    allele_calling_parser.add_argument('-o', '--output', 
-        help = 'Allele Calling and Reference Update - Directory to be created for the output files. (required)',
-        required = True)
+    matrix_parser = subparsers.add_parser(
+        "profile_matrix",
+        description="Build a pairwise wgMLST distance matrix from multiple profiles.",
+        help="profile_matrix",
+    )
+    matrix_parser.add_argument(
+        "--profiles",
+        nargs="+",
+        required=True,
+        help="Two or more wgMLST TSV profiles.",
+    )
+    matrix_parser.add_argument(
+        "--distance-threshold",
+        type=float,
+        default=0.0,
+        help="Distance threshold used for clustering profiles in the matrix summary.",
+    )
+    matrix_parser.add_argument("-o", "--output", required=True, help="Output directory for matrix results.")
 
-    ########################################
+    compare_batch_parser = subparsers.add_parser(
+        "profile_compare_batch",
+        description="Compare multiple wgMLST profiles and emit pairwise decisions.",
+        help="profile_compare_batch",
+    )
+    compare_batch_parser.add_argument("--profiles", nargs="+", required=True, help="Two or more wgMLST TSV profiles.")
+    compare_batch_parser.add_argument("-o", "--output", required=True, help="Output directory for batch comparisons.")
 
-    args = parser.parse_args()
+    benchmark_parser = subparsers.add_parser(
+        "profile_benchmark",
+        description="Benchmark predicted wgMLST profiles against truth-set profiles.",
+        help="profile_benchmark",
+    )
+    benchmark_parser.add_argument("--predicted-dir", help="Directory containing predicted wgMLST TSVs.")
+    benchmark_parser.add_argument("--truth-dir", help="Directory containing truth wgMLST TSVs.")
+    benchmark_parser.add_argument(
+        "--benchmark-pack-dir",
+        help="Directory containing species benchmark packs with manifest/predicted/truth layout.",
+    )
+    benchmark_parser.add_argument("-o", "--output", required=True, help="Output directory for benchmark results.")
 
-    return args
+    readiness_parser = subparsers.add_parser(
+        "publication_readiness",
+        description="Evaluate whether a Milestone analysis has the documentation and validation expected for publication.",
+        help="publication_readiness",
+    )
+    readiness_parser.add_argument("--schema-qc-summary", required=True, help="Path to schema_qc_summary.json.")
+    readiness_parser.add_argument("--benchmark-summary", required=True, help="Path to wgmlst_benchmark_summary.json.")
+    readiness_parser.add_argument("--schema-manifest", help="Optional path to schema_manifest.json.")
+    readiness_parser.add_argument(
+        "--max-non-comparable-rate",
+        type=float,
+        default=0.1,
+        help="Warn when benchmark mean_non_comparable_rate exceeds this value.",
+    )
+    readiness_parser.add_argument("-o", "--output", required=True, help="Output directory for readiness outputs.")
+
+    package_parser = subparsers.add_parser(
+        "publication_package",
+        description="Create a ZIP package containing publication-support artifacts and metadata.",
+        help="publication_package",
+    )
+    package_parser.add_argument("--schema-qc-summary", required=True, help="Path to schema_qc_summary.json.")
+    package_parser.add_argument("--benchmark-summary", required=True, help="Path to wgmlst_benchmark_summary.json.")
+    package_parser.add_argument("--schema-manifest", help="Optional path to schema_manifest.json.")
+    package_parser.add_argument("--title", help="Optional package title.")
+    package_parser.add_argument("--notes", help="Optional package notes.")
+    package_parser.add_argument(
+        "--max-non-comparable-rate",
+        type=float,
+        default=0.1,
+        help="Warn in readiness report when mean_non_comparable_rate exceeds this value.",
+    )
+    package_parser.add_argument("-o", "--output", required=True, help="Output ZIP path.")
+
+    supplement_parser = subparsers.add_parser(
+        "manuscript_supplement",
+        description="Extract a publication package into a supplement-ready directory.",
+        help="manuscript_supplement",
+    )
+    supplement_parser.add_argument("--publication-package", required=True, help="Publication package ZIP.")
+    supplement_parser.add_argument("-o", "--output", required=True, help="Output directory for supplement files.")
+
+    corpus_parser = subparsers.add_parser(
+        "validation_corpus",
+        description="Build a species-specific validation corpus package from benchmark packs.",
+        help="validation_corpus",
+    )
+    corpus_parser.add_argument("--collection-dir", required=True, help="Directory containing benchmark pack subdirectories.")
+    corpus_parser.add_argument("--zip-name", default="species_validation_corpus.zip", help="Output ZIP filename.")
+    corpus_parser.add_argument("-o", "--output", required=True, help="Output directory for corpus artifacts.")
+
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_arguments()
+    if args.command == "profile_compare":
+        return run_profile_compare(args)
+    if args.command == "profile_matrix":
+        return run_profile_matrix(args)
+    if args.command == "profile_compare_batch":
+        return run_profile_compare_batch(args)
+    if args.command == "profile_benchmark":
+        return run_profile_benchmark(args)
+    if args.command == "publication_readiness":
+        return run_publication_readiness(args)
+    if args.command == "publication_package":
+        return run_publication_package(args)
+    if args.command == "manuscript_supplement":
+        return run_manuscript_supplement(args)
+    if args.command == "validation_corpus":
+        return run_validation_corpus(args)
+
+    paths = workflow_paths(args)
+    paths.log_dir.mkdir(parents=True, exist_ok=True)
+    write_config(args, paths)
+    write_snakefile(args, paths)
+
+    if not CONFIG_PATH.exists():
+        print(f"Path to configfile does not exist: {CONFIG_PATH}")
+        return 1
+    return run_snakemake(args, paths)
 
 
 if __name__ == "__main__":
-
-    args = parse_arguments()
-
-    code_dir = os.path.dirname(os.path.realpath(__file__))
-    rules_dir = os.path.join(code_dir, 'rules')
-
-    # Create directory of the log files
-    log_dir = os.path.join(args.output, 'logs')
-    schema_creation_log_file = f'{log_dir}/schema_creation.log'
-    allele_calling_log_file = f'{log_dir}/allele_calling.log'
-    if not os.path.exists(f'{log_dir}'):
-        os.makedirs(log_dir)
-
-    # Create config file in YAML format for snakemake
-    configfile = os.path.join(code_dir, 'config.yaml')
-    create_config()
-
-    # Create snakefile for snakemake
-    snakefile = os.path.join(code_dir, args.snakefile)
-    create_snakefile()
-
-    # Check the existence of config file and run snakemake
-    if os.path.exists(configfile):
-        run_snakemake()
-
-    else:
-        print("Path to configfile does not exist: " + configfile)
+    raise SystemExit(main())

@@ -1,0 +1,16 @@
+FROM mambaorg/micromamba:1.5.10
+
+WORKDIR /app
+
+RUN micromamba create -y -n benchmark -c conda-forge -c bioconda python=3.11 blast && \
+    micromamba clean --all --yes
+
+COPY . /app
+
+RUN micromamba run -n benchmark python -m venv /opt/chewie && \
+    /opt/chewie/bin/pip install --no-cache-dir setuptools wheel chewBBACA
+
+ENV CHEWIE_BIN=/opt/chewie/bin/chewBBACA.py
+ENV BLAST_BIN_DIR=/opt/conda/envs/benchmark/bin
+
+CMD ["micromamba", "run", "-n", "benchmark", "bash", "benchmarking/run_external_tool_smoke_suite.sh", "/tmp/milestone-external-smoke"]

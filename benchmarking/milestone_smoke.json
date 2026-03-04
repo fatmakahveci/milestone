@@ -1,0 +1,28 @@
+{
+  "milestone_compare": {
+    "label": "Milestone smoke compare",
+    "command": [
+      "python",
+      "workflow/milestone.py",
+      "profile_compare",
+      "--profile-a",
+      "tests/fixtures/smoke/strain_a_wgmlst.tsv",
+      "--profile-b",
+      "tests/fixtures/smoke/strain_b_wgmlst.tsv",
+      "--label-a",
+      "strain_a",
+      "--label-b",
+      "strain_b",
+      "--output",
+      "/tmp/milestone-benchmark-smoke"
+    ],
+    "workdir": ".",
+    "timeout_seconds": 60,
+    "required_files": [
+      "workflow/milestone.py",
+      "tests/fixtures/smoke/strain_a_wgmlst.tsv",
+      "tests/fixtures/smoke/strain_b_wgmlst.tsv"
+    ],
+    "notes": "Local smoke benchmark for the Milestone compare command."
+  }
+}

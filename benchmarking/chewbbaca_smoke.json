@@ -1,0 +1,12 @@
+{
+  "chewbbaca_allelecall": {
+    "label": "chewBBACA smoke template",
+    "command": [
+      "chewBBACA.py",
+      "AlleleCall",
+      "--help"
+    ],
+    "timeout_seconds": 60,
+    "notes": "Replace --help with a fixed AlleleCall command against a curated chewBBACA schema in environments where chewBBACA is installed."
+  }
+}

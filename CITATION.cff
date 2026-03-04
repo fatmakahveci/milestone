@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: Milestone
+message: "If you use Milestone in academic work, cite the software and archive the exact release or commit."
+type: software
+authors:
+  - family-names: Kahveci
+    given-names: Fatma
+repository-code: "https://github.com/fatmakahveci/milestone"
+license: MIT
+abstract: "Milestone is a research-oriented wgMLST workflow for schema-based allele calling, profile comparison, and validation reporting."
+keywords:
+  - wgMLST
+  - bacterial genomics
+  - allele calling
+  - strain typing
+  - bioinformatics

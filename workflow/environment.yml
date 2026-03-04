@@ -1,0 +1,19 @@
+name: milestone
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.8.10
+  - pip
+  - bcftools=1.13
+  - biopython=1.79
+  - chewbbaca=2.7.0
+  - fastp=0.12.4
+  - freebayes=1.3.2
+  - htslib=1.13
+  - minimap2=2.22
+  - pysam=0.16.0.1
+  - samtools=1.13
+  - snakemake=5.32.2
+  - vcflib
+  - vg=1.34.0

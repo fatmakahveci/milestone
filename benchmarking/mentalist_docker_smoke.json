@@ -1,0 +1,10 @@
+{
+  "mentalist_docker": {
+    "label": "MentaLiST Docker smoke",
+    "command": ["bash", "benchmarking/run_mentalist_docker_smoke.sh"],
+    "workdir": ".",
+    "timeout_seconds": 300,
+    "required_files": ["benchmarking/run_mentalist_docker_smoke.sh"],
+    "notes": "Requires a running Docker daemon and network access to pull the MentaLiST image."
+  }
+}

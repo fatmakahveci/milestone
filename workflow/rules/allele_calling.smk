@@ -161,13 +161,16 @@ rule vcf_to_sample_allele_info:
         sample_sam =  f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}.sam',
         code_dir = config["working_dir"]
     output:
-        sample_mlst = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}_mlst.tsv'
-    message: "File for allele defining variants for each CDS is being created."
+        sample_wgmlst = f'{config["output_dir"]}/{config["aligner"]}/{config["sample"]}_wgmlst.tsv'
+    message: "File for allele-defining variants for each CDS is being created."
     threads: config["parameters"]["threads"]
     params:
         log_file = config["allele_calling_log_file"],
         reference = config["reference"],
-        update_reference = f'{config["update_reference"]}'
+        update_reference = f'{config["update_reference"]}',
+        min_locus_coverage = config["parameters"]["min_locus_coverage"],
+        translation_table = config["parameters"]["translation_table"],
+        allowed_start_codons = config["parameters"]["allowed_start_codons"]
     shell:
         '''
         echo "---------------------------------------" | tee -a {params.log_file}
@@ -175,11 +178,10 @@ rule vcf_to_sample_allele_info:
         echo "Start: $now" | tee -a {params.log_file}
         echo "create_sample_info_txt.py is running on {input.reference_fasta}, {input.reference_info_txt}, {params.reference}.vcf, {input.sample_depth}, {input.sample_sam}, {input.schema_dir}, and {input.sample_vcf}." | tee -a {params.log_file}
         echo "Reference info and vcf is being updated: {params.update_reference}." | tee -a {params.log_file}
-        echo "Output file is {output.sample_mlst}." | tee -a {params.log_file}
+        echo "Output file is {output.sample_wgmlst}." | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
-        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir} --sample_sam {input.sample_sam} --threads {threads}
+        python {input.code_dir}/scripts/create_sample_info_txt.py --sample_vcf {input.sample_vcf} --reference_info {input.reference_info_txt} --reference_vcf {params.reference}.vcf --sample_depth {input.sample_depth} --reference_fasta {input.reference_fasta} --update_reference {params.update_reference} --schema_dir {input.schema_dir} --sample_sam {input.sample_sam} --threads {threads} --min-locus-coverage {params.min_locus_coverage} --translation-table {params.translation_table} --allowed-start-codons "{params.allowed_start_codons}"
         now=$(date +"%T")
         echo "End: $now" | tee -a {params.log_file}
         echo "---------------------------------------" | tee -a {params.log_file}
         '''
-

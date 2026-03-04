@@ -1,0 +1,11 @@
+{
+  "mentalist_call": {
+    "label": "MentaLiST smoke template",
+    "command": [
+      "mentalist",
+      "--help"
+    ],
+    "timeout_seconds": 60,
+    "notes": "Replace --help with a fixed MentaLiST call against a frozen wgMLST or cgMLST scheme in environments where MentaLiST is installed."
+  }
+}

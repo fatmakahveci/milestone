@@ -1,0 +1,9 @@
+.git
+.gitignore
+.venv
+.vscode
+__pycache__
+*.pyc
+webapp_uploads
+webapp_jobs
+workflow/.snakemake

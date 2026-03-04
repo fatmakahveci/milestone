@@ -1,0 +1,30 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"workflow/scripts/create_reference.py" = ["E741"]
+"workflow/scripts/create_sample_info_txt.py" = ["E741"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "webapp.app",
+  "webapp.runner",
+  "webapp.ui",
+  "webapp.public_schemas",
+  "workflow.milestone",
+  "workflow.scripts.compare_wgmlst_profiles",
+  "workflow.scripts.result_metrics",
+  "workflow.scripts.schema_qc",
+  "workflow.scripts.wgmlst_utils",
+]
+disallow_untyped_defs = true

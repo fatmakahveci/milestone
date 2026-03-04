@@ -1,0 +1,224 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest biopython streamlit pandas ruff mypy
+
+      - name: Verify Python syntax
+        run: |
+          python -m py_compile \
+            workflow/milestone.py \
+            workflow/scripts/compare_wgmlst_profiles.py \
+            workflow/scripts/compare_wgmlst_matrix.py \
+            workflow/scripts/compare_wgmlst_batch.py \
+            workflow/scripts/benchmark_wgmlst_profiles.py \
+            workflow/scripts/benchmark_typing_tools.py \
+            workflow/scripts/build_validation_bundle.py \
+            workflow/scripts/build_publication_package.py \
+            workflow/scripts/freeze_public_benchmark_pack.py \
+            workflow/scripts/import_pubmlst_benchmark_pack.py \
+            workflow/scripts/import_enterobase_scheme.py \
+            workflow/scripts/publication_readiness.py \
+            workflow/scripts/compare_results.py \
+            workflow/scripts/comp_milestone_chewie.py \
+            workflow/scripts/create_reference.py \
+            workflow/scripts/create_sample_info_txt.py \
+            workflow/scripts/import_pubmlst_scheme.py \
+            workflow/scripts/result_metrics.py \
+            workflow/scripts/schema_manifest.py \
+            workflow/scripts/schema_qc.py \
+            workflow/scripts/wgmlst_utils.py \
+            webapp/app.py \
+            webapp/public_schemas.py \
+            webapp/runner.py \
+            webapp/job_worker.py \
+            webapp/uploads.py \
+            tests/test_milestone_cli.py \
+            tests/test_compare_wgmlst_profiles.py \
+            tests/test_compare_wgmlst_batch.py \
+            tests/test_benchmark_wgmlst_profiles.py \
+            tests/test_benchmark_typing_tools.py \
+            tests/test_build_publication_package.py \
+            tests/test_build_validation_bundle.py \
+            tests/test_freeze_public_benchmark_pack.py \
+            tests/test_publication_readiness.py \
+            tests/test_site_assets.py \
+            tests/test_profile_matrix_smoke_cli.py \
+            tests/test_profile_compare_smoke_cli.py \
+            tests/test_profile_benchmark_smoke_cli.py \
+            tests/test_schema_qc.py \
+            tests/test_schema_qc_smoke_cli.py \
+            tests/test_legacy_compare_wrappers.py \
+            tests/test_create_reference.py \
+            tests/test_import_pubmlst_scheme.py \
+            tests/test_import_pubmlst_benchmark_pack.py \
+            tests/test_import_enterobase_scheme.py \
+            tests/test_schema_manifest.py \
+            tests/test_compare_wgmlst_matrix.py \
+            tests/test_create_sample_info_txt.py \
+            tests/test_webapp_runner.py \
+            tests/test_webapp_app.py
+
+      - name: Run Ruff
+        run: python -m ruff check workflow webapp tests
+
+      - name: Run Mypy
+        run: python -m mypy webapp workflow/scripts/result_metrics.py workflow/scripts/schema_qc.py workflow/scripts/wgmlst_utils.py workflow/milestone.py
+
+      - name: Run unit tests
+        run: pytest tests
+
+      - name: Run CLI smoke comparison
+        run: |
+          python workflow/milestone.py profile_compare \
+            --profile-a tests/fixtures/smoke/strain_a_wgmlst.tsv \
+            --profile-b tests/fixtures/smoke/strain_b_wgmlst.tsv \
+            --label-a strain_a \
+            --label-b strain_b \
+            --output /tmp/milestone-smoke-output
+
+      - name: Run schema QC smoke
+        run: |
+          python workflow/scripts/schema_qc.py \
+            --schema-dir tests/fixtures/smoke_schema \
+            --output-dir /tmp/milestone-schema-qc
+
+      - name: Run matrix smoke
+        run: |
+          python workflow/milestone.py profile_matrix \
+            --profiles tests/fixtures/smoke/strain_a_wgmlst.tsv tests/fixtures/smoke/strain_b_wgmlst.tsv \
+            --output /tmp/milestone-matrix-smoke
+
+      - name: Run batch compare smoke
+        run: |
+          python workflow/milestone.py profile_compare_batch \
+            --profiles tests/fixtures/smoke/strain_a_wgmlst.tsv tests/fixtures/smoke/strain_b_wgmlst.tsv \
+            --output /tmp/milestone-batch-compare
+
+      - name: Run benchmark smoke
+        run: |
+          python workflow/milestone.py profile_benchmark \
+            --benchmark-pack-dir tests/fixtures/benchmark/public_species_packs \
+            --output /tmp/milestone-benchmark/output
+
+      - name: Run tool benchmark harness
+        run: |
+          python workflow/scripts/benchmark_typing_tools.py \
+            --config benchmarking/tool_profiles.json \
+            --output-dir /tmp/milestone-tool-benchmark
+
+      - name: Build validation bundle smoke
+        run: |
+          python workflow/scripts/build_validation_bundle.py \
+            --inputs tests/fixtures/smoke/strain_a_wgmlst.tsv tests/fixtures/smoke/strain_b_wgmlst.tsv \
+            --output /tmp/milestone-validation/milestone-validation-bundle.zip \
+            --notes "CI smoke bundle"
+
+      - name: Run publication readiness smoke
+        run: |
+          python workflow/milestone.py publication_readiness \
+            --schema-qc-summary /tmp/milestone-schema-qc/schema_qc_summary.json \
+            --benchmark-summary /tmp/milestone-benchmark/output/wgmlst_benchmark_summary.json \
+            --output /tmp/milestone-publication-readiness
+
+      - name: Build publication package smoke
+        run: |
+          python workflow/milestone.py publication_package \
+            --schema-qc-summary /tmp/milestone-schema-qc/schema_qc_summary.json \
+            --benchmark-summary /tmp/milestone-benchmark/output/wgmlst_benchmark_summary.json \
+            --output /tmp/milestone-publication/milestone-publication-package.zip \
+            --title "CI publication package"
+
+      - name: Validate static site assets
+        run: |
+          test -f site/index.html
+          test -f site/benchmark.html
+          test -f site/robots.txt
+          test -f site/sitemap.xml
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone-smoke-artifacts
+          path: |
+            /tmp/milestone-smoke-output
+            /tmp/milestone-schema-qc
+            /tmp/milestone-matrix-smoke
+            /tmp/milestone-batch-compare
+            /tmp/milestone-benchmark/output
+            /tmp/milestone-tool-benchmark
+            /tmp/milestone-validation
+            /tmp/milestone-publication-readiness
+            /tmp/milestone-publication
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build lightweight web image
+        run: docker build -f Dockerfile -t milestone-web-smoke .
+
+      - name: Validate compose file
+        run: docker compose config
+
+  docker-runtime-nightly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build runtime image
+        run: docker build -f Dockerfile.runtime -t milestone-runtime-nightly .
+
+      - name: Run full workflow smoke
+        run: |
+          docker run --rm \
+            -v "$PWD:/app" \
+            -w /app \
+            milestone-runtime-nightly \
+            micromamba run -n milestone bash tests/run_full_workflow_smoke.sh
+
+  public-import-live-smoke:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run live public import smoke
+        run: bash tests/run_live_public_import_smoke.sh

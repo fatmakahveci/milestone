@@ -1,0 +1,15 @@
+FROM mambaorg/micromamba:1.5.10
+
+WORKDIR /app
+
+COPY workflow/environment.yml /tmp/environment.yml
+RUN micromamba create -y -n milestone -f /tmp/environment.yml && \
+    micromamba clean --all --yes
+
+COPY . /app
+
+RUN micromamba run -n milestone pip install --no-cache-dir -r webapp/requirements.txt
+
+EXPOSE 8501
+
+CMD ["micromamba", "run", "-n", "milestone", "streamlit", "run", "webapp/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

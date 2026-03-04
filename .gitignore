@@ -219,6 +219,14 @@ instance/
 # Scrapy stuff:
 .scrapy
 
+# Local web demo artifacts
+.venv/
+.vscode/
+webapp_uploads/
+webapp_jobs/
+schemas/
+benchmark_packs/
+
 # Sphinx documentation
 docs/_build/
 doc/_build/

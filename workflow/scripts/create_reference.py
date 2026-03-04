@@ -11,147 +11,29 @@ import argparse, glob, os, shutil, subprocess, sys
 
 from Bio import SeqIO
 from collections import OrderedDict
-from io import StringIO  # python3
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+	sys.path.insert(0, str(SCRIPT_DIR))
 
-class Info:
-
-    def __init__(self, line):
-
-        pos_list, ref_list, alt_list, qual_list = [], [], [], []
-
-        for variation in line.split(','):
-
-            pos_end_idx = variation.index('*')
-            pos = int(variation[ : pos_end_idx ])
-
-            ref_end_idx = variation.index('>')
-            ref = variation[ pos_end_idx +1 : ref_end_idx ]
-
-            alt_end_idx = variation.index('-')
-            alt = variation[ ref_end_idx + 1 : alt_end_idx ]
-                        
-            qual = variation[ alt_end_idx + 1 : ] 
-            
-            pos_list.append(pos)
-            ref_list.append(ref)
-            alt_list.append(alt)
-            qual_list.append(qual)
-
-        self.pos_list = pos_list
-        self.ref_list = ref_list
-        self.alt_list = alt_list
-        self.qual_list = qual_list
-
-    def __repr__(self):
-
-        return f'positions: { " ".join( list( map( str, self.pos_list) ) ) }\n' \
-                f'refs: { " ".join(self.ref_list) }\n' \
-                f'alts: { " ".join(self.alt_list) }\n' \
-                f'quals: { " ".join( list( map( str, self.qual_list ) ) ) }\n'
+from wgmlst_utils import (
+	get_allele_id_from_allele_name,
+	get_cds_name_from_allele_name,
+	select_reference_record,
+)
+from reference_pipeline import (
+	call_variants_of_allele as pipeline_call_variants_of_allele,
+	sort_zip_and_index_vcf_files as pipeline_sort_zip_and_index_vcf_files,
+)
+from reference_formats import Paf, Vcf
+from script_utils import ParsedVariationInfo, run_checked_command
 
 
-class Paf:
+Info = ParsedVariationInfo
 
-	def __init__( self, paf_line ):
-
-		fields = paf_line.strip('\n').split('\t')
-
-		self.qname = fields[0]
-		self.qlen = int(fields[1])
-		self.qstart = int(fields[2])
-		self.qend = int(fields[3])
-		self.strand = fields[4]
-		self.tname = fields[5]
-		self.tlen = int(fields[6])
-		self.tstart = int(fields[7])
-		self.tend = int(fields[8])
-		self.nmatch = int(fields[9])
-		self.alen = int(fields[10])
-		self.mapq = int(fields[11])
-
-	def __repr__(self):
-
-		return f"query sequence name: {self.qname}\t" \
-			   f"query sequence length: {self.qlen}\t" \
-			   f"query start: {self.qstart}\t" \
-			   f"query end: {self.qend}\t" \
-			   f"strand (+ or -): {self.strand}\t" \
-			   f"target sequence name: {self.tname}\t" \
-			   f"target sequence length: {self.tlen}\t" \
-			   f"target start: {self.tstart}\t" \
-			   f"target end: {self.tend}\t" \
-			   f"number of matching bases in the mapping: {self.nmatch}\t" \
-			   f"number of bases including gaps in the mapping: {self.alen}\t" \
-			   f"mapping quality:{self.mapq}\n"
-
-
-class Vcf:
-
-	def __init__( self, vcf_line ):
-
-		fields = vcf_line.split('\t')
-
-		self.chr = get_cds_name_from_allele_name( allele_name=fields[0] )
-		self.pos = fields[1]
-		self.id = fields[2]
-		self.ref = fields[3]
-		self.alt = fields[4]
-		self.qual = fields[5]
-		self.filter = fields[6]
-		self.info = fields[7]
-		self.sample_format = fields[8]
-		self.sample = fields[9]
-
-	def __repr__(self):
-
-		return f"chr: {self.chr}\t" \
-			   f"pos: {self.pos}\t" \
-			   f"id: {self.id}\t" \
-			   f"ref: {self.ref}\t" \
-			   f"alt: {self.alt}\t" \
-			   f"qual: {self.qual}\t" \
-			   f"filter: {self.filter}\t" \
-			   f"info: {self.info}\t" \
-			   f"format: {self.sample_format}\t" \
-			   f"sample: {self.sample}\n"
-
-
-def get_cds_name_from_allele_name(allele_name: str) -> str:
-	"""
-	Get {cds_name}_{allele_id} and return {cds_name}
-
-	Parameter
-	---------
-	allele_name : {cds_name}_{allele_id}
-
-	Returns
-	-------
-	cds_name : name of CDS for given allele_name
-	"""
-
-	cds_name = allele_name.strip("\n").split("_")[0]
-
-	return cds_name
-
-
-def get_allele_id_from_allele_name(allele_name: str) -> str:
-	"""
-	Get {cds_name}_{allele_id} and return {allele_id}
-
-	Parameter
-	---------
-	allele_name : {cds_name}_{allele_id}
-
-	Returns
-	-------
-	allele_id : allele ID for given allele_name
-	"""
-
-	allele_id = allele_name.strip("\n").split("_")[-1]
-
-	return allele_id
+def run_command(command: list[str], stdout=None, stderr=None) -> None:
+	run_checked_command(command, stdout=stdout, stderr=stderr)
 
 
 def write_allele_defining_variant_list_to_file( cds_name: str, allele_id: str, pos_dict: dict ) -> None:
@@ -187,8 +69,6 @@ def write_allele_defining_variant_list_to_file( cds_name: str, allele_id: str, p
 		out_file.write(",".join(pos_list))
 
 		out_file.write('\n')
-
-		out_file.close()
 
 
 def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, cds_name: str, allele_id: str ) -> dict:
@@ -234,8 +114,6 @@ def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, cds_name: str, a
 
 						pos_dict[pos_ref][vcf_line.alt] = vcf_line.qual
 
-		file.close()
-
 	if has_variant:
 
 		write_allele_defining_variant_list_to_file( cds_name=cds_name, allele_id=allele_id, pos_dict=pos_dict)
@@ -253,11 +131,7 @@ def call_variants_of_allele( reference: str, sample: str ) ->  str:
 	sample: name of sample to be aligned onto the <reference.fasta>
 	"""
 
-	# A (match) : 1, B (mismatch) : 4, O (gap_opening) : 6, E (gap_extend) : 1 (Scores are equal to the graph aligners'.)
-	os.system(f"minimap2 -c --cs=long -t {args.threads} -A 1 -B 4 -O 6 -E 1 {reference}.fasta {sample}.fasta 2>/dev/null > {sample}.paf;")
-	os.system(f"sort -k6,6 -k8,8n {sample}.paf | paftools.js call -L0 -l0 -f {reference}.fasta -s {sample} - 2>/dev/null > {sample}.vcf;")
-	os.system(f"bcftools norm -a -d none {sample}.vcf -Ov -o {sample}.vcf. 2>/dev/null")
-	os.system(f"mv {sample}.vcf. {sample}.vcf")
+	pipeline_call_variants_of_allele(reference, sample, int(args.threads), run_command)
 
 
 def sort_zip_and_index_vcf_files(vcf_file: str) -> None:
@@ -269,12 +143,7 @@ def sort_zip_and_index_vcf_files(vcf_file: str) -> None:
 	vcf_file : Name of vcf file with its directory
 	"""
 
-	# @todo: These might be shortened.
-	os.system( f"bcftools sort {vcf_file} -Ov -o {vcf_file}. 2>/dev/null" )
-	os.system( f"mv {vcf_file}. {vcf_file}" )
-	os.system( f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz" )
-	os.system( f"bcftools concat -a --rm-dups none {vcf_file}.gz -Ov -o {vcf_file} 2>/dev/null" )
-	os.system( f"bgzip -f {vcf_file} > {vcf_file}.gz; tabix -f -p vcf {vcf_file}.gz" )
+	pipeline_sort_zip_and_index_vcf_files(vcf_file, run_command)
 
 
 def remove_redundant_files(sample: str) -> None:
@@ -287,11 +156,16 @@ def remove_redundant_files(sample: str) -> None:
 	"""
 
 	for extension in [ "fasta", "sam", "bam", "sorted.bam", "bam.bai", "sorted.bam.bai", "vcf" ]:
+		Path(f"{sample}.{extension}").unlink(missing_ok=True)
 
-		os.system( f"rm {sample}.{extension}" )
 
-
-def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str, cds_name: str ) -> dict:
+def create_allele_dict_for_a_cds(
+	write_dir: str,
+	allele_name: str,
+	cds_dir: str,
+	cds_name: str,
+	reference_allele_name: str,
+) -> dict:
 	"""
 	Create allele dictionary for given CDS
 
@@ -304,7 +178,7 @@ def create_allele_dict_for_a_cds( write_dir: str, allele_name: str, cds_dir: str
 	"""
 
 	sample = f"{write_dir}/{allele_name}"
-	reference = f"{cds_dir}/references/{cds_name}_1"
+	reference = f"{cds_dir}/references/{reference_allele_name}"
 	allele_id = get_allele_id_from_allele_name( allele_name=allele_name )
 
 	# create <sample_allele.vcf>
@@ -334,45 +208,40 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 	"""
 
 	try:
+		with open(f"{cds_dir}/{cds_fasta}", "r", encoding="ascii") as handle:
+			locus_records = list(SeqIO.parse(handle, 'fasta'))
+		if not locus_records:
+			return cds_to_merge_list
 
-		for sequence in list( SeqIO.parse( StringIO( open( f"{cds_dir}/{cds_fasta}", 'r' ).read() ), 'fasta') ):
+		reference_record = select_reference_record(locus_records)
+		reference_allele_name = reference_record.id
+		reference_cds = get_cds_name_from_allele_name(reference_allele_name)
 
-			allele_seq_list = []
-		
-			for seq_record in SeqIO.parse(f"{args.schema_dir}/{cds}", "fasta"):
+		with open(f"{args.schema_dir}/references/{reference_allele_name}.fasta", 'w') as out_file:
+			out_file.write(f'>{reference_allele_name}\n')
+			out_file.write(f'{str(reference_record.seq)}\n')
 
-				ref_allele_cds, ref_allele_id = str(seq_record.id).split('_')[0], str(seq_record.id).split('_')[-1]
-				ref_allele_name = f'{ref_allele_cds}_{ref_allele_id}'
+		Path(f"{cds_dir}/alleles/{reference_cds}").mkdir(exist_ok=True)
 
-				if ref_allele_id == '1':
-			
-					out_file = open( f"{args.schema_dir}/references/{ref_allele_name}.fasta", 'w' )
-
-					# allele_id
-					out_file.write(f'>{ref_allele_name}\n')
-
-					# allele sequence
-					out_file.write(f'{str(seq_record.seq)}\n')
-
-					out_file.close()
-
-					Path(f"{cds_dir}/alleles/{ref_allele_cds}").mkdir(exist_ok=True)
-
+		for sequence in locus_records:
 			cds_name = get_cds_name_from_allele_name( allele_name=sequence.id )
 			allele_id = get_allele_id_from_allele_name( allele_name=sequence.id )
-
 			allele_name = f"{cds_name}_{allele_id}"
 
-			if allele_id != '1':
-
+			if allele_name != reference_allele_name:
 				write_dir = f"{cds_dir}/alleles/{cds_name}"
 
 				with open( f"{write_dir}/{allele_name}.fasta", "w" ) as out_file:
 
 					out_file.write(f">{allele_name}\n{str(sequence.seq)}\n")
-					out_file.close()
 
-				create_allele_dict_for_a_cds( write_dir, allele_name, cds_dir, cds_name )
+				create_allele_dict_for_a_cds(
+					write_dir,
+					allele_name,
+					cds_dir,
+					cds_name,
+					reference_allele_name,
+				)
 
 	except FileNotFoundError:
 
@@ -410,18 +279,21 @@ def create_cds_list( cds_dir: str, cds_fasta: str, cds_to_merge_list: list ) -> 
 			cds_to_merge_list.append(cds_name)
 
 			# remove .vcf.gz get the allele_id ..._'allele_id'
-			unzip_allele_id = glob.glob(f'{wd}/*_*.vcf.gz')[0][:-7].split('_')[-1]
-			command_list.append( f"gunzip {wd}/{cds_name}_{unzip_allele_id}.vcf.gz" )
-			command_list.append( f"mv {wd}/{cds_name}_{unzip_allele_id}.vcf {wd}/{cds_name}.vcf" )
+			vcf_stem = Path(glob.glob(f"{wd}/*_*.vcf.gz")[0]).name[:-7]
+			unzip_allele_id = get_allele_id_from_allele_name(vcf_stem)
+			command_list.append(["gunzip", "-f", f"{wd}/{cds_name}_{unzip_allele_id}.vcf.gz"])
+			command_list.append(["mv", f"{wd}/{cds_name}_{unzip_allele_id}.vcf", f"{wd}/{cds_name}.vcf"])
 
 		else:
 
 			cds_to_merge_list.append(cds_name)
 
-			command_list.append( f"bcftools merge { ' '.join( glob.glob(f'{wd}/*_*.vcf.gz')) } -O v -o {wd}/{cds_name}.vcf" )
+			command_list.append(
+				["bcftools", "merge", *glob.glob(f"{wd}/*_*.vcf.gz"), "-O", "v", "-o", f"{wd}/{cds_name}.vcf"]
+			)
 
 		for command in command_list:
-			subprocess.call(command, shell=True, stdout=subprocess.DEVNULL)
+			run_command(command, stderr=subprocess.DEVNULL)
 
 	except FileNotFoundError:
 
@@ -440,43 +312,22 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 	cds_to_merge_list : all CDSs for reference vcf
 	"""
 
-	reference_file = open( f"{args.reference_vcf}.temp", 'w' )
-
 	contig_info_set = set()
-
-	for cds in cds_to_merge_list:
-
-		cds_vcf_file_name = f"{wd}/alleles/{cds}/{cds}.vcf"
-
-		with open( cds_vcf_file_name, 'r' ) as cds_file:
-
-			for line in cds_file.readlines():
-
-				line = line.strip('\n')
-
-				if line.startswith("##contig"):
-
-					contig_info_set.add(line)
-
-				elif line.startswith("##INFO"):
-
-					contig_info_set.add(line)
-
-				elif not line.startswith("#"):
-
-					fields = ( line.split('\t') )[:8]
-					fields.append("GT")
-					fields.append("1")
-
-					line = '\t'.join(fields)
-
-					reference_file.write(f"{line}\n")
-
-			cds_file.close()
-
-	reference_file.close()
-
-	header_file = open( f"{wd}/alleles/header.txt", 'w' )
+	with open(f"{args.reference_vcf}.temp", "w") as reference_file:
+		for cds in cds_to_merge_list:
+			cds_vcf_file_name = f"{wd}/alleles/{cds}/{cds}.vcf"
+			with open(cds_vcf_file_name, "r") as cds_file:
+				for line in cds_file.readlines():
+					line = line.strip('\n')
+					if line.startswith("##contig"):
+						contig_info_set.add(line)
+					elif line.startswith("##INFO"):
+						contig_info_set.add(line)
+					elif not line.startswith("#"):
+						fields = ( line.split('\t') )[:8]
+						fields.append("GT")
+						fields.append("1")
+						reference_file.write("\t".join(fields) + "\n")
 
 	header = [  '##fileformat=VCFv4.2',
 				'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
@@ -494,16 +345,18 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 			 ]
 
 	header.extend( list(contig_info_set) )
-
 	header.append("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tREFERENCE\n")
 
-	header_file.write("\n".join(header))
+	with open(f"{wd}/alleles/header.txt", "w") as header_file:
+		header_file.write("\n".join(header))
 
-	header_file.close()
+	with open(args.reference_vcf, "w") as output_handle:
+		for input_path in [f"{wd}/alleles/header.txt", f"{args.reference_vcf}.temp"]:
+			with open(input_path, "r") as input_handle:
+				output_handle.write(input_handle.read())
 
-	os.system(f"cat {wd}/alleles/header.txt {args.reference_vcf}.temp > {args.reference_vcf}")
-
-	os.system(f"rm {args.reference_vcf}.temp; rm {wd}/alleles/header.txt;")
+	Path(f"{args.reference_vcf}.temp").unlink(missing_ok=True)
+	Path(f"{wd}/alleles/header.txt").unlink(missing_ok=True)
 
 	# merge all CDS fasta files to create reference FASTA
 
@@ -514,8 +367,6 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 			with open( file, 'r' ) as infile:
 
 				f.write(infile.read().strip('\n')+'\n')
-
-		f.close()
 	
 
 def get_cds_list() -> list:

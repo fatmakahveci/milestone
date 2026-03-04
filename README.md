@@ -1,6 +1,328 @@
 <div align="left"> <h1> <img src="images/milestone.png" alt="milestone_logo"> MILESTONE </h1> </div>
 
-Milestone is an end-to-end sample-based MLST profile creation workflow for bacterial species.
+[![Tests](https://github.com/fatmakahveci/milestone/actions/workflows/tests.yml/badge.svg)](https://github.com/fatmakahveci/milestone/actions/workflows/tests.yml)
+
+Milestone is a local `wgMLST` workflow for bacterial allele calling, profile comparison, schema QC, public schema import, and validation support.
+
+If you are new to the project, start here:
+
+- [What Milestone Is](/Users/fatmakhv/Desktop/milestone/docs/scientific-positioning.md)
+- [How To Use Milestone](/Users/fatmakhv/Desktop/milestone/docs/how-to-use-milestone.md)
+- [Milestone Compared With Other Tools](/Users/fatmakhv/Desktop/milestone/docs/competitive-analysis.md)
+
+## Project Overview
+
+Milestone covers the following core tasks:
+
+- schema creation or import
+- allele calling
+- `wgMLST` profile comparison
+- schema QC
+- benchmarking and validation support
+- local web-based demo and job execution
+
+Useful reading:
+
+- [competitive-analysis.md](/Users/fatmakhv/Desktop/milestone/docs/competitive-analysis.md)
+- [scientific-positioning.md](/Users/fatmakhv/Desktop/milestone/docs/scientific-positioning.md)
+- [how-to-use-milestone.md](/Users/fatmakhv/Desktop/milestone/docs/how-to-use-milestone.md)
+- [methods-template.md](/Users/fatmakhv/Desktop/milestone/docs/methods-template.md)
+- [limitations.md](/Users/fatmakhv/Desktop/milestone/docs/limitations.md)
+Publication support files are available in [publication-checklist.md](/Users/fatmakhv/Desktop/milestone/docs/publication-checklist.md), [CITATION.cff](/Users/fatmakhv/Desktop/milestone/CITATION.cff), and [codemeta.json](/Users/fatmakhv/Desktop/milestone/codemeta.json).
+An end-to-end manuscript preparation guide is available in [publication-runbook.md](/Users/fatmakhv/Desktop/milestone/docs/publication-runbook.md).
+Publication-ready draft sections are available in [manuscript-sections.md](/Users/fatmakhv/Desktop/milestone/docs/manuscript-sections.md).
+Candidate public sources for building larger benchmark packs are listed in [public-benchmark-datasets.md](/Users/fatmakhv/Desktop/milestone/docs/public-benchmark-datasets.md).
+A lightweight documentation-led discoverability plan is available in [seo-playbook.md](/Users/fatmakhv/Desktop/milestone/docs/seo-playbook.md).
+A static landing surface for indexing and search discovery now lives under [site/index.html](/Users/fatmakhv/Desktop/milestone/site/index.html).
+External comparison-tool status and reproducible smoke commands are documented in [external-tool-benchmarking.md](/Users/fatmakhv/Desktop/milestone/docs/external-tool-benchmarking.md).
+Installation notes for those external tools are documented in [external-tool-install.md](/Users/fatmakhv/Desktop/milestone/docs/external-tool-install.md).
+
+Milestone also includes source-specific importer scripts for public benchmark and scheme assets:
+
+- [import_pubmlst_benchmark_pack.py](/Users/fatmakhv/Desktop/milestone/workflow/scripts/import_pubmlst_benchmark_pack.py)
+- [import_enterobase_scheme.py](/Users/fatmakhv/Desktop/milestone/workflow/scripts/import_enterobase_scheme.py)
+- [freeze_public_benchmark_pack.py](/Users/fatmakhv/Desktop/milestone/workflow/scripts/freeze_public_benchmark_pack.py)
+- [freeze_benchmark_pack_collection.py](/Users/fatmakhv/Desktop/milestone/workflow/scripts/freeze_benchmark_pack_collection.py)
+
+The Streamlit app now exposes these importers through dedicated `PubMLST Packs` and `EnteroBase` tabs.
+Scheduled CI now also includes an optional live public-import smoke job that exercises official PubMLST and EnteroBase endpoints when network access is available.
+
+## Publication Readiness
+
+Milestone now includes two CLI utilities aimed at manuscript-grade reproducibility:
+
+- `publication_readiness`: checks whether schema QC, benchmark outputs, provenance, and reporting support files are present and internally consistent.
+- `publication_package`: bundles the key artifacts, citation metadata, environment metadata, and a readiness summary into a ZIP archive suitable for supplementary material or lab archiving.
+
+Example:
+
+```bash
+python workflow/milestone.py publication_readiness \
+  --schema-qc-summary results/schema_qc/schema_qc_summary.json \
+  --benchmark-summary results/benchmark/wgmlst_benchmark_summary.json \
+  --schema-manifest results/schema/schema_manifest.json \
+  --output results/publication_readiness
+
+python workflow/milestone.py publication_package \
+  --schema-qc-summary results/schema_qc/schema_qc_summary.json \
+  --benchmark-summary results/benchmark/wgmlst_benchmark_summary.json \
+  --schema-manifest results/schema/schema_manifest.json \
+  --output results/milestone_publication_package.zip \
+  --title "Milestone validation package"
+```
+
+These utilities strengthen reproducibility and reporting. They do not replace external biological validation or species-specific benchmarking.
+
+Two additional utilities support manuscript preparation and validation corpus packaging:
+
+- `validation_corpus`: builds a packaged species-level corpus from benchmark packs.
+- `manuscript_supplement`: extracts a publication package into a supplement-ready directory tree.
+
+Example:
+
+```bash
+python workflow/milestone.py validation_corpus \
+  --collection-dir tests/fixtures/benchmark/public_species_packs \
+  --output results/validation_corpus
+
+python workflow/milestone.py manuscript_supplement \
+  --publication-package results/milestone_publication_package.zip \
+  --output results/manuscript_supplement
+```
+
+For a live PubMLST-backed workspace that builds frozen species packs and a corpus package in one pass:
+
+```bash
+python workflow/scripts/build_public_benchmark_workspace.py \
+  --config configs/public_benchmark_workspace.example.json \
+  --output-dir results/public_benchmark_workspace
+```
+
+For external comparison-tool smoke benchmarking in a containerized environment:
+
+```bash
+docker compose run --rm milestone-benchmark
+```
+
+## Publish the static site
+
+The repository now includes a GitHub Pages workflow in [pages.yml](/Users/fatmakhv/Desktop/milestone/.github/workflows/pages.yml). It publishes the contents of [site](/Users/fatmakhv/Desktop/milestone/site/index.html) whenever `main` or `master` receives changes under `site/`.
+
+To publish it:
+
+1. Push this repository to GitHub.
+2. In GitHub, open `Settings -> Pages`.
+3. Set `Source` to `GitHub Actions`.
+4. Push to `main` or run the `Publish Site` workflow manually.
+5. Your site will appear under the repository's GitHub Pages URL, typically `https://<username>.github.io/<repo>/`.
+
+## Web App Demo
+
+Milestone now includes a lightweight Streamlit demo app in [webapp/app.py](/Users/fatmakhv/Desktop/milestone/webapp/app.py). This layer is intended for presentations, onboarding, and UI prototyping around the existing CLI workflow.
+
+### Run the demo
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r webapp/requirements.txt
+streamlit run webapp/app.py
+```
+
+### Run with Docker
+
+```bash
+docker compose up --build
+```
+
+Lightweight UI only:
+
+```bash
+docker compose up --build milestone-web
+```
+
+Full workflow runtime with bioinformatics toolchain:
+
+```bash
+docker compose up --build milestone-runtime
+```
+
+### Import public wgMLST schemas
+
+PubMLST/BIGSdb allele schemes can be imported into Milestone's schema layout:
+
+```bash
+python workflow/scripts/import_pubmlst_scheme.py \
+  --database pubmlst_neisseria_seqdef \
+  --list-schemes \
+  --scheme-type wgmlst
+```
+
+```bash
+python workflow/scripts/import_pubmlst_scheme.py \
+  --database pubmlst_neisseria_seqdef \
+  --scheme-id 1 \
+  --output-dir schemas/neisseria_wgmlst \
+  --include-profiles
+```
+
+You can also chain the imported public schema directly into Milestone reference generation:
+
+```bash
+python workflow/scripts/import_pubmlst_scheme.py \
+  --database pubmlst_neisseria_seqdef \
+  --scheme-id 1 \
+  --scheme-type wgmlst \
+  --output-dir schemas/neisseria_wgmlst \
+  --run-schema-creation \
+  --reference neisseria_public \
+  --pipeline-output-dir output/neisseria_public \
+  --threads 8
+```
+
+This writes one `<locus>.fasta` file per locus, plus `scheme_metadata.json` and optional `profiles.tsv`.
+The Streamlit app exposes the same workflow in the `Public Schemas` tab.
+Imported schemas now also include `scheme_manifest.json`, which records schema provenance, versioning, locus count, and expected schema type.
+
+### Compare two wgMLST profiles
+
+Milestone can now compare two finished wgMLST profiles and report whether they are:
+
+- `different`: at least one comparable locus carries a different allele call
+- `indistinguishable`: all comparable loci match and there are no unresolved loci
+- `inconclusive`: profiles cannot be separated confidently because of missing or non-comparable calls
+
+```bash
+python workflow/milestone.py profile_compare \
+  --profile-a output/run_a/vg/sample_a_wgmlst.tsv \
+  --profile-b output/run_b/vg/sample_b_wgmlst.tsv \
+  --label-a sample_a \
+  --label-b sample_b \
+  --output-dir output/compare/sample_a_vs_b
+```
+
+This writes `wgmlst_profile_summary.json` and `wgmlst_profile_comparison.tsv`. The Streamlit app exposes the same workflow in the `Strain Compare` tab.
+
+Scientific note: this comparison layer is a wgMLST profile discriminator, not a phylogenetic distance estimator. A `different` result means the two isolates are distinguishable by at least one comparable locus; it does not claim how closely or distantly related they are evolutionarily.
+
+Legacy comparison helpers now route through the same engine, so `compare_results.py` and `comp_milestone_chewie.py` no longer maintain separate comparison logic.
+
+### Build a wgMLST distance matrix
+
+Milestone can also summarize multiple profiles as a pairwise allele-distance matrix:
+
+```bash
+python workflow/milestone.py profile_matrix \
+  --profiles output/run_a/vg/sample_a_wgmlst.tsv output/run_b/vg/sample_b_wgmlst.tsv output/run_c/vg/sample_c_wgmlst.tsv \
+  --output output/compare/matrix_abc
+```
+
+This writes `wgmlst_distance_matrix.tsv` and `wgmlst_distance_summary.json`.
+It also writes `wgmlst_distance_report.html` and a clustering summary inside the JSON output.
+
+Milestone can also emit a batch pairwise decision table:
+
+```bash
+python workflow/milestone.py profile_compare_batch \
+  --profiles output/run_a/vg/sample_a_wgmlst.tsv output/run_b/vg/sample_b_wgmlst.tsv output/run_c/vg/sample_c_wgmlst.tsv \
+  --output output/compare/batch_abc
+```
+
+### Benchmark predicted profiles against a truth set
+
+Milestone can benchmark a directory of predicted wgMLST profiles against truth-set profiles with matching sample names:
+
+```bash
+python workflow/milestone.py profile_benchmark \
+  --predicted-dir output/predicted_profiles \
+  --truth-dir validation/truth_profiles \
+  --output output/benchmark_run
+```
+
+This writes `wgmlst_benchmark_summary.json`, `wgmlst_benchmark_per_sample.tsv`, `wgmlst_benchmark_per_locus.tsv`, and `wgmlst_benchmark_report.html`.
+The repository includes a tiny reusable fixture package under [demo_species](/Users/fatmakhv/Desktop/milestone/tests/fixtures/benchmark/demo_species/README.md) for benchmark smoke tests and demos.
+
+Milestone can also benchmark a directory of species packs:
+
+```bash
+python workflow/milestone.py profile_benchmark \
+  --benchmark-pack-dir tests/fixtures/benchmark/public_species_packs \
+  --output output/benchmark_species
+```
+
+This writes `wgmlst_benchmark_pack_summary.json`, `wgmlst_benchmark_species.tsv`, and `wgmlst_benchmark_collection_report.html`.
+
+You can create a PubMLST-backed benchmark pack directly from isolate IDs:
+
+```bash
+python workflow/scripts/import_pubmlst_benchmark_pack.py \
+  --scheme-database pubmlst_neisseria_seqdef \
+  --isolate-database pubmlst_neisseria_isolates \
+  --scheme-id 1 \
+  --isolate-id 101 \
+  --isolate-id 102 \
+  --species "Neisseria meningitidis" \
+  --output-dir benchmark_packs/neisseria_demo
+```
+
+To freeze the imported pack into a reproducible ZIP bundle for archival or supplementary material:
+
+```bash
+python workflow/scripts/freeze_public_benchmark_pack.py \
+  --scheme-database pubmlst_neisseria_seqdef \
+  --isolate-database pubmlst_neisseria_isolates \
+  --scheme-id 1 \
+  --isolate-id 101 \
+  --output-dir benchmark_packs/neisseria_frozen
+```
+
+You can also download EnteroBase scheme-profile dumps:
+
+```bash
+python workflow/scripts/import_enterobase_scheme.py \
+  --database senterica \
+  --scheme-name wgMLST \
+  --output-dir public_schemes/enterobase_senterica
+```
+
+### Run schema QC
+
+Milestone can audit a schema directory before reference generation:
+
+```bash
+python workflow/scripts/schema_qc.py \
+  --schema-dir tests/fixtures/smoke_schema \
+  --output-dir output/schema_qc
+```
+
+This writes `schema_qc_summary.json` and `schema_qc_issues.tsv`.
+
+### What the demo does
+
+- Presents the existing two-stage workflow in a browser.
+- Builds `schema_creation` and `allele_calling` commands from forms.
+- Compares two wgMLST profiles and reports whether they are distinguishable.
+- Shows expected output artifacts and mocked wgMLST results for demos.
+- Supports both `Demo preview` and `Real run` modes.
+- Keeps `Snakemake dry-run` enabled by default for safer first execution.
+- Accepts optional schema FASTA and paired-end read uploads, storing them under `webapp_uploads/`.
+- Starts real runs as background jobs with live status and log tailing in the sidebar.
+- Exposes generated output files and ZIP bundles directly from the browser.
+- Adds a `Schema QC` tab for locus-level schema validation.
+
+### Notes on real execution
+
+- `Real run` still depends on Snakemake and bioinformatics tools such as `bcftools`, `samtools`, `freebayes`, and `vg`.
+- `Dockerfile` provides a lightweight UI image for preview and local orchestration.
+- `Dockerfile.runtime` installs the full conda-based workflow toolchain from [workflow/environment.yml](/Users/fatmakhv/Desktop/milestone/workflow/environment.yml).
+- Optional web authentication can be enabled with `MILESTONE_WEB_PASSWORD`.
+- Upload size can be capped with `MILESTONE_MAX_UPLOAD_MB`.
+- ORF validation supports explicit NCBI translation-table selection and optional start-codon overrides for species-specific schemas.
+- Novel allele candidates are exported as `*_novel_alleles.fasta` and `*_novel_alleles.tsv` alongside the sample wgMLST output.
+- The Streamlit app includes `Matrix`, `Benchmark`, and `Novel Alleles` tabs for heatmap-style comparison, truth-set validation, and inline export inspection.
+- ORF validation now supports a larger set of NCBI translation tables, including tables `1`, `2`, `3`, `4`, `5`, `6`, `9`, `10`, `11`, `12`, `13`, `14`, `15`, `16`, `21`, `22`, `24`, and `25`.
+- A lightweight multi-tool benchmark harness is available in [benchmark_typing_tools.py](/Users/fatmakhv/Desktop/milestone/workflow/scripts/benchmark_typing_tools.py) with reproducible configuration under [tool_profiles.json](/Users/fatmakhv/Desktop/milestone/benchmarking/tool_profiles.json).
+- Additional executable benchmark profiles are documented in [benchmarking/README.md](/Users/fatmakhv/Desktop/milestone/benchmarking/README.md).
 
 ---
 
@@ -44,11 +366,14 @@ Milestone is an end-to-end sample-based MLST profile creation workflow for bacte
 - Milestone assigns the allele ID for sample's sequence aligned to the CDS based on the following criteria:
   - **<ID_from_the_reference>** If there is a complete match between the variations of sample's aligned sequence to the CDS and the allele-defining variation set given in TEXT-formatted reference file, it assigns the allele ID equal to the matching allele ID in the reference file.
   - **LNF** If the depth of coverage of the sample's CDS is lower than the expected, it assigns LNF (Locus Not Found) as allele ID to the sample's allele.
-  - **1** If the depth of coverage of the sample's aligned sequence is equal to and more than the expected value and the sample does not have any variations for the CDS locus, it assigns the allele ID equal to the reference's, which is the longest allele of the reference CDS.
+  - **<reference allele ID>** If the depth of coverage of the sample's aligned sequence is sufficient and the sample does not have any variations for the CDS locus, it assigns the allele ID of the schema's designated reference allele for that locus.
   - If there is no match between the variations of sample's aligned sequence and the allele-defining variation set given in TEXT-formatted reference file, it checks the validity of the sample's aligned sequence to the CDS before declaring the sequence as a novel allele of the CDS.
-    - **LNF** If the length of the sequence is not a multiplier of 3 and/or the aligned sequence to the CDS contains in-frame stop codon, invalid start codon, and invalid stop codon, it assigns allele ID as LNF because bacterial genomes do not contain exons and it is not a valid coding sequence.
-    - **ASM** If the sequence passes the validation steps, but its length is smaller than 20\% of the length of locus allele length mode, it assigns ASM (Alleles Smaller than Mode) to the sample's allele.
-    - **ALM** If the sequence passes the validation steps, but its length is larger than 20\% of the length of locus allele length more, it assigns ALM (Alleles Larger than Mode) to the sample's allele.
+    - **LNF** If the sequence is not a multiple of 3 and/or contains an in-frame stop codon or invalid terminal coding structure, it assigns allele ID as LNF because the inferred coding sequence does not preserve an intact open reading frame.
+    - **ASM** If the sequence passes the coding-sequence validation steps, but its length is smaller than 20\% below the locus allele length mode, it assigns ASM (Alleles Smaller than Mode) to the sample's allele.
+    - **ALM** If the sequence passes the coding-sequence validation steps, but its length is larger than 20\% above the locus allele length mode, it assigns ALM (Alleles Larger than Mode) to the sample's allele.
+
+- Scientific note: Milestone prefers allele `1` as the reference allele for each locus when present. If a locus FASTA does not contain allele `1`, schema creation falls back to the first FASTA record for that locus as the reference sequence, and allele calling/update logic follows that inferred reference consistently.
+- Scientific note: the locus coverage cutoff is configurable through the CLI (`--min-locus-coverage`) because suitable breadth thresholds depend on schema design, sequencing depth, and species-specific validation.
 
 - Reference update is described below:
 
@@ -58,7 +383,7 @@ Milestone is an end-to-end sample-based MLST profile creation workflow for bacte
 
 <div align="left"> <h1> Tutorial </h1> </div>
 
-This tutorial aims to create multilocus sequence typing (MLST) from the user-defined coding sequences and raw reads. Begin the tutorial by creating the environment for milestone run by following the instructions below.
+This tutorial aims to create whole-genome multilocus sequence typing (wgMLST) profiles from the user-defined coding sequences and raw reads. Begin the tutorial by creating the environment for milestone run by following the instructions below.
 
 ---
 
@@ -408,7 +733,7 @@ output_directory
 |- <reference>.vcf
 |- vg
 |--- <sample>.vcf
-|--- <sample>_mlst.tsv
+|--- <sample>_wgmlst.tsv
 |--- <sample>.bam
 |--- <sample>.depth
 
@@ -428,7 +753,7 @@ output_directory
 |- <reference>.vcf
 |- sbg
 |--- <sample>.vcf
-|--- <sample>_mlst.tsv
+|--- <sample>_wgmlst.tsv
 |--- <sample>.bam
 |--- <sample>.depth
 
@@ -442,5 +767,4 @@ schema_name
 ---
 
 ## Citation
-
-@todo
+Citation details are not yet defined in this repository snapshot.

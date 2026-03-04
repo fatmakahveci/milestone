@@ -1,0 +1,27 @@
+services:
+  milestone-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    command: streamlit run webapp/app.py
+  milestone-runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    ports:
+      - "8502:8501"
+    volumes:
+      - .:/app
+    command: micromamba run -n milestone streamlit run webapp/app.py --server.address=0.0.0.0 --server.port=8501
+  milestone-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile.benchmark
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: micromamba run -n benchmark bash benchmarking/run_external_tool_smoke_suite.sh /tmp/milestone-external-smoke
