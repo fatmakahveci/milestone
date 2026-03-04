@@ -11,7 +11,6 @@ import subprocess
 import time
 from pathlib import Path
 
-
 DEFAULT_TOOL_CONFIG = {
     "milestone": {
         "label": "Milestone",

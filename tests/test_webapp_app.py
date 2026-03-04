@@ -5,13 +5,11 @@ from pathlib import Path
 
 import pytest
 
-
 pytest.importorskip("pandas")
 pytest.importorskip("streamlit")
 pytest.importorskip("streamlit.testing.v1")
 
 from streamlit.testing.v1 import AppTest
-
 
 APP_PATH = Path(__file__).resolve().parent.parent / "webapp" / "app.py"
 

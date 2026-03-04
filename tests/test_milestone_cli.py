@@ -5,7 +5,6 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "milestone.py"
 SPEC = importlib.util.spec_from_file_location("milestone_cli", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

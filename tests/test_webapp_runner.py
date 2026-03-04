@@ -6,7 +6,6 @@ import json
 import sys
 from pathlib import Path
 
-
 RUNNER_PATH = Path(__file__).resolve().parent.parent / "webapp" / "runner.py"
 RUNNER_SPEC = importlib.util.spec_from_file_location("runner", RUNNER_PATH)
 RUNNER = importlib.util.module_from_spec(RUNNER_SPEC)

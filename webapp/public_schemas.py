@@ -5,7 +5,6 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "import_pubmlst_scheme.py"
 SPEC = importlib.util.spec_from_file_location("import_pubmlst_scheme", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

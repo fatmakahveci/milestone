@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
 import json
 import sys
+from datetime import date
 from pathlib import Path
 from urllib.request import urlopen
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from workflow.scripts.import_pubmlst_scheme import DEFAULT_BASE_URL, REQUEST_TIMEOUT_SECONDS, validate_base_url
+from workflow.scripts.import_pubmlst_scheme import (
+    DEFAULT_BASE_URL,
+    REQUEST_TIMEOUT_SECONDS,
+    validate_base_url,
+)
 
 
 def fetch_json(url: str) -> dict | list:

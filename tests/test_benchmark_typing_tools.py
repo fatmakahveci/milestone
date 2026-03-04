@@ -5,7 +5,6 @@ import sys
 from importlib import util
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "benchmark_typing_tools.py"
 SPEC = util.spec_from_file_location("benchmark_typing_tools", MODULE_PATH)
 MODULE = util.module_from_spec(SPEC)

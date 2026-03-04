@@ -5,7 +5,6 @@ import json
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "compare_wgmlst_profiles.py"
 MODULE_SPEC = importlib.util.spec_from_file_location("compare_wgmlst_profiles", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(MODULE_SPEC)

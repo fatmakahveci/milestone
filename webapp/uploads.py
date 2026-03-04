@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import re
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
-
 
 UPLOAD_ROOT = Path(__file__).resolve().parent.parent / "webapp_uploads"
 MAX_UPLOAD_SIZE_MB = int(os.environ.get("MILESTONE_MAX_UPLOAD_MB", "250"))

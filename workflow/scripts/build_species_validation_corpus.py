@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
-import sys
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:

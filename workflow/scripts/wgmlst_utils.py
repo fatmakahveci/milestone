@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import re
 from collections import Counter
 from pathlib import Path
-import re
 from typing import Iterable
-
 
 COMMON_BACTERIAL_START_CODONS = {"ATG", "CTG", "GTG", "TTG"}
 STOP_CODONS = {"TAG", "TAA", "TGA"}

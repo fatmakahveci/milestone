@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import streamlit as st
-
 from demo_data import ALLELE_RUNS, SCHEMA_RUNS
 from runner import (
     create_download_bundle,

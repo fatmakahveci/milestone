@@ -6,7 +6,6 @@ import json
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "import_enterobase_scheme.py"
 SPEC = importlib.util.spec_from_file_location("import_enterobase_scheme", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

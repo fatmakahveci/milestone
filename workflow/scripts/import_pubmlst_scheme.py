@@ -4,16 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
 from pathlib import Path
-from urllib.parse import quote, urlparse
 from urllib.error import HTTPError, URLError
-from urllib.request import Request
-from urllib.request import urlopen
-import re
-
+from urllib.parse import quote, urlparse
+from urllib.request import Request, urlopen
 
 DEFAULT_BASE_URL = "https://rest.pubmlst.org"
 SUPPORTED_SCHEME_TYPES = {"wgmlst", "cgmlst"}

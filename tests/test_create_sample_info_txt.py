@@ -4,7 +4,6 @@ import importlib.util
 from argparse import Namespace
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "create_sample_info_txt.py"
 SPEC = importlib.util.spec_from_file_location("create_sample_info_txt", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

@@ -5,13 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import re
 import time
-from urllib.request import Request
+from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
-
+from urllib.request import Request, urlopen
 
 DEFAULT_BASE_URL = "https://enterobase.warwick.ac.uk"
 REQUEST_TIMEOUT_SECONDS = 30

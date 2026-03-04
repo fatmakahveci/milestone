@@ -6,7 +6,6 @@ import sys
 import zipfile
 from pathlib import Path
 
-
 READY_MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "publication_readiness.py"
 READY_SPEC = importlib.util.spec_from_file_location("publication_readiness", READY_MODULE_PATH)
 READY_MODULE = importlib.util.module_from_spec(READY_SPEC)

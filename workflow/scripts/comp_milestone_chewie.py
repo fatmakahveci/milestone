@@ -6,12 +6,11 @@ import argparse
 import sys
 from pathlib import Path
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from compare_wgmlst_profiles import parse_profile, compare_profiles, write_summary
+from compare_wgmlst_profiles import compare_profiles, parse_profile, write_summary
 
 
 def main() -> int:

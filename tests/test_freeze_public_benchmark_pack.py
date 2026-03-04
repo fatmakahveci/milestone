@@ -7,7 +7,6 @@ import sys
 import zipfile
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "freeze_public_benchmark_pack.py"
 SPEC = importlib.util.spec_from_file_location("freeze_public_benchmark_pack", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

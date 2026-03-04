@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
-import sys
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from schema_manifest import validate_schema_manifest
 from wgmlst_utils import (
     describe_quality_check,
     get_allele_id_from_allele_name,
@@ -20,7 +21,6 @@ from wgmlst_utils import (
     is_valid_allele_identifier,
     select_reference_record,
 )
-from schema_manifest import validate_schema_manifest
 
 
 @dataclass(frozen=True)

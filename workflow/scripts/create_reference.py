@@ -7,28 +7,34 @@
 ######################################################
 
 
-import argparse, glob, os, shutil, subprocess, sys
-
-from Bio import SeqIO
+import argparse
+import glob
+import os
+import shutil
+import subprocess
+import sys
 from collections import OrderedDict
 from pathlib import Path
+
+from Bio import SeqIO
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 
+from reference_formats import Vcf
+from reference_pipeline import (
+	call_variants_of_allele as pipeline_call_variants_of_allele,
+)
+from reference_pipeline import (
+	sort_zip_and_index_vcf_files as pipeline_sort_zip_and_index_vcf_files,
+)
+from script_utils import ParsedVariationInfo, run_checked_command
 from wgmlst_utils import (
 	get_allele_id_from_allele_name,
 	get_cds_name_from_allele_name,
 	select_reference_record,
 )
-from reference_pipeline import (
-	call_variants_of_allele as pipeline_call_variants_of_allele,
-	sort_zip_and_index_vcf_files as pipeline_sort_zip_and_index_vcf_files,
-)
-from reference_formats import Paf, Vcf
-from script_utils import ParsedVariationInfo, run_checked_command
-
 
 Info = ParsedVariationInfo
 
@@ -103,7 +109,7 @@ def get_ref_alt_qual_of_position_s_variant_dict( vcf_file: str, cds_name: str, a
 	
 				pos_ref = f'{vcf_line.pos}*{vcf_line.ref}'
 
-				if not pos_ref in pos_dict.keys():
+				if pos_ref not in pos_dict:
 
 					pos_dict[pos_ref] = { vcf_line.alt : vcf_line.qual }
 
@@ -342,7 +348,7 @@ def create_reference_vcf_fasta( wd: str, cds_to_merge_list: list ) -> None:
 				'##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele Counts">',
 				'##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">',
 				'##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
-			 ]
+			]
 
 	header.extend( list(contig_info_set) )
 	header.append("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tREFERENCE\n")
@@ -404,8 +410,10 @@ def create_dirs_to_split_sequences_to_call_variants() -> None:
 
 	except OSError:
 
-		print(f"Creation of the directories {args.schema_dir}/references "
-			  f"and {args.schema_dir}/alleles are failed.")
+		print(
+			f"Creation of the directories {args.schema_dir}/references "
+			f"and {args.schema_dir}/alleles are failed."
+		)
 
 
 def delete_sequences_created_by_milestone() -> None:

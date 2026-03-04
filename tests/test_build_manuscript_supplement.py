@@ -3,9 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
-import zipfile
 from pathlib import Path
-
 
 READY_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "publication_readiness.py"
 READY_SPEC = importlib.util.spec_from_file_location("publication_readiness", READY_PATH)

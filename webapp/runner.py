@@ -18,10 +18,10 @@ if str(REPO_ROOT) not in sys.path:
 
 from workflow.scripts.result_metrics import (
     summarize_batch_compare_summary,
-    summarize_distance_summary,
-    summarize_benchmark_summary,
     summarize_benchmark_pack_summary,
+    summarize_benchmark_summary,
     summarize_comparison_summary,
+    summarize_distance_summary,
     summarize_novel_alleles,
     summarize_schema_qc,
     summarize_wgmlst_profile,

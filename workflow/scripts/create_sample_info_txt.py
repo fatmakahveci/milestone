@@ -7,7 +7,9 @@
 #################################################################################
 
 
-import os, subprocess, sys
+import os
+import subprocess
+import sys
 from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,45 +18,75 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from reference_merge_pipeline import merge_reference_with_novel_vcfs
+from reference_update_io import (
+    write_allele_sequence_to_schema_seed as shared_write_allele_sequence_to_schema_seed,
+)
+from reference_update_io import (
+    write_variations_to_reference_info_file as shared_write_variations_to_reference_info_file,
+)
+from reference_update_io import (
+    write_variations_to_reference_vcf_file as shared_write_variations_to_reference_vcf_file,
+)
+from sample_call_cli_args import parse_cli_args
+from sample_call_orchestrator import run_sample_calling_workflow
+from sample_formats import Coverage, Sam, Vcf
+from sample_variation_io import (
+    create_sample_variation_dict as shared_create_sample_variation_dict,
+)
+from sample_variation_io import (
+    get_cigar as shared_get_cigar,
+)
+from sample_variation_io import (
+    get_cigar_info as shared_get_cigar_info,
+)
+from sample_variation_io import (
+    get_sample_sam_dict as shared_get_sample_sam_dict,
+)
+from sample_variation_io import (
+    get_var_type as shared_get_var_type,
+)
+from sample_variation_io import (
+    resolve_cigar as shared_resolve_cigar,
+)
+from script_utils import ParsedVariationInfo, run_checked_command
+from variation_utils import (
+    build_variation_signature as shared_build_variation_signature,
+)
+from variation_utils import (
+    merge_variations as shared_merge_variations,
+)
+from variation_utils import (
+    remove_common_mid as shared_remove_common_mid,
+)
+from variation_utils import (
+    remove_common_prefixes as shared_remove_common_prefixes,
+)
+from variation_utils import (
+    remove_common_suffixes as shared_remove_common_suffixes,
+)
+from variation_utils import (
+    remove_redundance as shared_remove_redundance,
+)
+from variation_utils import (
+    write_novel_allele_exports as shared_write_novel_allele_exports,
+)
 from wgmlst_utils import (
-    REFERENCE_ALLELE_ID,
     describe_quality_check,
     get_allele_id_from_allele_name,
     get_cds_name_from_allele_name,
     get_locus_length_mode_from_fasta,
     get_next_novel_allele_id_from_fasta,
+)
+from wgmlst_utils import (
     get_reference_alignment_target_name as shared_get_reference_alignment_target_name,
+)
+from wgmlst_utils import (
     get_reference_allele_name as shared_get_reference_allele_name,
+)
+from wgmlst_utils import (
     quality_check as shared_quality_check,
 )
-from script_utils import ParsedVariationInfo, run_checked_command
-from sample_variation_io import (
-    create_sample_variation_dict as shared_create_sample_variation_dict,
-    get_cigar as shared_get_cigar,
-    get_cigar_info as shared_get_cigar_info,
-    get_sample_sam_dict as shared_get_sample_sam_dict,
-    get_var_type as shared_get_var_type,
-    resolve_cigar as shared_resolve_cigar,
-)
-from reference_update_io import (
-    write_allele_sequence_to_schema_seed as shared_write_allele_sequence_to_schema_seed,
-    write_variations_to_reference_info_file as shared_write_variations_to_reference_info_file,
-    write_variations_to_reference_vcf_file as shared_write_variations_to_reference_vcf_file,
-)
-from reference_merge_pipeline import merge_reference_with_novel_vcfs
-from sample_call_cli_args import parse_cli_args
-from sample_call_orchestrator import run_sample_calling_workflow
-from sample_formats import Coverage, Sam, Vcf
-from variation_utils import (
-    build_variation_signature as shared_build_variation_signature,
-    merge_variations as shared_merge_variations,
-    remove_common_mid as shared_remove_common_mid,
-    remove_common_prefixes as shared_remove_common_prefixes,
-    remove_common_suffixes as shared_remove_common_suffixes,
-    remove_redundance as shared_remove_redundance,
-    write_novel_allele_exports as shared_write_novel_allele_exports,
-)
-
 
 Info = ParsedVariationInfo
 
@@ -528,7 +560,7 @@ def insert_variations_into_sequence( cds_reference: str, pos_list: list, ref_lis
 
         pos -= 1
 
-        if type(alt) == list:
+        if isinstance(alt, list):
 
             alt = alt[0]
 
@@ -812,7 +844,8 @@ def take_allele_id_for_sample_from_chewbbaca_alleles() -> dict:
     sample_allele_dict : { cds_1 : allele_ID_1, ... }
     """
 
-    import glob, shutil
+    import glob
+    import shutil
 
     runtime = _runtime_args()
     temp_sample_vcf_dir = f'{runtime.sample_vcf}_dir'

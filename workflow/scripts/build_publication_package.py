@@ -12,7 +12,6 @@ from pathlib import Path
 
 from publication_readiness import evaluate_readiness, load_json
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 

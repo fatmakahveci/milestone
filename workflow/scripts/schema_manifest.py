@@ -7,7 +7,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 REQUIRED_FIELDS = {
     "manifest_version",
     "schema_name",

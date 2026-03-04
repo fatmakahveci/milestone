@@ -7,7 +7,6 @@ from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "create_reference.py"
 
 

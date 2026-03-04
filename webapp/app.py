@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-
 from demo_data import (
     allele_outputs,
     available_species_packs,
@@ -16,35 +15,38 @@ from demo_data import (
     enterobase_scheme_outputs,
     matrix_outputs,
     pubmlst_benchmark_pack_outputs,
-    species_benchmark_pack_dir,
     sample_benchmark_table,
+    sample_comparison_table,
     sample_novel_allele_table,
     sample_wgmlst_table,
-    sample_comparison_table,
-    schema_qc_outputs,
     schema_outputs,
+    schema_qc_outputs,
+    species_benchmark_pack_dir,
 )
 from public_schemas import clear_schema_cache, filter_schemes_by_type, list_schemes
 from runner import (
     REPO_ROOT,
     WORKFLOW_SCRIPT,
-    build_allele_command as build_real_allele_command,
     build_import_enterobase_scheme_command,
     build_import_pubmlst_benchmark_pack_command,
+    build_import_scheme_command,
     build_profile_benchmark_command,
     build_profile_compare_batch_command,
     build_profile_compare_command,
     build_profile_matrix_command,
     build_schema_qc_command,
-    build_import_scheme_command,
-    build_schema_command as build_real_schema_command,
     command_to_text,
-    resolve_downloadable_path,
     is_safe_web_output_path,
     path_exists,
+    resolve_downloadable_path,
     start_background_job,
 )
-from uploads import create_upload_dir, save_many, save_uploaded_file
+from runner import (
+    build_allele_command as build_real_allele_command,
+)
+from runner import (
+    build_schema_command as build_real_schema_command,
+)
 from ui import (
     hero,
     inject_styles,
@@ -54,7 +56,7 @@ from ui import (
     show_demo_results,
     show_overview,
 )
-
+from uploads import create_upload_dir, save_many, save_uploaded_file
 
 st.set_page_config(
     page_title="Milestone wgMLST demo | bacterial strain typing",

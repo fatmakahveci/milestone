@@ -8,7 +8,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW_DIR = Path(__file__).resolve().parent
 RULES_DIR = WORKFLOW_DIR / "rules"

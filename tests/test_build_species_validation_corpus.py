@@ -6,7 +6,6 @@ import sys
 import zipfile
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "build_species_validation_corpus.py"
 SPEC = importlib.util.spec_from_file_location("build_species_validation_corpus", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

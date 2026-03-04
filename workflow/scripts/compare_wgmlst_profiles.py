@@ -8,7 +8,6 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-
 NON_COMPARABLE_CALLS = {"LNF", "ASM", "ALM", "NIPH", "NIPHEM"}
 
 

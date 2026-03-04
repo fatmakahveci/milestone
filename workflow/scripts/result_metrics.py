@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 NON_COMPARABLE = {"LNF", "ASM", "ALM", "NIPH", "NIPHEM"}
 
 

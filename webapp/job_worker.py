@@ -6,7 +6,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 JOBS_ROOT = Path(__file__).resolve().parent.parent / "webapp_jobs"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_SCRIPTS = {

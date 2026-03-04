@@ -5,7 +5,6 @@ import json
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "workflow" / "scripts" / "build_public_benchmark_workspace.py"
 SPEC = importlib.util.spec_from_file_location("build_public_benchmark_workspace", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
